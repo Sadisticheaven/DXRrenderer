@@ -60,6 +60,8 @@ void SceneEditor::OnInit()
 	// are invoked for each instance in the  AS
 	CreateShaderBindingTable();
 
+	//imgui srv heap
+	CreateSRVHeap4Imgui();
 }
 
 
@@ -322,6 +324,23 @@ void SceneEditor::OnDestroy()
 	CloseHandle(m_fenceEvent);
 }
 
+void SceneEditor::InitImGui4RayTracing(HWND hwnd)
+{
+	//init imgui win32 impl
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO();
+	(void)io;
+	ImGui::StyleColorsDark();
+	//init imgui dx12
+	ImGui_ImplWin32_Init(hwnd);
+	ID3D12DescriptorHeap* pSrvHeap4Imgui = m_srvHeap4Imgui.Get();
+	ImGui_ImplDX12_Init(m_device.Get(), 2,
+		DXGI_FORMAT_R8G8B8A8_UNORM, pSrvHeap4Imgui,
+		pSrvHeap4Imgui->GetCPUDescriptorHandleForHeapStart(),
+		pSrvHeap4Imgui->GetGPUDescriptorHandleForHeapStart());
+}
+
 void SceneEditor::PopulateCommandList()
 {
 	// Command list allocators can only be reset when the associated 
@@ -446,6 +465,9 @@ void SceneEditor::PopulateCommandList()
 
 	// Indicate that the back buffer will now be used to present.
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+
+	//define what will be displayed in imgui
+	StartImgui();
 
 	ThrowIfFailed(m_commandList->Close());
 }
@@ -816,6 +838,7 @@ void SceneEditor::CreateShaderResourceHeap() {
 		m_topLevelASBuffers.pResult->GetGPUVirtualAddress();
 	// Write the acceleration structure view in the heap
 	m_device->CreateShaderResourceView(nullptr, &srvDesc, srvHandle);
+
 }
 
 //-----------------------------------------------------------------------------
@@ -872,4 +895,43 @@ void SceneEditor::CreateShaderBindingTable() {
 
 	// Compile the SBT from the shader and parameters info
 	m_sbtHelper.Generate(m_sbtStorage.Get(), m_rtStateObjectProps.Get());
+}
+
+void SceneEditor::CreateSRVHeap4Imgui()
+{
+	D3D12_DESCRIPTOR_HEAP_DESC SrvHeapDesc;
+	SrvHeapDesc.NumDescriptors = 1;
+	SrvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	SrvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	SrvHeapDesc.NodeMask = 0;
+	ThrowIfFailed(m_device->CreateDescriptorHeap(
+		&SrvHeapDesc, IID_PPV_ARGS(m_srvHeap4Imgui.GetAddressOf())));
+}
+
+void SceneEditor::StartImgui()
+{
+	// Start the Dear ImGui frame
+	ImGui_ImplDX12_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+
+	bool show_demo_window = true;
+	if (show_demo_window)
+		ImGui::ShowDemoWindow(&show_demo_window);
+
+	{
+		static int counter = 0;
+		ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+		ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+		ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+		if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+			counter++;
+		ImGui::SameLine();
+		ImGui::Text("counter = %d", counter);
+		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+		ImGui::End();
+	}
+	m_commandList->SetDescriptorHeaps(1, m_srvHeap4Imgui.GetAddressOf());
+	ImGui::Render();
+	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList.Get());
 }

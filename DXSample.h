@@ -35,6 +35,8 @@ public:
 	const WCHAR* GetTitle() const   { return m_title.c_str(); }
 
 	void ParseCommandLineArgs(_In_reads_(argc) WCHAR* argv[], int argc);
+	//for imgui init
+	virtual void InitImGui4RayTracing(HWND hwnd) = 0;
 
 protected:
 	std::wstring GetAssetFullPath(LPCWSTR assetName);

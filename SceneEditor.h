@@ -39,6 +39,7 @@ public:
 	virtual void OnUpdate();
 	virtual void OnRender();
 	virtual void OnDestroy();
+	virtual void InitImGui4RayTracing(HWND hwnd);
 
 private:
 	static const UINT FrameCount = 2;
@@ -156,4 +157,9 @@ private:
 	nv_helpers_dx12::ShaderBindingTableGenerator m_sbtHelper;
 	ComPtr<ID3D12Resource> m_sbtStorage;
 	//***************************************************--------->
+
+	//imgui
+	ComPtr<ID3D12DescriptorHeap> m_srvHeap4Imgui;
+	void CreateSRVHeap4Imgui();
+	void StartImgui();
 };
