@@ -14,7 +14,7 @@
 
 #include "DXRHelper.h"
 #include "nv_helpers_dx12/BottomLevelASGenerator.h"
-#include "nv_helpers_dx12/RaytracingPipelineGenerator.h"   
+#include "nv_helpers_dx12/RaytracingPipelineGenerator.h"  
 #include "nv_helpers_dx12/RootSignatureGenerator.h"
 
 SceneEditor::SceneEditor(UINT width, UINT height, std::wstring name) :
@@ -341,6 +341,59 @@ void SceneEditor::InitImGui4RayTracing(HWND hwnd)
 		pSrvHeap4Imgui->GetGPUDescriptorHandleForHeapStart());
 }
 
+void SceneEditor::OnResize(HWND hWnd, int width, int height)
+{
+	WaitForPreviousFrame();
+
+	m_width = width;
+	m_height = height;
+
+	ThrowIfFailed(m_commandList->Reset(m_commandAllocator.Get(), nullptr));
+
+	for (UINT i = 0; i < FrameCount; i++)
+		if (m_renderTargets[i])
+		{
+			m_renderTargets[i].Reset();
+			/* m_renderTargets[i].Get() = nullptr;*/
+		}
+
+	// Resize the swap chain.
+	ThrowIfFailed(m_swapChain->ResizeBuffers(
+		FrameCount,
+		width, height,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+
+	// Create a RTV for each frame.
+	for (UINT n = 0; n < FrameCount; n++)
+	{
+		ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
+		m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
+		rtvHandle.Offset(1, m_rtvDescriptorSize);
+	}
+	// Execute the resize commands.
+	ThrowIfFailed(m_commandList->Close());
+	ID3D12CommandList* cmdsLists[] = { m_commandList.Get() };
+	m_commandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+	
+	WaitForPreviousFrame();
+
+	// Update the viewport transform to cover the client area.
+	m_viewport.TopLeftX = 0;
+	m_viewport.TopLeftY = 0;
+	m_viewport.Width = static_cast<float>(width);
+	m_viewport.Height = static_cast<float>(height);
+	m_viewport.MinDepth = 0.0f;
+	m_viewport.MaxDepth = 1.0f;
+
+	m_scissorRect.left = 0;
+	m_scissorRect.top = 0;
+	m_scissorRect.right = width;
+	m_scissorRect.bottom = height;
+}
+
 void SceneEditor::PopulateCommandList()
 {
 	// Command list allocators can only be reset when the associated 
@@ -383,84 +436,7 @@ void SceneEditor::PopulateCommandList()
 	}
 	else
 	{
-		/*const float clearColor[] = { 0.6f, 0.8f, 0.4f, 1.0f };
-		m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);*/
-		// #DXR
-		// Bind the descriptor heap giving access to the top-level acceleration
-		// structure, as well as the raytracing output
-		std::vector<ID3D12DescriptorHeap*> heaps = { m_srvUavHeap.Get() };
-		m_commandList->SetDescriptorHeaps(static_cast<UINT>(heaps.size()),
-			heaps.data());
-		// On the last frame, the raytracing output was used as a copy source, to
-		// copy its contents into the render target. Now we need to transition it to
-		// a UAV so that the shaders can write in it.
-		CD3DX12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(
-			m_outputResource.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE,
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		m_commandList->ResourceBarrier(1, &transition);
-
-		// Setup the raytracing task
-		D3D12_DISPATCH_RAYS_DESC desc = {};
-		// The layout of the SBT is as follows: ray generation shader, miss
-		// shaders, hit groups. As described in the CreateShaderBindingTable method,
-		// all SBT entries of a given type have the same size to allow a fixed stride.
-
-		// The ray generation shaders are always at the beginning of the SBT. 
-		uint32_t rayGenerationSectionSizeInBytes = m_sbtHelper.GetRayGenSectionSize();
-		desc.RayGenerationShaderRecord.StartAddress = m_sbtStorage->GetGPUVirtualAddress();
-		desc.RayGenerationShaderRecord.SizeInBytes = rayGenerationSectionSizeInBytes;
-
-		// The miss shaders are in the second SBT section, right after the ray
-		// generation shader. We have one miss shader for the camera rays and one
-		// for the shadow rays, so this section has a size of 2*m_sbtEntrySize. We
-		// also indicate the stride between the two miss shaders, which is the size
-		// of a SBT entry
-		uint32_t missSectionSizeInBytes = m_sbtHelper.GetMissSectionSize();
-		desc.MissShaderTable.StartAddress =
-			m_sbtStorage->GetGPUVirtualAddress() + rayGenerationSectionSizeInBytes;
-		desc.MissShaderTable.SizeInBytes = missSectionSizeInBytes;
-		desc.MissShaderTable.StrideInBytes = m_sbtHelper.GetMissEntrySize();
-
-		// The hit groups section start after the miss shaders. In this sample we
-		// have one 1 hit group for the triangle
-		uint32_t hitGroupsSectionSize = m_sbtHelper.GetHitGroupSectionSize();
-		desc.HitGroupTable.StartAddress = m_sbtStorage->GetGPUVirtualAddress() +
-			rayGenerationSectionSizeInBytes +
-			missSectionSizeInBytes;
-		desc.HitGroupTable.SizeInBytes = hitGroupsSectionSize;
-		desc.HitGroupTable.StrideInBytes = m_sbtHelper.GetHitGroupEntrySize();
-
-		// Dimensions of the image to render, identical to a kernel launch dimension
-		desc.Width = GetWidth();
-		desc.Height = GetHeight();
-		desc.Depth = 1;
-
-		// Bind the raytracing pipeline
-		m_commandList->SetPipelineState1(m_rtStateObject.Get());
-		// Dispatch the rays and write to the raytracing output
-		m_commandList->DispatchRays(&desc);
-
-		// The raytracing output needs to be copied to the actual render target used for display.
-		// For this, we need to transition the raytracing output from a	UAV to a copy source,
-		// and the render target buffer to a copy destination.
-		// We can then do the actual copy, before transitioning the render target
-		// buffer into a render target, that will be then used to display the image
-		transition = CD3DX12_RESOURCE_BARRIER::Transition(
-			m_outputResource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-			D3D12_RESOURCE_STATE_COPY_SOURCE);
-		m_commandList->ResourceBarrier(1, &transition);
-		transition = CD3DX12_RESOURCE_BARRIER::Transition(
-			m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET,
-			D3D12_RESOURCE_STATE_COPY_DEST);
-		m_commandList->ResourceBarrier(1, &transition);
-
-		m_commandList->CopyResource(m_renderTargets[m_frameIndex].Get(),
-			m_outputResource.Get());
-
-		transition = CD3DX12_RESOURCE_BARRIER::Transition(
-			m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_COPY_DEST,
-			D3D12_RESOURCE_STATE_RENDER_TARGET);
-		m_commandList->ResourceBarrier(1, &transition);
+		PopulateRaytracingCmdList();
 	}
 
 	// Indicate that the back buffer will now be used to present.
@@ -470,6 +446,86 @@ void SceneEditor::PopulateCommandList()
 	StartImgui();
 
 	ThrowIfFailed(m_commandList->Close());
+}
+
+void SceneEditor::PopulateRaytracingCmdList()
+{
+	// #DXR
+		// Bind the descriptor heap giving access to the top-level acceleration
+		// structure, as well as the raytracing output
+	std::vector<ID3D12DescriptorHeap*> heaps = { m_srvUavHeap.Get() };
+	m_commandList->SetDescriptorHeaps(static_cast<UINT>(heaps.size()),
+		heaps.data());
+	// On the last frame, the raytracing output was used as a copy source, to
+	// copy its contents into the render target. Now we need to transition it to
+	// a UAV so that the shaders can write in it.
+	CD3DX12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(
+		m_outputResource.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE,
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	m_commandList->ResourceBarrier(1, &transition);
+
+	// Setup the raytracing task
+	D3D12_DISPATCH_RAYS_DESC desc = {};
+	// The layout of the SBT is as follows: ray generation shader, miss
+	// shaders, hit groups. As described in the CreateShaderBindingTable method,
+	// all SBT entries of a given type have the same size to allow a fixed stride.
+
+	// The ray generation shaders are always at the beginning of the SBT. 
+	uint32_t rayGenerationSectionSizeInBytes = m_sbtHelper.GetRayGenSectionSize();
+	desc.RayGenerationShaderRecord.StartAddress = m_sbtStorage->GetGPUVirtualAddress();
+	desc.RayGenerationShaderRecord.SizeInBytes = rayGenerationSectionSizeInBytes;
+
+	// The miss shaders are in the second SBT section, right after the ray
+	// generation shader. We have one miss shader for the camera rays and one
+	// for the shadow rays, so this section has a size of 2*m_sbtEntrySize. We
+	// also indicate the stride between the two miss shaders, which is the size
+	// of a SBT entry
+	uint32_t missSectionSizeInBytes = m_sbtHelper.GetMissSectionSize();
+	desc.MissShaderTable.StartAddress =
+		m_sbtStorage->GetGPUVirtualAddress() + rayGenerationSectionSizeInBytes;
+	desc.MissShaderTable.SizeInBytes = missSectionSizeInBytes;
+	desc.MissShaderTable.StrideInBytes = m_sbtHelper.GetMissEntrySize();
+
+	// The hit groups section start after the miss shaders. In this sample we
+	// have one 1 hit group for the triangle
+	uint32_t hitGroupsSectionSize = m_sbtHelper.GetHitGroupSectionSize();
+	desc.HitGroupTable.StartAddress = m_sbtStorage->GetGPUVirtualAddress() +
+		rayGenerationSectionSizeInBytes +
+		missSectionSizeInBytes;
+	desc.HitGroupTable.SizeInBytes = hitGroupsSectionSize;
+	desc.HitGroupTable.StrideInBytes = m_sbtHelper.GetHitGroupEntrySize();
+
+	// Dimensions of the image to render, identical to a kernel launch dimension
+	desc.Width = GetWidth();
+	desc.Height = GetHeight();
+	desc.Depth = 1;
+
+	// Bind the raytracing pipeline
+	m_commandList->SetPipelineState1(m_rtStateObject.Get());
+	// Dispatch the rays and write to the raytracing output
+	m_commandList->DispatchRays(&desc);
+
+	// The raytracing output needs to be copied to the actual render target used for display.
+	// For this, we need to transition the raytracing output from a	UAV to a copy source,
+	// and the render target buffer to a copy destination.
+	// We can then do the actual copy, before transitioning the render target
+	// buffer into a render target, that will be then used to display the image
+	transition = CD3DX12_RESOURCE_BARRIER::Transition(
+		m_outputResource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_COPY_SOURCE);
+	m_commandList->ResourceBarrier(1, &transition);
+	transition = CD3DX12_RESOURCE_BARRIER::Transition(
+		m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_COPY_DEST);
+	m_commandList->ResourceBarrier(1, &transition);
+
+	m_commandList->CopyResource(m_renderTargets[m_frameIndex].Get(),
+		m_outputResource.Get());
+
+	transition = CD3DX12_RESOURCE_BARRIER::Transition(
+		m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_STATE_RENDER_TARGET);
+	m_commandList->ResourceBarrier(1, &transition);
 }
 
 void SceneEditor::WaitForPreviousFrame()
@@ -931,6 +987,7 @@ void SceneEditor::StartImgui()
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 		ImGui::End();
 	}
+	// set a srvheap for imgui to seperate it from raytracing
 	m_commandList->SetDescriptorHeaps(1, m_srvHeap4Imgui.GetAddressOf());
 	ImGui::Render();
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList.Get());

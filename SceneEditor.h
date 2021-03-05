@@ -40,6 +40,7 @@ public:
 	virtual void OnRender();
 	virtual void OnDestroy();
 	virtual void InitImGui4RayTracing(HWND hwnd);
+	virtual void OnResize(HWND hWnd, int width, int height);
 
 private:
 	static const UINT FrameCount = 2;
@@ -82,6 +83,7 @@ private:
 	void LoadPipeline();
 	void LoadAssets();
 	void PopulateCommandList();
+	void PopulateRaytracingCmdList();
 	void WaitForPreviousFrame();
 
 	void CheckRaytracingSupport();
