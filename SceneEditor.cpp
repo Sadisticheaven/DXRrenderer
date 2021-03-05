@@ -229,8 +229,6 @@ void SceneEditor::LoadAssets()
 	// Create the command list.
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
 
-
-
 	// Create the vertex buffer.
 	{
 		// Define the geometry for a triangle.
@@ -239,6 +237,8 @@ void SceneEditor::LoadAssets()
 			{ { 0.0f, 0.25f * m_aspectRatio, 0.0f }, { 1.0f, 1.0f, 0.0f, 1.0f } },
 			{ { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f, 1.0f, 1.0f } },
 			{ { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 1.0f, 0.0f, 1.0f, 1.0f } },
+
+
 			/*{ { -0.25f, 0.25f * m_aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
 			{ { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
 			{ { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } },
@@ -343,55 +343,76 @@ void SceneEditor::InitImGui4RayTracing(HWND hwnd)
 
 void SceneEditor::OnResize(HWND hWnd, int width, int height)
 {
-	WaitForPreviousFrame();
-
-	m_width = width;
-	m_height = height;
-
-	ThrowIfFailed(m_commandList->Reset(m_commandAllocator.Get(), nullptr));
-
-	for (UINT i = 0; i < FrameCount; i++)
-		if (m_renderTargets[i])
-		{
-			m_renderTargets[i].Reset();
-			/* m_renderTargets[i].Get() = nullptr;*/
-		}
-
-	// Resize the swap chain.
-	ThrowIfFailed(m_swapChain->ResizeBuffers(
-		FrameCount,
-		width, height,
-		DXGI_FORMAT_R8G8B8A8_UNORM,
-		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-
-	// Create a RTV for each frame.
-	for (UINT n = 0; n < FrameCount; n++)
+	// For rasterazation.
 	{
-		ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
-		m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
-		rtvHandle.Offset(1, m_rtvDescriptorSize);
+		WaitForPreviousFrame();
+
+		m_width = width;
+		m_height = height;
+
+		ThrowIfFailed(m_commandList->Reset(m_commandAllocator.Get(), nullptr));
+
+		for (UINT i = 0; i < FrameCount; i++)
+			if (m_renderTargets[i])
+			{
+				m_renderTargets[i].Reset();
+				//m_renderTargets[i] = nullptr;
+			}
+
+		// Resize the swap chain.
+		ThrowIfFailed(m_swapChain->ResizeBuffers(
+			FrameCount,
+			width, height,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
+
+		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+
+		// Create a RTV for each frame.
+		for (UINT n = 0; n < FrameCount; n++)
+		{
+			ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
+			m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
+			rtvHandle.Offset(1, m_rtvDescriptorSize);
+		}
+		// Execute the resize commands.
+		ThrowIfFailed(m_commandList->Close());
+		ID3D12CommandList* cmdsLists[] = { m_commandList.Get() };
+		m_commandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+
+		WaitForPreviousFrame();
+
+		// Update the viewport transform to cover the client area.
+		/*m_viewport.TopLeftX = 0;
+		m_viewport.TopLeftY = 0;
+		m_viewport.Width = static_cast<float>(width);
+		m_viewport.Height = static_cast<float>(height);
+		m_viewport.MinDepth = 0.0f;
+		m_viewport.MaxDepth = 1.0f;
+
+		m_scissorRect.left = 0;
+		m_scissorRect.top = 0;
+		m_scissorRect.right = width;
+		m_scissorRect.bottom = height;*/
 	}
-	// Execute the resize commands.
-	ThrowIfFailed(m_commandList->Close());
-	ID3D12CommandList* cmdsLists[] = { m_commandList.Get() };
-	m_commandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
-	WaitForPreviousFrame();
+	// For raytracing.
+	{
+		m_outputResource.Reset();
 
-	// Update the viewport transform to cover the client area.
-	m_viewport.TopLeftX = 0;
-	m_viewport.TopLeftY = 0;
-	m_viewport.Width = static_cast<float>(width);
-	m_viewport.Height = static_cast<float>(height);
-	m_viewport.MinDepth = 0.0f;
-	m_viewport.MaxDepth = 1.0f;
+		// Create the output resource. The dimensions and format should match the swap-chain.
+		auto uavDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, m_width, m_height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-	m_scissorRect.left = 0;
-	m_scissorRect.top = 0;
-	m_scissorRect.right = width;
-	m_scissorRect.bottom = height;
+		auto defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+		ThrowIfFailed(m_device->CreateCommittedResource(
+			&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &uavDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&m_outputResource)));
+
+		D3D12_CPU_DESCRIPTOR_HANDLE uavDescriptorHandle = m_srvUavHeap->GetCPUDescriptorHandleForHeapStart();;
+
+		D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
+		UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+		m_device->CreateUnorderedAccessView(m_outputResource.Get(), nullptr, &UAVDesc, uavDescriptorHandle);
+	}
 }
 
 void SceneEditor::PopulateCommandList()
@@ -406,7 +427,7 @@ void SceneEditor::PopulateCommandList()
 	// re-recording.
 	ThrowIfFailed(m_commandList->Reset(m_commandAllocator.Get(), m_pipelineState.Get()));
 
-	// Set necessary state.
+	// Set necessary state for Rasterazation.
 	//m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 	//m_commandList->RSSetViewports(1, &m_viewport);
 	//m_commandList->RSSetScissorRects(1, &m_scissorRect);
@@ -417,15 +438,8 @@ void SceneEditor::PopulateCommandList()
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
 	m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
-	//// Record commands.
-	//const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-	//m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-	//m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	//m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-	//m_commandList->DrawInstanced(3, 1, 0, 0);
-
-	// Record commands.
-	// #DXR
+	// Record commands 
+	//Rasterazation.	
 	/*
 	if (m_raster)
 	{
@@ -435,6 +449,7 @@ void SceneEditor::PopulateCommandList()
 		m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 		m_commandList->DrawInstanced(6, 1, 0, 0);
 	}*/
+	// #DXR
 	PopulateRaytracingCmdList();
 
 	// Indicate that the back buffer will now be used to present.
