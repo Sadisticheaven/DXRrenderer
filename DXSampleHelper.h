@@ -13,6 +13,9 @@
 #include "Win32Application.h"
 #include <d3d12.h>
 #include <wrl/client.h>
+
+using Microsoft::WRL::ComPtr;
+
 inline void ThrowIfFailed(HRESULT hr)
 {
 	if (FAILED(hr))
@@ -20,6 +23,13 @@ inline void ThrowIfFailed(HRESULT hr)
 		throw std::exception();
 	}
 }
+
+struct D3DBuffer
+{
+	ComPtr<ID3D12Resource> resource;
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuDescriptorHandle;
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorHandle;
+};
 
 inline void GetAssetsPath(_Out_writes_(pathSize) WCHAR* path, UINT pathSize)
 {

@@ -78,7 +78,7 @@ private:
 	UINT64 m_fenceValue;
 
 	
-	bool m_raster = true;
+	//bool m_raster = true;
 
 	void LoadPipeline();
 	void LoadAssets();

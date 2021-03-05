@@ -188,6 +188,7 @@ void SceneEditor::LoadAssets()
 
 	// Create the pipeline state, which includes compiling and loading shaders.
 	{
+		/*
 		ComPtr<ID3DBlob> vertexShader;
 		ComPtr<ID3DBlob> pixelShader;
 
@@ -197,7 +198,6 @@ void SceneEditor::LoadAssets()
 #else
 		UINT compileFlags = 0;
 #endif
-
 		ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
 		ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
 
@@ -223,13 +223,13 @@ void SceneEditor::LoadAssets()
 		psoDesc.NumRenderTargets = 1;
 		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 		psoDesc.SampleDesc.Count = 1;
-		ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
+		ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));*/
 	}
 
 	// Create the command list.
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
 
-	
+
 
 	// Create the vertex buffer.
 	{
@@ -270,9 +270,9 @@ void SceneEditor::LoadAssets()
 		m_vertexBuffer->Unmap(0, nullptr);
 
 		// Initialize the vertex buffer view.
-		m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
-		m_vertexBufferView.StrideInBytes = sizeof(Vertex);
-		m_vertexBufferView.SizeInBytes = vertexBufferSize;
+		//m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
+		//m_vertexBufferView.StrideInBytes = sizeof(Vertex);
+		//m_vertexBufferView.SizeInBytes = vertexBufferSize;
 	}
 
 	// Create synchronization objects and wait until assets have been uploaded to the GPU.
@@ -377,7 +377,7 @@ void SceneEditor::OnResize(HWND hWnd, int width, int height)
 	ThrowIfFailed(m_commandList->Close());
 	ID3D12CommandList* cmdsLists[] = { m_commandList.Get() };
 	m_commandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-	
+
 	WaitForPreviousFrame();
 
 	// Update the viewport transform to cover the client area.
@@ -407,12 +407,12 @@ void SceneEditor::PopulateCommandList()
 	ThrowIfFailed(m_commandList->Reset(m_commandAllocator.Get(), m_pipelineState.Get()));
 
 	// Set necessary state.
-	m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
-	m_commandList->RSSetViewports(1, &m_viewport);
-	m_commandList->RSSetScissorRects(1, &m_scissorRect);
+	//m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+	//m_commandList->RSSetViewports(1, &m_viewport);
+	//m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
 	// Indicate that the back buffer will be used as a render target.
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	//m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
 	m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
@@ -426,18 +426,7 @@ void SceneEditor::PopulateCommandList()
 
 	// Record commands.
 	// #DXR
-	if (m_raster)
-	{
-		const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-		m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-		m_commandList->DrawInstanced(6, 1, 0, 0);
-	}
-	else
-	{
-		PopulateRaytracingCmdList();
-	}
+	PopulateRaytracingCmdList();
 
 	// Indicate that the back buffer will now be used to present.
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
@@ -562,10 +551,10 @@ void SceneEditor::CheckRaytracingSupport()
 void SceneEditor::OnKeyUp(UINT8 key)
 {
 	// Alternate between rasterization and raytracing using the spacebar
-	if (key == VK_SPACE)
-	{
-		m_raster = !m_raster;
-	}
+	//if (key == VK_SPACE)
+	//{
+	//	m_raster = !m_raster;
+	//}
 }
 
 //-----------------------------------------------------------------------------
@@ -717,12 +706,10 @@ void SceneEditor::CreateAccelerationStructures() {
 ComPtr<ID3D12RootSignature> SceneEditor::CreateRayGenSignature() {
 	nv_helpers_dx12::RootSignatureGenerator rsc;
 	rsc.AddHeapRangesParameter(
-		{ {0 /*u0*/, 1 /*1 descriptor */, 0 /*use the implicit register space 0*/,
-		  D3D12_DESCRIPTOR_RANGE_TYPE_UAV /* UAV representing the output buffer*/,
-		  0 /*heap slot where the UAV is defined*/},
-		 {0 /*t0*/, 1, 0,
-		  D3D12_DESCRIPTOR_RANGE_TYPE_SRV /*Top-level acceleration structure*/,
-		  1} });
+		{
+			{0,1,0,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,0},
+			{0,1,0,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,1},
+		});
 
 	return rsc.Generate(m_device.Get(), true);
 }
@@ -920,7 +907,7 @@ void SceneEditor::CreateShaderBindingTable() {
 	// while DX12 uses the
 	// D3D12_GPU_DESCRIPTOR_HANDLE to define heap pointers. The pointer in this
 	// struct is a UINT64, which then has to be reinterpreted as a pointer.
-	auto heapPointer = reinterpret_cast<UINT64 *>(srvUavHeapHandle.ptr);
+	auto heapPointer = reinterpret_cast<UINT64*>(srvUavHeapHandle.ptr);
 
 	// The ray generation only uses heap data
 	m_sbtHelper.AddRayGenerationProgram(L"RayGen", { heapPointer });
