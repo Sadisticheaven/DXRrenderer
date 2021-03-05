@@ -426,6 +426,15 @@ void SceneEditor::PopulateCommandList()
 
 	// Record commands.
 	// #DXR
+	/*
+	if (m_raster)
+	{
+		const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+		m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+		m_commandList->DrawInstanced(6, 1, 0, 0);
+	}*/
 	PopulateRaytracingCmdList();
 
 	// Indicate that the back buffer will now be used to present.
