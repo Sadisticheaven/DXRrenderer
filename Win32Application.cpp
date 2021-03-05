@@ -100,6 +100,15 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
 		}
 		return 0;
 
+	case WM_SIZE:
+		if (wParam != SIZE_MINIMIZED)
+		{
+			ImGui_ImplDX12_InvalidateDeviceObjects();
+			pSample->OnResize(hWnd, (UINT)LOWORD(lParam), (UINT)HIWORD(lParam));
+			ImGui_ImplDX12_CreateDeviceObjects();
+		}
+		return 0;
+
 	case WM_KEYDOWN:
 		if (pSample)
 		{

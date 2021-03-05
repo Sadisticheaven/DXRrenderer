@@ -139,7 +139,6 @@
     <ClInclude Include="nv_helpers_dx12\TopLevelASGenerator.h" />
     <ClInclude Include="SceneEditor.h" />
     <ClInclude Include="Win32Application.h" />
-    <ClInclude Include="D3D12HelloTriangle.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DXSample.h" />
     <ClInclude Include="DXSampleHelper.h" />
@@ -189,7 +188,6 @@
     </ClCompile>
     <ClCompile Include="SceneEditor.cpp" />
     <ClCompile Include="Win32Application.cpp" />
-    <ClCompile Include="D3D12HelloTriangle.cpp" />
     <ClCompile Include="DXSample.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="stdafx.cpp">

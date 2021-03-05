@@ -13,9 +13,6 @@
     <Filter Include="Assets\Shaders">
       <UniqueIdentifier>{8b0cb0c9-e0d8-4107-91c8-11654fac88e7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\D3D12HelloTriangle">
-      <UniqueIdentifier>{be36e3de-841b-404f-a23e-bf1192750e0e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\SceneEditor">
       <UniqueIdentifier>{66077e7c-2ca9-4539-8d22-a0d12ead6cd2}</UniqueIdentifier>
     </Filter>
@@ -40,9 +37,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DXSampleHelper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="D3D12HelloTriangle.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Win32Application.h">
@@ -101,12 +95,6 @@
     <ClCompile Include="Win32Application.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="D3D12HelloTriangle.cpp">
-      <Filter>Source Files\D3D12HelloTriangle</Filter>
-    </ClCompile>
-    <ClCompile Include="Main.cpp">
-      <Filter>Source Files\D3D12HelloTriangle</Filter>
-    </ClCompile>
     <ClCompile Include="SceneEditor.cpp">
       <Filter>Source Files\SceneEditor</Filter>
     </ClCompile>
@@ -145,6 +133,9 @@
     </ClCompile>
     <ClCompile Include="imgui\imgui_widgets.cpp">
       <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="Main.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
