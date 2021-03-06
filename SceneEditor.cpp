@@ -1089,3 +1089,56 @@ void SceneEditor::UpdateCameraBuffer() {
 	memcpy(pData, &matrices, m_cameraBufferSize);
 	m_cameraBuffer->Unmap(0, nullptr);
 }
+
+SceneEditor::AccelerationStructureBuffers
+SceneEditor::CreateBottomLevelAS(
+	std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vVertexBuffers,
+	std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vIndexBuffers) {
+	nv_helpers_dx12::BottomLevelASGenerator bottomLevelAS;
+
+	// Adding all vertex buffers and not transforming their position.
+	for (size_t i = 0; i < vVertexBuffers.size(); i++) {
+		// for (const auto &buffer : vVertexBuffers) {
+		if (i < vIndexBuffers.size() && vIndexBuffers[i].second > 0)
+			bottomLevelAS.AddVertexBuffer(vVertexBuffers[i].first.Get(), 0,
+				vVertexBuffers[i].second, sizeof(Vertex),
+				vIndexBuffers[i].first.Get(), 0,
+				vIndexBuffers[i].second, nullptr, 0, true);
+
+		else
+			bottomLevelAS.AddVertexBuffer(vVertexBuffers[i].first.Get(), 0,
+				vVertexBuffers[i].second, sizeof(Vertex), 0,
+				0);
+	}
+	// The AS build requires some scratch space to store temporary information.
+	// The amount of scratch memory is dependent on the scene complexity.
+	UINT64 scratchSizeInBytes = 0;
+	// The final AS also needs to be stored in addition to the existing vertex
+	// buffers. It size is also dependent on the scene complexity.
+	UINT64 resultSizeInBytes = 0;
+
+	bottomLevelAS.ComputeASBufferSizes(m_device.Get(), false, &scratchSizeInBytes,
+		&resultSizeInBytes);
+
+	// Once the sizes are obtained, the application is responsible for allocating
+	// the necessary buffers. Since the entire generation will be done on the GPU,
+	// we can directly allocate those on the default heap
+	AccelerationStructureBuffers buffers;
+	buffers.pScratch = nv_helpers_dx12::CreateBuffer(
+		m_device.Get(), scratchSizeInBytes,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON,
+		nv_helpers_dx12::kDefaultHeapProps);
+	buffers.pResult = nv_helpers_dx12::CreateBuffer(
+		m_device.Get(), resultSizeInBytes,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+		nv_helpers_dx12::kDefaultHeapProps);
+
+	// Build the acceleration structure. Note that this call integrates a barrier
+	// on the generated AS, so that it can be used to compute a top-level AS right
+	// after this method.
+	bottomLevelAS.Generate(m_commandList.Get(), buffers.pScratch.Get(),
+		buffers.pResult.Get(), false, nullptr);
+
+	return buffers;
+}

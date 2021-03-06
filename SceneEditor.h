@@ -72,7 +72,7 @@ private:
 	ComPtr<ID3D12Fence> m_fence;
 	UINT64 m_fenceValue;
 
-	
+
 	//bool m_raster = true;
 
 	void LoadPipeline();
@@ -96,7 +96,7 @@ private:
 
 	ComPtr<ID3D12Resource> m_bottomLevelAS; // Storage for the bottom Level AS
 	int m_vertexCount;//vertex count of VB
-	nv_helpers_dx12::TopLevelASGenerator m_topLevelASGenerator;	
+	nv_helpers_dx12::TopLevelASGenerator m_topLevelASGenerator;
 	std::vector<std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>> m_instances;
 
 	/// Create the acceleration structure of an instance
@@ -105,6 +105,9 @@ private:
 	/// \return    AccelerationStructureBuffers for TLAS
 	AccelerationStructureBuffers
 		CreateBottomLevelAS(std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vVertexBuffers);
+	AccelerationStructureBuffers
+		CreateBottomLevelAS(std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vVertexBuffers, std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vIndexBuffers);
+
 
 	/// Create the main acceleration structure that holds
 	/// all instances of the scene
