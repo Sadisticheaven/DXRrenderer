@@ -1,4 +1,5 @@
-#include "Common.hlsl"
+#define HLSL
+#include "HLSLCompat.h"
 
 // Raytracing output texture, accessed as a UAV
 RWTexture2D< float4 > gOutput : register(u0);

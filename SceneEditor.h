@@ -14,7 +14,7 @@
 #include "DXSample.h"
 #include <dxcapi.h>
 #include <vector>
-
+#include "HLSLCompat.h"
 #include "nv_helpers_dx12/TopLevelASGenerator.h"
 #include "nv_helpers_dx12/ShaderBindingTableGenerator.h"
 //#include <DirectXMath.h>
@@ -45,11 +45,6 @@ public:
 private:
 	static const UINT FrameCount = 2;
 
-	struct Vertex
-	{
-		XMFLOAT3 position;
-		XMFLOAT4 color;
-	};
 
 	// Pipeline objects.
 	CD3DX12_VIEWPORT m_viewport;
