@@ -5,7 +5,7 @@
 StructuredBuffer<Vertex> BTriVertex : register(t0);
 
 [shader("closesthit")] 
-void ClosestHit(inout HitInfo payload, BuiltInTriangleIntersectionAttributes attrib)
+void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes attrib)
 {
 	/*
 	The following structure is declared in HLSL to represent hit attributes for fixed-function triangle intersection:

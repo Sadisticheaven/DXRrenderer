@@ -32,9 +32,10 @@ typedef UINT32 Index;
 #endif //HLSL
 
 
-struct HitInfo
+struct PayLoad
 {
 	XMFLOAT4 colorAndDistance;
+    UINT recursionDepth;
 };
 
 struct Vertex
@@ -43,7 +44,40 @@ struct Vertex
 	XMFLOAT4 color;
 };
 
+struct SceneConstants
+{
+	XMMATRIX view;
+	XMMATRIX projection;
+	XMMATRIX viewI;
+	XMMATRIX projectionI;
+    UINT spp;
+};
+
+namespace MaterialType {
+    enum Type {
+        Default,
+        Matte,      // Lambertian scattering
+        Mirror,     // Specular reflector that isn't modified by the Fresnel equations.
+        AnalyticalCheckerboardTexture
+    };
+}
+struct PrimitiveMaterialBuffer
+{
+    XMFLOAT3 Kd;
+    XMFLOAT3 Ks;
+    XMFLOAT3 Kr;
+    XMFLOAT3 Kt;
+    XMFLOAT3 opacity;
+    XMFLOAT3 emit;
+    float roughness;
+    //BOOL hasDiffuseTexture;
+    //BOOL hasNormalTexture;
+    //BOOL hasPerVertexTangents;
+    MaterialType::Type type;
+    float padding;
+};
 // Attributes output by the raytracing when hitting a surface,
 // here the barycentric coordinates
+
 
 #endif //RAYTRACINGHLSLCOMPAT_H

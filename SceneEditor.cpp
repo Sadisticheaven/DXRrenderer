@@ -297,6 +297,8 @@ void SceneEditor::LoadAssets()
 // Update frame-based values.
 void SceneEditor::OnUpdate()
 {
+	// #DXR Extra: Perspective Camera
+	UpdateCameraBuffer();
 }
 
 // Render the scene.
@@ -723,11 +725,13 @@ void SceneEditor::CreateAccelerationStructures() {
 // and the top-level acceleration structure
 //
 ComPtr<ID3D12RootSignature> SceneEditor::CreateRayGenSignature() {
+	auto default = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 	nv_helpers_dx12::RootSignatureGenerator rsc;
 	rsc.AddHeapRangesParameter(
 		{
-			{0,1,0,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,0},
-			{0,1,0,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,1},
+			{0 /*u0*/, 1 /*1 descriptor */, 0, D3D12_DESCRIPTOR_RANGE_TYPE_UAV /*Raytracing output*/,default},
+			{0 /*t0*/, 1, 0 /*use the implicit register space 0*/, D3D12_DESCRIPTOR_RANGE_TYPE_SRV /*TLAS*/,default},
+			{0 /*b0*/, 1, 0, D3D12_DESCRIPTOR_RANGE_TYPE_CBV /*Camera parameters*/, default}
 		});
 
 	return rsc.Generate(m_device.Get(), true);
@@ -819,7 +823,8 @@ void SceneEditor::CreateRaytracingPipeline()
 	// exchanged between shaders, such as the HitInfo structure in the HLSL code.
 	// It is important to keep this value as low as possible as a too high value
 	// would result in unnecessary memory consumption and cache trashing.
-	pipeline.SetMaxPayloadSize(4 * sizeof(float)); // RGB + distance
+	pipeline.SetMaxPayloadSize(sizeof(PayLoad)); // RGB + distance
+	//pipeline.SetMaxPayloadSize(4 * sizeof(float) ); // RGB + distance
 
 	// Upon hitting a surface, DXR can provide several attributes to the hit. In
 	// our sample we just use the barycentric coordinates defined by the weights
@@ -867,13 +872,18 @@ void SceneEditor::CreateRaytracingOutputBuffer() {
 		&nv_helpers_dx12::kDefaultHeapProps, D3D12_HEAP_FLAG_NONE, &resDesc,
 		D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr,
 		IID_PPV_ARGS(&m_outputResource)));
+
+	// #DXR Extra: Perspective Camera
+	// Create a buffer to store the modelview and perspective camera matrices
+	CreateCameraBuffer();
+
 }
 
 void SceneEditor::CreateShaderResourceHeap() {
-	// Create a SRV/UAV/CBV descriptor heap. We need 2 entries - 1 UAV for the
-	// raytracing output and 1 SRV for the TLAS
+	// Create a SRV/UAV/CBV descriptor heap. We need 3 entries - 1 UAV for the
+	// raytracing output, 1 SRV for the TLAS, and 1 CBV for the camera matrices
 	m_srvUavHeap = nv_helpers_dx12::CreateDescriptorHeap(
-		m_device.Get(), 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+		m_device.Get(), 1000, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
 	// Get a handle to the heap memory on the CPU side, to be able to write the
 	// descriptors directly
@@ -900,6 +910,17 @@ void SceneEditor::CreateShaderResourceHeap() {
 		m_topLevelASBuffers.pResult->GetGPUVirtualAddress();
 	// Write the acceleration structure view in the heap
 	m_device->CreateShaderResourceView(nullptr, &srvDesc, srvHandle);
+
+	// #DXR Extra: Perspective Camera
+	// Add the constant buffer for the camera after the TLAS
+	srvHandle.ptr +=m_device->GetDescriptorHandleIncrementSize(
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	// Describe and create a constant buffer view for the camera
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+	cbvDesc.BufferLocation = m_cameraBuffer->GetGPUVirtualAddress();
+	cbvDesc.SizeInBytes = m_cameraBufferSize;
+	m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
 
 }
 
@@ -997,4 +1018,74 @@ void SceneEditor::StartImgui()
 	m_commandList->SetDescriptorHeaps(1, m_srvHeap4Imgui.GetAddressOf());
 	ImGui::Render();
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList.Get());
+}
+
+//----------------------------------------------------------------------------------
+//
+// The camera buffer is a constant buffer that stores the transform matrices of
+// the camera, for use by both the rasterization and raytracing. This method
+// allocates the buffer where the matrices will be copied. For the sake of code
+// clarity, it also creates a heap containing only this buffer, to use in the
+// rasterization path.
+//
+// #DXR Extra: Perspective Camera
+void SceneEditor::CreateCameraBuffer()
+{
+	//uint32_t nbMatrix = 4; // view, perspective, viewInverse, perspectiveInverse
+	//size must be multiple of 256
+	m_cameraBufferSize = SizeOfIn256(SceneConstants);
+
+	// Create the constant buffer for all matrices
+	m_cameraBuffer = nv_helpers_dx12::CreateBuffer(
+		m_device.Get(), m_cameraBufferSize, D3D12_RESOURCE_FLAG_NONE,
+		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
+
+	// Create a descriptor heap that will be used by the rasterization shaders
+	m_constHeap = nv_helpers_dx12::CreateDescriptorHeap(
+		m_device.Get(), 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+
+	// Describe and create the constant buffer view.
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+	cbvDesc.BufferLocation = m_cameraBuffer->GetGPUVirtualAddress();
+	cbvDesc.SizeInBytes = m_cameraBufferSize;
+
+	// Get a handle to the heap memory on the CPU side, to be able to write the
+	// descriptors directly
+	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle =
+		m_constHeap->GetCPUDescriptorHandleForHeapStart();
+	m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
+}
+
+// #DXR Extra: Perspective Camera
+//--------------------------------------------------------------------------------
+// Create and copies the viewmodel and perspective matrices of the camera
+//
+void SceneEditor::UpdateCameraBuffer() {
+	SceneConstants matrices;
+
+	// Initialize the view matrix, ideally this should be based on user
+	// interactions The lookat and perspective matrices used for rasterization are
+	// defined to transform world-space vertices into a [0,1]x[0,1]x[0,1] camera
+	// space
+	XMVECTOR Eye = XMVectorSet(0.0f, 1.0f, 1.0f, 0.0f);
+	XMVECTOR At = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	matrices.view = XMMatrixLookAtRH(Eye, At, Up);
+
+	float fovAngleY = 45.0f * XM_PI / 180.0f;
+	matrices.projection =
+		XMMatrixPerspectiveFovRH(fovAngleY, m_aspectRatio, 0.1f, 1000.0f);
+
+	// Raytracing has to do the contrary of rasterization: rays are defined in
+	// camera space, and are transformed into world space. To do this, we need to
+	// store the inverse matrices as well.
+	XMVECTOR det;
+	matrices.viewI = XMMatrixInverse(&det, matrices.view);
+	matrices.projectionI = XMMatrixInverse(&det, matrices.projection);
+	matrices.spp = 0;
+	// Copy the matrix contents
+	uint8_t* pData;
+	ThrowIfFailed(m_cameraBuffer->Map(0, nullptr, (void**)&pData));
+	memcpy(pData, &matrices, m_cameraBufferSize);
+	m_cameraBuffer->Unmap(0, nullptr);
 }

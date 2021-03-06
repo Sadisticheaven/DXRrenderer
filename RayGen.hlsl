@@ -7,10 +7,13 @@ RWTexture2D< float4 > gOutput : register(u0);
 // Raytracing acceleration structure, accessed as a SRV
 RaytracingAccelerationStructure SceneBVH : register(t0);// declared in CreateRayGenSignature()
 
+// #DXR Extra: Perspective Camera
+ConstantBuffer<SceneConstants> scenePara : register(b0);
+
 [shader("raygeneration")]
 void RayGen() {
 	// Initialize the ray payload
-	HitInfo payload;
+	PayLoad payload;
 	//payload.colorAndDistance = float4(1, 0, 0, 1);
 	payload.colorAndDistance = float4(0, 0, 0, 0);
 
@@ -25,11 +28,22 @@ void RayGen() {
 	//Note that the y coordinate is inverted to match the image indexing convention of DirectX.
 
 	// Define a ray, consisting of origin, direction, and the min-max distance values
-	RayDesc ray;
+	/*RayDesc ray;
 	ray.Origin = float3(d.x, -d.y, 1);
-	ray.Direction = float3(0, 0, -1);
+	ray.Direction = float3(0, 0, -1);*/
+
+	// #DXR Extra: Perspective Camera
+	float aspectRatio = dims.x / dims.y;
+	// Perspective
+	RayDesc ray;
+	ray.Origin = mul(scenePara.viewI, float4(0, 0, 0, 1));
+	float4 target = mul(scenePara.projectionI, float4(d.x, -d.y, 1, 1));
+	ray.Direction = mul(scenePara.viewI, float4(target.xyz, 0));
+
 	ray.TMin = 0;
 	ray.TMax = 100000;
+
+	
 
 	// Trace the ray
 	TraceRay(

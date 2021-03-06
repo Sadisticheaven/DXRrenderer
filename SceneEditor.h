@@ -159,4 +159,12 @@ private:
 	ComPtr<ID3D12DescriptorHeap> m_srvHeap4Imgui;
 	void CreateSRVHeap4Imgui();
 	void StartImgui();
+
+	// #DXR Extra: Perspective Camera
+	void CreateCameraBuffer();
+	void UpdateCameraBuffer();
+	ComPtr<ID3D12Resource> m_cameraBuffer;
+	ComPtr<ID3D12DescriptorHeap> m_constHeap;
+	uint32_t m_cameraBufferSize = 0;
+
 };
