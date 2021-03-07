@@ -71,7 +71,8 @@ private:
 	HANDLE m_fenceEvent;
 	ComPtr<ID3D12Fence> m_fence;
 	UINT64 m_fenceValue;
-
+	SceneConstants matrices;
+	bool needRefreshScreen;
 
 	//bool m_raster = true;
 

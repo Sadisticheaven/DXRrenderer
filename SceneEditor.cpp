@@ -224,10 +224,11 @@ void SceneEditor::LoadAssets()
 		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 		psoDesc.SampleDesc.Count = 1;
 		ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));*/
+		needRefreshScreen = false;
 	}
-
 	// Create the command list.
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
+
 
 	// Create the vertex buffer.
 	{
@@ -1061,7 +1062,7 @@ void SceneEditor::CreateCameraBuffer()
 // Create and copies the viewmodel and perspective matrices of the camera
 //
 void SceneEditor::UpdateCameraBuffer() {
-	SceneConstants matrices;
+	//SceneConstants matrices;
 
 	// Initialize the view matrix, ideally this should be based on user
 	// interactions The lookat and perspective matrices used for rasterization are
@@ -1082,7 +1083,15 @@ void SceneEditor::UpdateCameraBuffer() {
 	XMVECTOR det;
 	matrices.viewI = XMMatrixInverse(&det, matrices.view);
 	matrices.projectionI = XMMatrixInverse(&det, matrices.projection);
-	matrices.spp = 0;
+
+	//set spp as 0 if some parameters change
+	if (needRefreshScreen) {
+		matrices.spp = 0;
+		needRefreshScreen = false;
+	}
+	else {
+		matrices.spp++;
+	}
 	// Copy the matrix contents
 	uint8_t* pData;
 	ThrowIfFailed(m_cameraBuffer->Map(0, nullptr, (void**)&pData));
