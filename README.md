@@ -5,7 +5,7 @@ This is a simple DXR renderer. It currently supports the following functions:
   2. A camera with fixed a fixed position and fov.
   3. A GUI with no actual functionality related to this renderer.
  
-##Build
+## Build
   * Windows 10 OS
   * Visual Studio 2019
   * dxcompiler.dll
