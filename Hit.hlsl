@@ -3,6 +3,9 @@
 
 
 StructuredBuffer<Vertex> BTriVertex : register(t0);
+StructuredBuffer<int> indices: register(t1);
+ConstantBuffer<PrimitiveMaterialBuffer> MaterialAttributes : register(b0);
+
 
 [shader("closesthit")] 
 void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes attrib)
@@ -18,10 +21,10 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 		float3(1.f - attrib.barycentrics.x - attrib.barycentrics.y, attrib.barycentrics.x, attrib.barycentrics.y);
 
 	uint vertId = 3 * PrimitiveIndex();
-	float3 hitColor = BTriVertex[vertId + 0].color * barycentrics.x +
-		BTriVertex[vertId + 1].color * barycentrics.y +
-		BTriVertex[vertId + 2].color * barycentrics.z;
-
-  //payload.colorAndDistance = float4(1, 1, 0, RayTCurrent());
-  payload.colorAndDistance = float4(hitColor, RayTCurrent());
+	float3 hitColor = BTriVertex[indices[vertId + 0]].color * barycentrics.x +
+		BTriVertex[indices[vertId + 1]].color * barycentrics.y +
+		BTriVertex[indices[vertId + 2]].color * barycentrics.z;
+	//hitColor = MaterialAttributes.Kd;
+	float3 Kd = abs(MaterialAttributes.Kd);
+  payload.colorAndDistance = float4(Kd, RayTCurrent());
 }

@@ -178,7 +178,70 @@ void SceneEditor::LoadPipeline()
 	ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
 }
 
+
+void SceneEditor::UploadGeometryBuffer(std::vector<Vertex> vertices, std::vector<Index> indices, int bufferIndex) {
+	m_vertexCount[bufferIndex] = static_cast<UINT>(vertices.size());
+	m_indexCount[bufferIndex] = static_cast<UINT>(indices.size());
+
+	const UINT VertexBufferSize = static_cast<UINT>(vertices.size()) * sizeof(Vertex);
+	{
+		CD3DX12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		CD3DX12_RESOURCE_DESC bufferResource = CD3DX12_RESOURCE_DESC::Buffer(VertexBufferSize);
+		ThrowIfFailed(m_device->CreateCommittedResource(
+			&heapProperty, D3D12_HEAP_FLAG_NONE, &bufferResource, //
+			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_vertexBuffer[bufferIndex])));
+
+		// Copy the triangle data to the vertex buffer.
+		UINT8* pVertexDataBegin;
+		CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_vertexBuffer[bufferIndex]->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
+		memcpy(pVertexDataBegin, vertices.data(), VertexBufferSize);
+		m_vertexBuffer[bufferIndex]->Unmap(0, nullptr);
+	}
+	// Initialize the vertex buffer view.
+	//m_mengerVBView.BufferLocation = m_mengerVB->GetGPUVirtualAddress();
+	//m_mengerVBView.StrideInBytes = sizeof(Vertex);
+	//m_mengerVBView.SizeInBytes = mengerVBSize;
+	const UINT IndexBufferSize = static_cast<UINT>(indices.size()) * sizeof(UINT);
+
+	// Note: using upload heaps to transfer static data like vert buffers is not
+	// recommended. Every time the GPU needs it, the upload heap will be
+	// marshalled over. Please read up on Default Heap usage. An upload heap is
+	// used here for code simplicity and because there are very few verts to
+	// actually transfer.
+	{
+		CD3DX12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		CD3DX12_RESOURCE_DESC bufferResource = CD3DX12_RESOURCE_DESC::Buffer(IndexBufferSize);
+		ThrowIfFailed(m_device->CreateCommittedResource(
+			&heapProperty, D3D12_HEAP_FLAG_NONE, &bufferResource, //
+			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_indexBuffer[bufferIndex])));
+
+		// Copy the triangle data to the index buffer.
+		UINT8* pIndexDataBegin;
+		CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_indexBuffer[bufferIndex]->Map(0, &readRange, reinterpret_cast<void**>(&pIndexDataBegin)));
+		memcpy(pIndexDataBegin, indices.data(), IndexBufferSize);
+		m_indexBuffer[bufferIndex]->Unmap(0, nullptr);
+	}
+}
+
+void SceneEditor::CreateMaterialBufferAndSetAttributes(XMFLOAT3 Kd, XMFLOAT3 emit, int bufferIndex) {
+	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
+	int k = sizeof(PrimitiveMaterialBuffer);
+	m_MaterialBuffer[bufferIndex] = nv_helpers_dx12::CreateBuffer(
+		m_device.Get(), m_MaterialBufferSize, D3D12_RESOURCE_FLAG_NONE,
+		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
+	m_MaterialAttributes[bufferIndex].Kd = Kd;
+	m_MaterialAttributes[bufferIndex].emit = emit;
+	uint8_t* pData;
+	ThrowIfFailed(m_MaterialBuffer[bufferIndex]->Map(0, nullptr, (void**)&pData));
+	memcpy(pData, &(m_MaterialAttributes[bufferIndex]), m_MaterialBufferSize);
+	m_MaterialBuffer[bufferIndex]->Unmap(0, nullptr);
+}
+
+
 // Load the sample assets.
+
 void SceneEditor::LoadAssets()
 {
 	// Create an empty root signature.
@@ -192,96 +255,34 @@ void SceneEditor::LoadAssets()
 		ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
 	}
 
-	// Create the pipeline state, which includes compiling and loading shaders.
-	{
-		/*
-		ComPtr<ID3DBlob> vertexShader;
-		ComPtr<ID3DBlob> pixelShader;
-
-#if defined(_DEBUG)
-		// Enable better shader debugging with the graphics debugging tools.
-		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-		UINT compileFlags = 0;
-#endif
-		ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
-		ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
-
-		// Define the vertex input layout.
-		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
-		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-		};
-
-		// Describe and create the graphics pipeline state object (PSO).
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-		psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
-		psoDesc.pRootSignature = m_rootSignature.Get();
-		psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
-		psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
-		psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-		psoDesc.DepthStencilState.DepthEnable = FALSE;
-		psoDesc.DepthStencilState.StencilEnable = FALSE;
-		psoDesc.SampleMask = UINT_MAX;
-		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		psoDesc.NumRenderTargets = 1;
-		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-		psoDesc.SampleDesc.Count = 1;
-		ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));*/
-	}
+	needRefreshScreen = false;
 
 	// Create the command list.
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
 
-	// Create the vertex buffer.
+
+	// Create the vertex and index buffer.
 	{
 		// Define the geometry for a triangle.
-		Vertex triangleVertices[] =
+		std::vector<Vertex> vertices =
 		{
-			{ { 0.0f, 0.25f * m_aspectRatio, 0.0f }, { 1.0f, 1.0f, 0.0f, 1.0f } },
-			{ { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f, 1.0f, 1.0f } },
-			{ { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 1.0f, 0.0f, 1.0f, 1.0f } },
-
-
-			/*{ { -0.25f, 0.25f * m_aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-			{ { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-			{ { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } },
-
-			{ { -0.25f, 0.25f * m_aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-			{ { 0.25f, 0.25f * m_aspectRatio, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-			{ { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } }*/
+			{ { 0.0f, 0.25f , 0.0f }, { 1.0f, 1.0f, 0.0f, 1.0f } },
+			{ { 0.25f, -0.25f , 0.0f }, { 0.0f, 1.0f, 1.0f, 1.0f } },
+			{ { -0.25f, -0.25f , 0.0f }, { 1.0f, 0.0f, 1.0f, 1.0f } },
+			{ { 1.0f, -1.5f , 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
+			{ { -1.0f, -1.5f , -1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
 		};
-		m_vertexCount = 3;
-		const UINT vertexBufferSize = sizeof(triangleVertices);
 
-		// Note: using upload heaps to transfer static data like vert buffers is not 
-		// recommended. Every time the GPU needs it, the upload heap will be marshalled 
-		// over. Please read up on Default Heap usage. An upload heap is used here for 
-		// code simplicity and because there are very few verts to actually transfer.
-		ThrowIfFailed(m_device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&m_vertexBuffer)));
+		std::vector<Index> indices =
+		{
+			1,2,3,
+			0,1,2,
 
-		// Copy the triangle data to the vertex buffer.
-		UINT8* pVertexDataBegin;
-		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
-		ThrowIfFailed(m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
-		memcpy(pVertexDataBegin, triangleVertices, sizeof(triangleVertices));
-		m_vertexBuffer->Unmap(0, nullptr);
-
-		// Initialize the vertex buffer view.
-		//m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
-		//m_vertexBufferView.StrideInBytes = sizeof(Vertex);
-		//m_vertexBufferView.SizeInBytes = vertexBufferSize;
+		};
+		UploadGeometryBuffer(vertices, indices, SceneObject::Test_Triangle);
+		CreateMaterialBufferAndSetAttributes();
 	}
 
-	// Create synchronization objects and wait until assets have been uploaded to the GPU.
 	{
 		ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
 		m_fenceValue = 1;
@@ -293,9 +294,6 @@ void SceneEditor::LoadAssets()
 			ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
 		}
 
-		// Wait for the command list to execute; we are reusing the same command 
-		// list in our main loop but for now, we just want to wait for setup to 
-		// complete before continuing.
 		WaitForPreviousFrame();
 	}
 }
@@ -727,7 +725,8 @@ void SceneEditor::CreateTopLevelAS(
 void SceneEditor::CreateAccelerationStructures() {
 	// Build the bottom AS from the Triangle vertex buffer
 	AccelerationStructureBuffers bottomLevelBuffers =
-		CreateBottomLevelAS({ {m_vertexBuffer.Get(), m_vertexCount} });
+		CreateBottomLevelAS({ {m_vertexBuffer[SceneObject::Test_Triangle].Get(), m_vertexCount[SceneObject::Test_Triangle]} },
+			{ {m_indexBuffer[SceneObject::Test_Triangle].Get(), m_indexCount[SceneObject::Test_Triangle]} });
 
 	// Just one instance for now
 	m_instances = { {bottomLevelBuffers.pResult, XMMatrixIdentity()} };
@@ -762,9 +761,9 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateRayGenSignature() {
 	nv_helpers_dx12::RootSignatureGenerator rsc;
 	rsc.AddHeapRangesParameter(
 		{
-			{0 /*u0*/, 1 /*1 descriptor */, 0, D3D12_DESCRIPTOR_RANGE_TYPE_UAV /*Raytracing output*/,default},
-			{0 /*t0*/, 1, 0 /*use the implicit register space 0*/, D3D12_DESCRIPTOR_RANGE_TYPE_SRV /*TLAS*/,default},
-			{0 /*b0*/, 1, 0, D3D12_DESCRIPTOR_RANGE_TYPE_CBV /*Camera parameters*/, default}
+			{0 /*u0*/, 1 , 0, D3D12_DESCRIPTOR_RANGE_TYPE_UAV ,default},//Raytracing output
+			{0 /*t0*/, 1, 0 , D3D12_DESCRIPTOR_RANGE_TYPE_SRV ,default},//TLAS
+			{0 /*b0*/, 1, 0, D3D12_DESCRIPTOR_RANGE_TYPE_CBV , default},//Scene parameters
 		});
 
 	return rsc.Generate(m_device.Get(), true);
@@ -776,8 +775,11 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateRayGenSignature() {
 //
 ComPtr<ID3D12RootSignature> SceneEditor::CreateHitSignature() {
 	nv_helpers_dx12::RootSignatureGenerator rsc;
+	auto default = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 	// but we want to access vertex buffer in hit shader, so add a parameter of SRV
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV);
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 0);
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1);
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);
 	return rsc.Generate(m_device.Get(), true);
 }
 
@@ -909,7 +911,7 @@ void SceneEditor::CreateRaytracingOutputBuffer() {
 	// #DXR Extra: Perspective Camera
 	// Create a buffer to store the modelview and perspective camera matrices
 	CreateCameraBuffer();
-
+	//CreateMaterialBufferAndSetAttributes();
 }
 
 void SceneEditor::CreateShaderResourceHeap() {
@@ -946,14 +948,27 @@ void SceneEditor::CreateShaderResourceHeap() {
 
 	// #DXR Extra: Perspective Camera
 	// Add the constant buffer for the camera after the TLAS
-	srvHandle.ptr +=m_device->GetDescriptorHandleIncrementSize(
-		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	{
+		srvHandle.ptr += m_device->GetDescriptorHandleIncrementSize(
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	// Describe and create a constant buffer view for the camera
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = m_cameraBuffer->GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = m_cameraBufferSize;
-	m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
+		// Describe and create a constant buffer view for the camera
+		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+		cbvDesc.BufferLocation = m_cameraBuffer->GetGPUVirtualAddress();
+		cbvDesc.SizeInBytes = m_cameraBufferSize;
+		m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
+	}
+
+	// Add the constant buffer for the camera after the camera
+	for (int i = 0; i < SceneObject::Count; ++i) {
+		srvHandle.ptr += m_device->GetDescriptorHandleIncrementSize(
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+		cbvDesc.BufferLocation = m_MaterialBuffer[i]->GetGPUVirtualAddress();
+		cbvDesc.SizeInBytes = m_MaterialBufferSize;
+		m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
+	}
 
 }
 
@@ -992,7 +1007,11 @@ void SceneEditor::CreateShaderBindingTable() {
 	// Adding the triangle hit shader
 	//m_sbtHelper.AddHitGroup(L"HitGroup", {});
 	// Access vertexBuffer in hit shader
-	m_sbtHelper.AddHitGroup(L"HitGroup", { (void*)(m_vertexBuffer->GetGPUVirtualAddress()) });
+	m_sbtHelper.AddHitGroup(L"HitGroup", {
+		(void*)(m_vertexBuffer[SceneObject::Test_Triangle]->GetGPUVirtualAddress()),
+		(void*)(m_indexBuffer[SceneObject::Test_Triangle]->GetGPUVirtualAddress()),
+		(void*)(m_MaterialBuffer[SceneObject::Test_Triangle]->GetGPUVirtualAddress()),
+		});
 
 
 	// Compute the size of the SBT given the number of shaders and their
@@ -1036,19 +1055,19 @@ void SceneEditor::CreateCameraBuffer()
 		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
 
 	// Create a descriptor heap that will be used by the rasterization shaders
-	m_constHeap = nv_helpers_dx12::CreateDescriptorHeap(
-		m_device.Get(), 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	//m_constHeap = nv_helpers_dx12::CreateDescriptorHeap(
+	//	m_device.Get(), 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
 	// Describe and create the constant buffer view.
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = m_cameraBuffer->GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = m_cameraBufferSize;
+	//D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+	//cbvDesc.BufferLocation = m_cameraBuffer->GetGPUVirtualAddress();
+	//cbvDesc.SizeInBytes = m_cameraBufferSize;
 
 	// Get a handle to the heap memory on the CPU side, to be able to write the
 	// descriptors directly
-	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle =
-		m_constHeap->GetCPUDescriptorHandleForHeapStart();
-	m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
+	//D3D12_CPU_DESCRIPTOR_HANDLE srvHandle =
+	//	m_constHeap->GetCPUDescriptorHandleForHeapStart();
+	//m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
 }
 
 // #DXR Extra: Perspective Camera
@@ -1056,7 +1075,7 @@ void SceneEditor::CreateCameraBuffer()
 // Create and copies the viewmodel and perspective matrices of the camera
 //
 void SceneEditor::UpdateCameraBuffer() {
-	SceneConstants matrices;
+	//SceneConstants matrices;
 
 	// Initialize the view matrix, ideally this should be based on user
 	// interactions The lookat and perspective matrices used for rasterization are
@@ -1079,12 +1098,22 @@ void SceneEditor::UpdateCameraBuffer() {
 	XMVECTOR det;
 	matrices.viewI = XMMatrixInverse(&det, matrices.view);
 	matrices.projectionI = XMMatrixInverse(&det, matrices.projection);
-	matrices.spp = 0;
+
+	//set spp as 0 if some parameters change
+	if (needRefreshScreen) {
+		matrices.spp = 0;
+		needRefreshScreen = false;
+	}
+	else {
+		matrices.spp++;
+	}
 	// Copy the matrix contents
 	uint8_t* pData;
 	ThrowIfFailed(m_cameraBuffer->Map(0, nullptr, (void**)&pData));
 	memcpy(pData, &matrices, m_cameraBufferSize);
 	m_cameraBuffer->Unmap(0, nullptr);
+
+
 }
 
 void SceneEditor::OnMouseDown(WPARAM btnState, int x, int y)
