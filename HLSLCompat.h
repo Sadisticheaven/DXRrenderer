@@ -79,5 +79,4 @@ struct PrimitiveMaterialBuffer
 // Attributes output by the raytracing when hitting a surface,
 // here the barycentric coordinates
 
-
 #endif //RAYTRACINGHLSLCOMPAT_H

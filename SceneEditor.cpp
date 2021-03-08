@@ -219,8 +219,23 @@ void SceneEditor::UploadGeometryBuffer(std::vector<Vertex> vertices, std::vector
 	}
 }
 
+void SceneEditor::CreateMaterialBufferAndSetAttributes(XMFLOAT3 Kd, XMFLOAT3 emit, int bufferIndex) {
+	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
+	int k = sizeof(PrimitiveMaterialBuffer);
+	m_MaterialBuffer[bufferIndex] = nv_helpers_dx12::CreateBuffer(
+		m_device.Get(), m_MaterialBufferSize, D3D12_RESOURCE_FLAG_NONE,
+		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
+	m_MaterialAttributes[bufferIndex].Kd = Kd;
+	m_MaterialAttributes[bufferIndex].emit = emit;
+	uint8_t* pData;
+	ThrowIfFailed(m_MaterialBuffer[bufferIndex]->Map(0, nullptr, (void**)&pData));
+	memcpy(pData, &(m_MaterialAttributes[bufferIndex]), m_MaterialBufferSize);
+	m_MaterialBuffer[bufferIndex]->Unmap(0, nullptr);
+}
+
 
 // Load the sample assets.
+
 void SceneEditor::LoadAssets()
 {
 	// Create an empty root signature.
@@ -234,51 +249,13 @@ void SceneEditor::LoadAssets()
 		ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
 	}
 
-	// Create the pipeline state, which includes compiling and loading shaders.
-	{
-		/*
-		ComPtr<ID3DBlob> vertexShader;
-		ComPtr<ID3DBlob> pixelShader;
+	needRefreshScreen = false;
 
-#if defined(_DEBUG)
-		// Enable better shader debugging with the graphics debugging tools.
-		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-		UINT compileFlags = 0;
-#endif
-		ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
-		ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
-
-		// Define the vertex input layout.
-		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
-		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-		};
-
-		// Describe and create the graphics pipeline state object (PSO).
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-		psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
-		psoDesc.pRootSignature = m_rootSignature.Get();
-		psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
-		psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
-		psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-		psoDesc.DepthStencilState.DepthEnable = FALSE;
-		psoDesc.DepthStencilState.StencilEnable = FALSE;
-		psoDesc.SampleMask = UINT_MAX;
-		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		psoDesc.NumRenderTargets = 1;
-		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-		psoDesc.SampleDesc.Count = 1;
-		ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));*/
-		needRefreshScreen = false;
-	}
 	// Create the command list.
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
 
 
-	// Create the vertex buffer.
+	// Create the vertex and index buffer.
 	{
 		// Define the geometry for a triangle.
 		std::vector<Vertex> vertices =
@@ -297,10 +274,9 @@ void SceneEditor::LoadAssets()
 
 		};
 		UploadGeometryBuffer(vertices, indices, SceneObject::Test_Triangle);
-		
+		CreateMaterialBufferAndSetAttributes();
 	}
 
-	// Create synchronization objects and wait until assets have been uploaded to the GPU.
 	{
 		ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
 		m_fenceValue = 1;
@@ -312,9 +288,6 @@ void SceneEditor::LoadAssets()
 			ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
 		}
 
-		// Wait for the command list to execute; we are reusing the same command 
-		// list in our main loop but for now, we just want to wait for setup to 
-		// complete before continuing.
 		WaitForPreviousFrame();
 	}
 }
@@ -720,7 +693,7 @@ void SceneEditor::CreateAccelerationStructures() {
 	// Build the bottom AS from the Triangle vertex buffer
 	AccelerationStructureBuffers bottomLevelBuffers =
 		CreateBottomLevelAS({ {m_vertexBuffer[SceneObject::Test_Triangle].Get(), m_vertexCount[SceneObject::Test_Triangle]} },
-							{ {m_indexBuffer[SceneObject::Test_Triangle].Get(), m_indexCount[SceneObject::Test_Triangle]} });
+			{ {m_indexBuffer[SceneObject::Test_Triangle].Get(), m_indexCount[SceneObject::Test_Triangle]} });
 
 	// Just one instance for now
 	m_instances = { {bottomLevelBuffers.pResult, XMMatrixIdentity()} };
@@ -755,9 +728,9 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateRayGenSignature() {
 	nv_helpers_dx12::RootSignatureGenerator rsc;
 	rsc.AddHeapRangesParameter(
 		{
-			{0 /*u0*/, 1 /*1 descriptor */, 0, D3D12_DESCRIPTOR_RANGE_TYPE_UAV /*Raytracing output*/,default},
-			{0 /*t0*/, 1, 0 /*use the implicit register space 0*/, D3D12_DESCRIPTOR_RANGE_TYPE_SRV /*TLAS*/,default},
-			{0 /*b0*/, 1, 0, D3D12_DESCRIPTOR_RANGE_TYPE_CBV /*Camera parameters*/, default}
+			{0 /*u0*/, 1 , 0, D3D12_DESCRIPTOR_RANGE_TYPE_UAV ,default},//Raytracing output
+			{0 /*t0*/, 1, 0 , D3D12_DESCRIPTOR_RANGE_TYPE_SRV ,default},//TLAS
+			{0 /*b0*/, 1, 0, D3D12_DESCRIPTOR_RANGE_TYPE_CBV , default},//Scene parameters
 		});
 
 	return rsc.Generate(m_device.Get(), true);
@@ -769,9 +742,11 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateRayGenSignature() {
 //
 ComPtr<ID3D12RootSignature> SceneEditor::CreateHitSignature() {
 	nv_helpers_dx12::RootSignatureGenerator rsc;
+	auto default = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 	// but we want to access vertex buffer in hit shader, so add a parameter of SRV
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV);
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 0);
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1);
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);
 	return rsc.Generate(m_device.Get(), true);
 }
 
@@ -903,7 +878,7 @@ void SceneEditor::CreateRaytracingOutputBuffer() {
 	// #DXR Extra: Perspective Camera
 	// Create a buffer to store the modelview and perspective camera matrices
 	CreateCameraBuffer();
-
+	//CreateMaterialBufferAndSetAttributes();
 }
 
 void SceneEditor::CreateShaderResourceHeap() {
@@ -940,14 +915,27 @@ void SceneEditor::CreateShaderResourceHeap() {
 
 	// #DXR Extra: Perspective Camera
 	// Add the constant buffer for the camera after the TLAS
-	srvHandle.ptr += m_device->GetDescriptorHandleIncrementSize(
-		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	{
+		srvHandle.ptr += m_device->GetDescriptorHandleIncrementSize(
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	// Describe and create a constant buffer view for the camera
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = m_cameraBuffer->GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = m_cameraBufferSize;
-	m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
+		// Describe and create a constant buffer view for the camera
+		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+		cbvDesc.BufferLocation = m_cameraBuffer->GetGPUVirtualAddress();
+		cbvDesc.SizeInBytes = m_cameraBufferSize;
+		m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
+	}
+
+	// Add the constant buffer for the camera after the camera
+	for (int i = 0; i < SceneObject::Count; ++i) {
+		srvHandle.ptr += m_device->GetDescriptorHandleIncrementSize(
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+		cbvDesc.BufferLocation = m_MaterialBuffer[i]->GetGPUVirtualAddress();
+		cbvDesc.SizeInBytes = m_MaterialBufferSize;
+		m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
+	}
 
 }
 
@@ -986,7 +974,11 @@ void SceneEditor::CreateShaderBindingTable() {
 	// Adding the triangle hit shader
 	//m_sbtHelper.AddHitGroup(L"HitGroup", {});
 	// Access vertexBuffer in hit shader
-	m_sbtHelper.AddHitGroup(L"HitGroup", { (void*)(m_vertexBuffer[SceneObject::Test_Triangle]->GetGPUVirtualAddress()),(void*)(m_indexBuffer[SceneObject::Test_Triangle]->GetGPUVirtualAddress()) });
+	m_sbtHelper.AddHitGroup(L"HitGroup", {
+		(void*)(m_vertexBuffer[SceneObject::Test_Triangle]->GetGPUVirtualAddress()),
+		(void*)(m_indexBuffer[SceneObject::Test_Triangle]->GetGPUVirtualAddress()),
+		(void*)(m_MaterialBuffer[SceneObject::Test_Triangle]->GetGPUVirtualAddress()),
+		});
 
 
 	// Compute the size of the SBT given the number of shaders and their
@@ -1123,6 +1115,8 @@ void SceneEditor::UpdateCameraBuffer() {
 	ThrowIfFailed(m_cameraBuffer->Map(0, nullptr, (void**)&pData));
 	memcpy(pData, &matrices, m_cameraBufferSize);
 	m_cameraBuffer->Unmap(0, nullptr);
+
+
 }
 
 SceneEditor::AccelerationStructureBuffers

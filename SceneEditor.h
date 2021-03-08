@@ -72,14 +72,17 @@ private:
 	UINT m_rtvDescriptorSize;
 
 	// App resources.
-	typedef ComPtr<ID3D12Resource> ComPtr_ID3D12Resource;
-	ComPtr_ID3D12Resource m_vertexBuffer[SceneObject::Count];
+	ComPtr<ID3D12Resource> m_vertexBuffer[SceneObject::Count];
 	int m_vertexCount[SceneObject::Count];
 
-	ComPtr_ID3D12Resource m_indexBuffer[SceneObject::Count];
+	ComPtr<ID3D12Resource> m_indexBuffer[SceneObject::Count];
 	int m_indexCount[SceneObject::Count];
 
-	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
+	PrimitiveMaterialBuffer m_MaterialAttributes[SceneObject::Count];
+	ComPtr<ID3D12Resource> m_MaterialBuffer[SceneObject::Count];
+	int m_MaterialBufferSize;
+	void CreateMaterialBufferAndSetAttributes(XMFLOAT3 Kd = { 0.5f,0.5f,0.5f }, XMFLOAT3 emit = { 0.0f,0.0f,0.0f }, int bufferIndex = 0);
+
 
 	// Synchronization objects.
 	UINT m_frameIndex;
