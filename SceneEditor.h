@@ -30,6 +30,15 @@ using namespace DirectX;
 // An example of this can be found in the class method: OnDestroy().
 using Microsoft::WRL::ComPtr;
 
+namespace SceneObject {
+	enum Enum {
+		Test_Triangle = 0,
+		Count
+	};
+}
+
+
+
 class SceneEditor : public DXSample
 {
 public:
@@ -63,8 +72,14 @@ private:
 	UINT m_rtvDescriptorSize;
 
 	// App resources.
-	ComPtr<ID3D12Resource> m_vertexBuffer;
-	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+	typedef ComPtr<ID3D12Resource> ComPtr_ID3D12Resource;
+	ComPtr_ID3D12Resource m_vertexBuffer[SceneObject::Count];
+	int m_vertexCount[SceneObject::Count];
+
+	ComPtr_ID3D12Resource m_indexBuffer[SceneObject::Count];
+	int m_indexCount[SceneObject::Count];
+
+	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
 
 	// Synchronization objects.
 	UINT m_frameIndex;
@@ -81,7 +96,7 @@ private:
 	void PopulateCommandList();
 	void PopulateRaytracingCmdList();
 	void WaitForPreviousFrame();
-
+	void SceneEditor::UploadGeometryBuffer(std::vector<Vertex> vertices, std::vector<Index> indices, int bufferIndex);
 	void CheckRaytracingSupport();
 	virtual void OnKeyUp(UINT8 key);
 
@@ -96,7 +111,6 @@ private:
 	AccelerationStructureBuffers m_topLevelASBuffers;
 
 	ComPtr<ID3D12Resource> m_bottomLevelAS; // Storage for the bottom Level AS
-	int m_vertexCount;//vertex count of VB
 	nv_helpers_dx12::TopLevelASGenerator m_topLevelASGenerator;
 	std::vector<std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>> m_instances;
 
