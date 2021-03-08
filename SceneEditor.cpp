@@ -29,6 +29,9 @@ SceneEditor::SceneEditor(UINT width, UINT height, std::wstring name) :
 void SceneEditor::OnInit()
 {
 	LoadPipeline();
+
+	m_imguiManager = ImguiManager(m_device);
+
 	LoadAssets();
 	// Check the raytracing capabilities of the device
 	CheckRaytracingSupport();
@@ -61,7 +64,10 @@ void SceneEditor::OnInit()
 	CreateShaderBindingTable();
 
 	//imgui srv heap
-	CreateSRVHeap4Imgui();
+	m_imguiManager.CreateSRVHeap4Imgui();
+
+	//init camera
+	
 }
 
 
@@ -326,64 +332,47 @@ void SceneEditor::OnDestroy()
 	CloseHandle(m_fenceEvent);
 }
 
-void SceneEditor::InitImGui4RayTracing(HWND hwnd)
-{
-	//init imgui win32 impl
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO();
-	(void)io;
-	ImGui::StyleColorsDark();
-	//init imgui dx12
-	ImGui_ImplWin32_Init(hwnd);
-	ID3D12DescriptorHeap* pSrvHeap4Imgui = m_srvHeap4Imgui.Get();
-	ImGui_ImplDX12_Init(m_device.Get(), 2,
-		DXGI_FORMAT_R8G8B8A8_UNORM, pSrvHeap4Imgui,
-		pSrvHeap4Imgui->GetCPUDescriptorHandleForHeapStart(),
-		pSrvHeap4Imgui->GetGPUDescriptorHandleForHeapStart());
-}
-
 void SceneEditor::OnResize(HWND hWnd, int width, int height)
 {
+	WaitForPreviousFrame();
+
+	m_width = width;
+	m_height = height;
+
+	ThrowIfFailed(m_commandList->Reset(m_commandAllocator.Get(), nullptr));
+
+	for (UINT i = 0; i < FrameCount; i++)
+		if (m_renderTargets[i])
+		{
+			m_renderTargets[i].Reset();
+			//m_renderTargets[i] = nullptr;
+		}
+
+	// Resize the swap chain.
+	ThrowIfFailed(m_swapChain->ResizeBuffers(
+		FrameCount,
+		width, height,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+
+	// Create a RTV for each frame.
+	for (UINT n = 0; n < FrameCount; n++)
+	{
+		ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
+		m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
+		rtvHandle.Offset(1, m_rtvDescriptorSize);
+	}
+	// Execute the resize commands.
+	ThrowIfFailed(m_commandList->Close());
+	ID3D12CommandList* cmdsLists[] = { m_commandList.Get() };
+	m_commandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+
+	WaitForPreviousFrame();
+
 	// For rasterazation.
 	{
-		WaitForPreviousFrame();
-
-		m_width = width;
-		m_height = height;
-
-		ThrowIfFailed(m_commandList->Reset(m_commandAllocator.Get(), nullptr));
-
-		for (UINT i = 0; i < FrameCount; i++)
-			if (m_renderTargets[i])
-			{
-				m_renderTargets[i].Reset();
-				//m_renderTargets[i] = nullptr;
-			}
-
-		// Resize the swap chain.
-		ThrowIfFailed(m_swapChain->ResizeBuffers(
-			FrameCount,
-			width, height,
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
-
-		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-
-		// Create a RTV for each frame.
-		for (UINT n = 0; n < FrameCount; n++)
-		{
-			ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
-			m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
-			rtvHandle.Offset(1, m_rtvDescriptorSize);
-		}
-		// Execute the resize commands.
-		ThrowIfFailed(m_commandList->Close());
-		ID3D12CommandList* cmdsLists[] = { m_commandList.Get() };
-		m_commandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-
-		WaitForPreviousFrame();
-
 		// Update the viewport transform to cover the client area.
 		/*m_viewport.TopLeftX = 0;
 		m_viewport.TopLeftY = 0;
@@ -433,7 +422,6 @@ void SceneEditor::PopulateCommandList()
 	//m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 	//m_commandList->RSSetViewports(1, &m_viewport);
 	//m_commandList->RSSetScissorRects(1, &m_scissorRect);
-
 	// Indicate that the back buffer will be used as a render target.
 	//m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
@@ -458,7 +446,7 @@ void SceneEditor::PopulateCommandList()
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
 	//define what will be displayed in imgui
-	StartImgui();
+	m_imguiManager.StartImgui(m_commandList);
 
 	ThrowIfFailed(m_commandList->Close());
 }
@@ -569,14 +557,6 @@ void SceneEditor::CheckRaytracingSupport()
 		throw std::runtime_error("Raytracing not supported on device");
 }
 
-void SceneEditor::OnKeyUp(UINT8 key)
-{
-	// Alternate between rasterization and raytracing using the spacebar
-	//if (key == VK_SPACE)
-	//{
-	//	m_raster = !m_raster;
-	//}
-}
 
 //-----------------------------------------------------------------------------
 //
@@ -596,6 +576,59 @@ SceneEditor::CreateBottomLevelAS(
 			sizeof(Vertex), 0, 0);
 	}
 
+	// The AS build requires some scratch space to store temporary information.
+	// The amount of scratch memory is dependent on the scene complexity.
+	UINT64 scratchSizeInBytes = 0;
+	// The final AS also needs to be stored in addition to the existing vertex
+	// buffers. It size is also dependent on the scene complexity.
+	UINT64 resultSizeInBytes = 0;
+
+	bottomLevelAS.ComputeASBufferSizes(m_device.Get(), false, &scratchSizeInBytes,
+		&resultSizeInBytes);
+
+	// Once the sizes are obtained, the application is responsible for allocating
+	// the necessary buffers. Since the entire generation will be done on the GPU,
+	// we can directly allocate those on the default heap
+	AccelerationStructureBuffers buffers;
+	buffers.pScratch = nv_helpers_dx12::CreateBuffer(
+		m_device.Get(), scratchSizeInBytes,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON,
+		nv_helpers_dx12::kDefaultHeapProps);
+	buffers.pResult = nv_helpers_dx12::CreateBuffer(
+		m_device.Get(), resultSizeInBytes,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+		nv_helpers_dx12::kDefaultHeapProps);
+
+	// Build the acceleration structure. Note that this call integrates a barrier
+	// on the generated AS, so that it can be used to compute a top-level AS right
+	// after this method.
+	bottomLevelAS.Generate(m_commandList.Get(), buffers.pScratch.Get(),
+		buffers.pResult.Get(), false, nullptr);
+
+	return buffers;
+}
+
+SceneEditor::AccelerationStructureBuffers
+SceneEditor::CreateBottomLevelAS(
+	std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vVertexBuffers,
+	std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vIndexBuffers) {
+	nv_helpers_dx12::BottomLevelASGenerator bottomLevelAS;
+
+	// Adding all vertex buffers and not transforming their position.
+	for (size_t i = 0; i < vVertexBuffers.size(); i++) {
+		// for (const auto &buffer : vVertexBuffers) {
+		if (i < vIndexBuffers.size() && vIndexBuffers[i].second > 0)
+			bottomLevelAS.AddVertexBuffer(vVertexBuffers[i].first.Get(), 0,
+				vVertexBuffers[i].second, sizeof(Vertex),
+				vIndexBuffers[i].first.Get(), 0,
+				vIndexBuffers[i].second, nullptr, 0, true);
+
+		else
+			bottomLevelAS.AddVertexBuffer(vVertexBuffers[i].first.Get(), 0,
+				vVertexBuffers[i].second, sizeof(Vertex), 0,
+				0);
+	}
 	// The AS build requires some scratch space to store temporary information.
 	// The amount of scratch memory is dependent on the scene complexity.
 	UINT64 scratchSizeInBytes = 0;
@@ -980,45 +1013,6 @@ void SceneEditor::CreateShaderBindingTable() {
 	m_sbtHelper.Generate(m_sbtStorage.Get(), m_rtStateObjectProps.Get());
 }
 
-void SceneEditor::CreateSRVHeap4Imgui()
-{
-	D3D12_DESCRIPTOR_HEAP_DESC SrvHeapDesc;
-	SrvHeapDesc.NumDescriptors = 1;
-	SrvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	SrvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	SrvHeapDesc.NodeMask = 0;
-	ThrowIfFailed(m_device->CreateDescriptorHeap(
-		&SrvHeapDesc, IID_PPV_ARGS(m_srvHeap4Imgui.GetAddressOf())));
-}
-
-void SceneEditor::StartImgui()
-{
-	// Start the Dear ImGui frame
-	ImGui_ImplDX12_NewFrame();
-	ImGui_ImplWin32_NewFrame();
-	ImGui::NewFrame();
-
-	bool show_demo_window = true;
-	if (show_demo_window)
-		ImGui::ShowDemoWindow(&show_demo_window);
-
-	{
-		static int counter = 0;
-		ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-		ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-		ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-		if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-			counter++;
-		ImGui::SameLine();
-		ImGui::Text("counter = %d", counter);
-		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-		ImGui::End();
-	}
-	// set a srvheap for imgui to seperate it from raytracing
-	m_commandList->SetDescriptorHeaps(1, m_srvHeap4Imgui.GetAddressOf());
-	ImGui::Render();
-	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList.Get());
-}
 
 //----------------------------------------------------------------------------------
 //
@@ -1034,6 +1028,7 @@ void SceneEditor::CreateCameraBuffer()
 	//uint32_t nbMatrix = 4; // view, perspective, viewInverse, perspectiveInverse
 	//size must be multiple of 256
 	m_cameraBufferSize = SizeOfIn256(SceneConstants);
+
 
 	// Create the constant buffer for all matrices
 	m_cameraBuffer = nv_helpers_dx12::CreateBuffer(
@@ -1067,14 +1062,16 @@ void SceneEditor::UpdateCameraBuffer() {
 	// interactions The lookat and perspective matrices used for rasterization are
 	// defined to transform world-space vertices into a [0,1]x[0,1]x[0,1] camera
 	// space
-	XMVECTOR Eye = XMVectorSet(0.0f, 1.0f, 1.0f, 0.0f);
+	/*XMVECTOR Eye = XMVectorSet(0.0f, 0.0f, 2.0f, 0.0f);
 	XMVECTOR At = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
-	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-	matrices.view = XMMatrixLookAtRH(Eye, At, Up);
+	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);*/
+	//matrices.view = XMMatrixLookAtRH(Eye, At, Up);
+	matrices.view = XMMatrixLookAtRH(m_camera.GetEye(), m_camera.GetAt(), m_camera.GetUp());
 
-	float fovAngleY = 45.0f * XM_PI / 180.0f;
+	//float fovAngleY = 10.0f * XM_PI / 180.0f;
+
 	matrices.projection =
-		XMMatrixPerspectiveFovRH(fovAngleY, m_aspectRatio, 0.1f, 1000.0f);
+		XMMatrixPerspectiveFovRH(m_camera.GetFov(), m_aspectRatio, 0.1f, 1000.0f);
 
 	// Raytracing has to do the contrary of rasterization: rays are defined in
 	// camera space, and are transformed into world space. To do this, we need to
@@ -1090,55 +1087,69 @@ void SceneEditor::UpdateCameraBuffer() {
 	m_cameraBuffer->Unmap(0, nullptr);
 }
 
-SceneEditor::AccelerationStructureBuffers
-SceneEditor::CreateBottomLevelAS(
-	std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vVertexBuffers,
-	std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vIndexBuffers) {
-	nv_helpers_dx12::BottomLevelASGenerator bottomLevelAS;
+void SceneEditor::OnMouseDown(WPARAM btnState, int x, int y)
+{
+	m_lastMousePos.x = x;
+	m_lastMousePos.y = y;
 
-	// Adding all vertex buffers and not transforming their position.
-	for (size_t i = 0; i < vVertexBuffers.size(); i++) {
-		// for (const auto &buffer : vVertexBuffers) {
-		if (i < vIndexBuffers.size() && vIndexBuffers[i].second > 0)
-			bottomLevelAS.AddVertexBuffer(vVertexBuffers[i].first.Get(), 0,
-				vVertexBuffers[i].second, sizeof(Vertex),
-				vIndexBuffers[i].first.Get(), 0,
-				vIndexBuffers[i].second, nullptr, 0, true);
-
-		else
-			bottomLevelAS.AddVertexBuffer(vVertexBuffers[i].first.Get(), 0,
-				vVertexBuffers[i].second, sizeof(Vertex), 0,
-				0);
-	}
-	// The AS build requires some scratch space to store temporary information.
-	// The amount of scratch memory is dependent on the scene complexity.
-	UINT64 scratchSizeInBytes = 0;
-	// The final AS also needs to be stored in addition to the existing vertex
-	// buffers. It size is also dependent on the scene complexity.
-	UINT64 resultSizeInBytes = 0;
-
-	bottomLevelAS.ComputeASBufferSizes(m_device.Get(), false, &scratchSizeInBytes,
-		&resultSizeInBytes);
-
-	// Once the sizes are obtained, the application is responsible for allocating
-	// the necessary buffers. Since the entire generation will be done on the GPU,
-	// we can directly allocate those on the default heap
-	AccelerationStructureBuffers buffers;
-	buffers.pScratch = nv_helpers_dx12::CreateBuffer(
-		m_device.Get(), scratchSizeInBytes,
-		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON,
-		nv_helpers_dx12::kDefaultHeapProps);
-	buffers.pResult = nv_helpers_dx12::CreateBuffer(
-		m_device.Get(), resultSizeInBytes,
-		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-		D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
-		nv_helpers_dx12::kDefaultHeapProps);
-
-	// Build the acceleration structure. Note that this call integrates a barrier
-	// on the generated AS, so that it can be used to compute a top-level AS right
-	// after this method.
-	bottomLevelAS.Generate(m_commandList.Get(), buffers.pScratch.Get(),
-		buffers.pResult.Get(), false, nullptr);
-
-	return buffers;
+	SetCapture(m_mainWndHandle);
 }
+
+void SceneEditor::OnMouseUp(WPARAM btnState, int x, int y)
+{
+	ReleaseCapture();
+}
+
+void SceneEditor::OnMouseMove(WPARAM btnState, int x, int y)
+{
+	if ((btnState & MK_LBUTTON) != 0)
+	{
+		// Make each pixel correspond to a quarter of a degree.
+		float dx = XMConvertToRadians(0.25f * static_cast<float>(x - m_lastMousePos.x));
+		float dy = XMConvertToRadians(0.25f * static_cast<float>(y - m_lastMousePos.y));
+
+		// Rotate camera.
+		m_camera.RotateAroundUp(dx);
+		m_camera.RotateAroundRight(dy);
+	}
+	else if ((btnState & MK_RBUTTON) != 0)
+	{
+		// Make each pixel correspond to 0.5 unit in the scene.
+		float dx = 0.5f * static_cast<float>(x - m_lastMousePos.x);
+		float dy = 0.5f * static_cast<float>(y - m_lastMousePos.y);
+
+		// Zoom in or out.
+		m_camera.ScaleFov(dx - dy);
+	}
+
+	m_lastMousePos.x = x;
+	m_lastMousePos.y = y;
+}
+
+void SceneEditor::OnKeyDown(UINT8 key)
+{
+	switch (key) 
+	{
+	case 'W':
+		m_camera.MoveEyeForward();
+		break;
+	case 'S':
+		m_camera.MoveEyeBackward();
+		break;
+	case 'A':
+		m_camera.MoveEyeLeft();
+		break;
+	case 'D':
+		m_camera.MoveEyeRight();
+		break;
+	case 'Q':
+		m_camera.MoveEyeUp();
+		break;
+	case 'E':
+		m_camera.MoveEyeDown();
+		break;
+	default:
+		break;
+	}
+}
+

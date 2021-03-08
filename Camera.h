@@ -1,25 +1,67 @@
 #pragma once
 #include <stdafx.h>
 using namespace DirectX;
+
+/// <summary>
+/// This class used to operate camera.
+/// To translate: press ¡®W¡¯¡¢¡®A¡¯¡¢¡®S¡¯¡¢¡®D¡¯¡¢¡®Q¡¯¡¢¡®E¡¯
+/// To rotate: press mouse left button and move;
+/// To scale: press mouse right button and move;
+/// 
+/// 
+/// By: Lijin 2021.3.8
+/// </summary>
+/// 
 class Camera
 {
 public:
-	Camera(XMFLOAT4 eye = XMFLOAT4(1.5f, 1.5f, 1.5f, 0.0f),
-		XMFLOAT4 at = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f),
-		XMFLOAT4 up = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f)) :Eye(eye), At(at), Up(up) {}
-	~Camera();
+	Camera(XMVECTOR eye = XMVectorSet(0.0f, 0.0f, 2.0f, 0.0f),
+		XMVECTOR at = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f),
+		XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)) :m_eye(eye), m_at(at)
+	{
+		m_up = XMVector3Normalize(up);
+		m_direction = XMVector3Normalize(m_at - m_eye);
+		m_right = XMVector3Normalize(XMVector3Cross(m_direction, m_up));
+	}
 
-	void SetEye(float x, float y, float z, float w) { Eye = XMFLOAT4(x, y, z, w); }
-	void SetAt(float x, float y, float z, float w) { At = XMFLOAT4(x, y, z, w); }
-	void SetUp(float x, float y, float z, float w) { Up = XMFLOAT4(x, y, z, w); }
+	void SetEye(float x, float y, float z, float w) { m_eye = XMVectorSet(x, y, z, w); }
+	void SetEye(XMVECTOR eye) { m_eye = eye; }
+	void SetAt(float x, float y, float z, float w) { m_at = XMVectorSet(x, y, z, w); }
+	void SetAt(XMVECTOR at) { m_at = at; }
+	void SetUp(float x, float y, float z, float w) { m_up = XMVectorSet(x, y, z, w); }
+	void SetUp(XMVECTOR up) { m_up = XMVector3Normalize(up); }
 
-	void MoveUp() { Eye.y += 0.5f; }
-	void MoveDown() { Eye.y -= 0.5f; }
-	void MoveLeft();
-	void MoveRight();
+	void Set(XMVECTOR eye, XMVECTOR at, XMVECTOR up) 
+	{ 
+		m_eye = eye;
+		m_at = at;
+		m_up = up;
+	}
+	
+	XMVECTOR GetEye() { return m_eye; }
+	XMVECTOR GetAt() { return m_at; }
+	XMVECTOR GetUp() { return m_up; }
+	XMVECTOR GetRight() { return m_right; }
+	XMVECTOR GetDirection() { return m_direction; }
+	float GetFov() { return m_fovAngleY; }
+
+	void MoveEyeForward();
+	void MoveEyeBackward();
+	void MoveEyeUp();
+	void MoveEyeDown();
+	void MoveEyeLeft();
+	void MoveEyeRight();
+	void RotateAroundUp(float dx);
+	void RotateAroundRight(float dy);
+	void ScaleFov(float d);
 
 private:
-	XMFLOAT4 Eye;
-	XMFLOAT4 At;
-	XMFLOAT4 Up;
+	XMVECTOR m_eye;
+	XMVECTOR m_at;
+	XMVECTOR m_up;
+	XMVECTOR m_right;
+	XMVECTOR m_direction;
+	float m_fovAngleY = 45.0f * XM_PI / 180.0f;
+	float m_movSpeed = 0.1;
 };
+

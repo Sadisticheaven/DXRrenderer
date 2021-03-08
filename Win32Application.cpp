@@ -12,6 +12,7 @@
 #include "stdafx.h"
 #include "Win32Application.h"
 #include "SceneEditor.h"
+#include <WindowsX.h>
 
 HWND Win32Application::m_hwnd = nullptr;
 
@@ -52,10 +53,13 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
 
 	// Initialize the sample. OnInit is defined in each child-implementation of DXSample.
 	pSample->OnInit();
-	
+
+	pSample->SetMainWndHandle(m_hwnd);
+
 	ShowWindow(m_hwnd, nCmdShow);
 
-	pSample->InitImGui4RayTracing(m_hwnd);
+	pSample->m_imguiManager.InitImGui4RayTracing(m_hwnd);
+
 	
 
 	// Main sample loop.
@@ -107,6 +111,20 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
 			pSample->OnResize(hWnd, (UINT)LOWORD(lParam), (UINT)HIWORD(lParam));
 			ImGui_ImplDX12_CreateDeviceObjects();
 		}
+		return 0;
+
+	case WM_LBUTTONDOWN:
+	case WM_MBUTTONDOWN:
+	case WM_RBUTTONDOWN:
+		pSample->OnMouseDown(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		return 0;
+	case WM_LBUTTONUP:
+	case WM_MBUTTONUP:
+	case WM_RBUTTONUP:
+		pSample->OnMouseUp(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		return 0;
+	case WM_MOUSEMOVE:
+		pSample->OnMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
 		return 0;
 
 	case WM_KEYDOWN:

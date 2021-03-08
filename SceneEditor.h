@@ -20,6 +20,7 @@
 //#include <DirectXMath.h>
 //#include "d3dx12.h"
 //#include <dxgi1_4.h>
+#include <Camera.h>
 
 using namespace DirectX;
 
@@ -39,8 +40,11 @@ public:
 	virtual void OnUpdate();
 	virtual void OnRender();
 	virtual void OnDestroy();
-	virtual void InitImGui4RayTracing(HWND hwnd);
 	virtual void OnResize(HWND hWnd, int width, int height);
+	virtual void OnMouseDown(WPARAM btnState, int x, int y);
+	virtual void OnMouseUp(WPARAM btnState, int x, int y);
+	virtual void OnMouseMove(WPARAM btnState, int x, int y);
+	virtual void OnKeyDown(UINT8 key);
 
 private:
 	static const UINT FrameCount = 2;
@@ -82,7 +86,6 @@ private:
 	void WaitForPreviousFrame();
 
 	void CheckRaytracingSupport();
-	virtual void OnKeyUp(UINT8 key);
 
 	// #DXR-AccelerationStructure
 	//<----------***************************************************
@@ -158,16 +161,13 @@ private:
 	ComPtr<ID3D12Resource> m_sbtStorage;
 	//***************************************************--------->
 
-	//imgui
-	ComPtr<ID3D12DescriptorHeap> m_srvHeap4Imgui;
-	void CreateSRVHeap4Imgui();
-	void StartImgui();
-
 	// #DXR Extra: Perspective Camera
 	void CreateCameraBuffer();
 	void UpdateCameraBuffer();
 	ComPtr<ID3D12Resource> m_cameraBuffer;
 	ComPtr<ID3D12DescriptorHeap> m_constHeap;
 	uint32_t m_cameraBufferSize = 0;
+	Camera m_camera;
+	POINT m_lastMousePos;
 
 };

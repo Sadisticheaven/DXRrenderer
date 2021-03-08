@@ -14,6 +14,8 @@
 #include "DXSampleHelper.h"
 #include "Win32Application.h"
 #include <dxgi1_2.h>
+#include <ImguiManager.h>
+
 class DXSample
 {
 public:
@@ -29,6 +31,9 @@ public:
 	// Samples override the event handlers to handle specific messages.
 	virtual void OnKeyDown(UINT8 /*key*/)   {}
 	virtual void OnKeyUp(UINT8 /*key*/)     {}
+	virtual void OnMouseDown(WPARAM btnState, int x, int y) = 0;
+	virtual void OnMouseUp(WPARAM btnState, int x, int y) = 0;
+	virtual void OnMouseMove(WPARAM btnState, int x, int y) = 0;
 
 	// Accessors.
 	UINT GetWidth() const           { return m_width; }
@@ -36,8 +41,12 @@ public:
 	const WCHAR* GetTitle() const   { return m_title.c_str(); }
 
 	void ParseCommandLineArgs(_In_reads_(argc) WCHAR* argv[], int argc);
+
 	//for imgui init
-	virtual void InitImGui4RayTracing(HWND hwnd) = 0;
+	ImguiManager m_imguiManager = NULL;
+
+	void SetMainWndHandle(HWND hwnd) { m_mainWndHandle = hwnd; }
+	HWND GetMainWndHandle()const { return m_mainWndHandle; }
 
 protected:
 	std::wstring GetAssetFullPath(LPCWSTR assetName);
@@ -51,6 +60,9 @@ protected:
 
 	// Adapter info.
 	bool m_useWarpDevice;
+
+	// main window handle
+	HWND m_mainWndHandle = nullptr;
 
 private:
 	// Root assets path.
