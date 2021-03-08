@@ -24,6 +24,7 @@ typedef float4 XMFLOAT4;
 typedef float4 XMVECTOR;
 typedef float4x4 XMMATRIX;
 typedef uint UINT;
+typedef UINT Index;
 #else
 
 using namespace DirectX;
@@ -41,7 +42,7 @@ struct PayLoad
 struct Vertex
 {
 	XMFLOAT3 position;
-	XMFLOAT4 color;
+	XMFLOAT4 normal;
 };
 
 struct SceneConstants

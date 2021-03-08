@@ -65,8 +65,6 @@ void SceneEditor::OnInit()
 
 	//imgui srv heap
 	m_imguiManager.CreateSRVHeap4Imgui();
-
-	//init camera
 	
 }
 
@@ -179,7 +177,8 @@ void SceneEditor::LoadPipeline()
 }
 
 
-void SceneEditor::UploadGeometryBuffer(std::vector<Vertex> vertices, std::vector<Index> indices, int bufferIndex) {
+void SceneEditor::UploadGeometryBuffer(std::vector<Vertex> vertices, std::vector<Index> indices, int bufferIndex)
+{
 	m_vertexCount[bufferIndex] = static_cast<UINT>(vertices.size());
 	m_indexCount[bufferIndex] = static_cast<UINT>(indices.size());
 
@@ -239,7 +238,6 @@ void SceneEditor::CreateMaterialBufferAndSetAttributes(XMFLOAT3 Kd, XMFLOAT3 emi
 	m_MaterialBuffer[bufferIndex]->Unmap(0, nullptr);
 }
 
-
 // Load the sample assets.
 
 void SceneEditor::LoadAssets()
@@ -269,18 +267,18 @@ void SceneEditor::LoadAssets()
 			{ { 0.0f, 0.25f , 0.0f }, { 1.0f, 1.0f, 0.0f, 1.0f } },
 			{ { 0.25f, -0.25f , 0.0f }, { 0.0f, 1.0f, 1.0f, 1.0f } },
 			{ { -0.25f, -0.25f , 0.0f }, { 1.0f, 0.0f, 1.0f, 1.0f } },
-			{ { 1.0f, -1.5f , 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-			{ { -1.0f, -1.5f , -1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
+			//{ { 1.0f, -1.5f , 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
+			//{ { -1.0f, -1.5f , -1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
 		};
 
 		std::vector<Index> indices =
 		{
-			1,2,3,
+			//1,2,3,
 			0,1,2,
 
 		};
 		UploadGeometryBuffer(vertices, indices, SceneObject::Test_Triangle);
-		CreateMaterialBufferAndSetAttributes();
+		CreateMaterialBufferAndSetAttributes(XMFLOAT3(0,1,1));
 	}
 
 	{
@@ -421,7 +419,7 @@ void SceneEditor::PopulateCommandList()
 	//m_commandList->RSSetViewports(1, &m_viewport);
 	//m_commandList->RSSetScissorRects(1, &m_scissorRect);
 	// Indicate that the back buffer will be used as a render target.
-	//m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
 	m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
@@ -440,11 +438,15 @@ void SceneEditor::PopulateCommandList()
 	// #DXR
 	PopulateRaytracingCmdList();
 
-	// Indicate that the back buffer will now be used to present.
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+
 
 	//define what will be displayed in imgui
 	m_imguiManager.StartImgui(m_commandList);
+
+	// Indicate that the back buffer will now be used to present.
+	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+
+
 
 	ThrowIfFailed(m_commandList->Close());
 }
@@ -518,8 +520,8 @@ void SceneEditor::PopulateRaytracingCmdList()
 
 	m_commandList->CopyResource(m_renderTargets[m_frameIndex].Get(), m_outputResource.Get());
 
-	transition = CD3DX12_RESOURCE_BARRIER::Transition(m_outputResource.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	m_commandList->ResourceBarrier(1, &transition);
+	//transition = CD3DX12_RESOURCE_BARRIER::Transition(m_outputResource.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	//m_commandList->ResourceBarrier(1, &transition);
 	transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	m_commandList->ResourceBarrier(1, &transition);
 }
@@ -729,7 +731,9 @@ void SceneEditor::CreateAccelerationStructures() {
 			{ {m_indexBuffer[SceneObject::Test_Triangle].Get(), m_indexCount[SceneObject::Test_Triangle]} });
 
 	// Just one instance for now
-	m_instances = { {bottomLevelBuffers.pResult, XMMatrixIdentity()} };
+	m_instances = { {bottomLevelBuffers.pResult, XMMatrixIdentity()},
+		
+	{bottomLevelBuffers.pResult, XMMatrixRotationY(XM_PI / 2) * XMMatrixTranslation(0.3f, 0.0f, 0.0f)}};
 	CreateTopLevelAS(m_instances);
 
 	// Flush the command list and wait for it to finish
@@ -959,7 +963,7 @@ void SceneEditor::CreateShaderResourceHeap() {
 		m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
 	}
 
-	// Add the constant buffer for the camera after the camera
+	// Add the constant buffer for the material after the camera
 	for (int i = 0; i < SceneObject::Count; ++i) {
 		srvHandle.ptr += m_device->GetDescriptorHandleIncrementSize(
 			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -1055,19 +1059,19 @@ void SceneEditor::CreateCameraBuffer()
 		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
 
 	// Create a descriptor heap that will be used by the rasterization shaders
-	//m_constHeap = nv_helpers_dx12::CreateDescriptorHeap(
-	//	m_device.Get(), 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	m_constHeap = nv_helpers_dx12::CreateDescriptorHeap(
+		m_device.Get(), 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
 	// Describe and create the constant buffer view.
-	//D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	//cbvDesc.BufferLocation = m_cameraBuffer->GetGPUVirtualAddress();
-	//cbvDesc.SizeInBytes = m_cameraBufferSize;
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+	cbvDesc.BufferLocation = m_cameraBuffer->GetGPUVirtualAddress();
+	cbvDesc.SizeInBytes = m_cameraBufferSize;
 
 	// Get a handle to the heap memory on the CPU side, to be able to write the
 	// descriptors directly
-	//D3D12_CPU_DESCRIPTOR_HANDLE srvHandle =
-	//	m_constHeap->GetCPUDescriptorHandleForHeapStart();
-	//m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
+	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle =
+		m_constHeap->GetCPUDescriptorHandleForHeapStart();
+	m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
 }
 
 // #DXR Extra: Perspective Camera
@@ -1138,8 +1142,8 @@ void SceneEditor::OnMouseMove(WPARAM btnState, int x, int y)
 		float dy = XMConvertToRadians(0.25f * static_cast<float>(y - m_lastMousePos.y));
 
 		// Rotate camera.
-		m_camera.RotateAroundUp(dx);
-		m_camera.RotateAroundRight(dy);
+		if (fabsf(dx) >= fabsf(dy))m_camera.RotateAroundUp(dx);
+		else m_camera.RotateAroundRight(dy);
 	}
 	else if ((btnState & MK_RBUTTON) != 0)
 	{
