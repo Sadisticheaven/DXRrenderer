@@ -177,7 +177,7 @@ void SceneEditor::LoadPipeline()
 }
 
 
-void SceneEditor::UploadGeometryBuffer(std::vector<Vertex> vertices, std::vector<Index> indices, int bufferIndex)
+void SceneEditor::AllocateUploadGeometryBuffer(std::vector<Vertex> vertices, std::vector<Index> indices, int bufferIndex)
 {
 	m_vertexCount[bufferIndex] = static_cast<UINT>(vertices.size());
 	m_indexCount[bufferIndex] = static_cast<UINT>(indices.size());
@@ -226,7 +226,7 @@ void SceneEditor::UploadGeometryBuffer(std::vector<Vertex> vertices, std::vector
 
 void SceneEditor::CreateMaterialBufferAndSetAttributes(XMFLOAT3 Kd, XMFLOAT3 emit, int bufferIndex) {
 	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
-	int k = sizeof(PrimitiveMaterialBuffer);
+	//int k = sizeof(PrimitiveMaterialBuffer);
 	m_MaterialBuffer[bufferIndex] = nv_helpers_dx12::CreateBuffer(
 		m_device.Get(), m_MaterialBufferSize, D3D12_RESOURCE_FLAG_NONE,
 		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
@@ -235,6 +235,18 @@ void SceneEditor::CreateMaterialBufferAndSetAttributes(XMFLOAT3 Kd, XMFLOAT3 emi
 	uint8_t* pData;
 	ThrowIfFailed(m_MaterialBuffer[bufferIndex]->Map(0, nullptr, (void**)&pData));
 	memcpy(pData, &(m_MaterialAttributes[bufferIndex]), m_MaterialBufferSize);
+	m_MaterialBuffer[bufferIndex]->Unmap(0, nullptr);
+}
+
+void SceneEditor::CreateMaterialBufferAndSetAttributes(PrimitiveMaterialBuffer &desc, int bufferIndex)
+{
+	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
+	m_MaterialBuffer[bufferIndex] = nv_helpers_dx12::CreateBuffer(
+		m_device.Get(), m_MaterialBufferSize, D3D12_RESOURCE_FLAG_NONE,
+		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
+	uint8_t* pData;
+	ThrowIfFailed(m_MaterialBuffer[bufferIndex]->Map(0, nullptr, (void**)&pData));
+	memcpy(pData, &desc, m_MaterialBufferSize);
 	m_MaterialBuffer[bufferIndex]->Unmap(0, nullptr);
 }
 
@@ -275,10 +287,32 @@ void SceneEditor::LoadAssets()
 		{
 			//1,2,3,
 			0,1,2,
+		};
+		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::Test_Triangle);
+		CreateMaterialBufferAndSetAttributes(XMFLOAT3(0,1,0), XMFLOAT3(0, 1, 0), SceneObject::Test_Triangle);
+	}
+
+	{// Create Plane
+		std::vector<Vertex> vertices =
+		{
+			{{-1.5f, -.8f, 01.5f}, {1.0f, 1.0f, 1.0f, 1.0f}}, // 0
+			{{-1.5f, -.8f, -1.5f}, {1.0f, 1.0f, 1.0f, 1.0f}}, // 1
+			{{01.5f, -.8f, 01.5f}, {1.0f, 1.0f, 1.0f, 1.0f}}, // 2
+			{{01.5f, -.8f, -1.5f}, {1.0f, 1.0f, 1.0f, 1.0f}}  // 3
+		};
+
+		std::vector<Index> indices =
+		{
+			0,1,2,
+			1,3,2
 
 		};
-		UploadGeometryBuffer(vertices, indices, SceneObject::Test_Triangle);
-		CreateMaterialBufferAndSetAttributes(XMFLOAT3(0,1,1));
+		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::Test_Plane);
+		PrimitiveMaterialBuffer planeMaterial;
+		planeMaterial.Kd = XMFLOAT3(1, 0, 0);
+		planeMaterial.emit = XMFLOAT3(0, 1, 0);
+		CreateMaterialBufferAndSetAttributes(planeMaterial, SceneObject::Test_Plane);
+		//CreateMaterialBufferAndSetAttributes(XMFLOAT3(0, 1, 0), XMFLOAT3(0, 1, 0), SceneObject::Test_Plane);
 	}
 
 	{
@@ -727,13 +761,23 @@ void SceneEditor::CreateTopLevelAS(
 void SceneEditor::CreateAccelerationStructures() {
 	// Build the bottom AS from the Triangle vertex buffer
 	AccelerationStructureBuffers bottomLevelBuffers =
-		CreateBottomLevelAS({ {m_vertexBuffer[SceneObject::Test_Triangle].Get(), m_vertexCount[SceneObject::Test_Triangle]} },
-			{ {m_indexBuffer[SceneObject::Test_Triangle].Get(), m_indexCount[SceneObject::Test_Triangle]} });
+		CreateBottomLevelAS(
+			{ // VertexBuffers vector
+				{m_vertexBuffer[SceneObject::Test_Triangle].Get(), m_vertexCount[SceneObject::Test_Triangle]} ,
+				{m_vertexBuffer[SceneObject::Test_Plane].Get(), m_vertexCount[SceneObject::Test_Plane]}
+			},
+			{ // IndexBuffers vector
+				{m_indexBuffer[SceneObject::Test_Triangle].Get(), m_indexCount[SceneObject::Test_Triangle]} ,
+				{m_indexBuffer[SceneObject::Test_Plane].Get(), m_indexCount[SceneObject::Test_Plane]}
+			}
+			);
 
 	// Just one instance for now
-	m_instances = { {bottomLevelBuffers.pResult, XMMatrixIdentity()},
-		
-	{bottomLevelBuffers.pResult, XMMatrixRotationY(XM_PI / 2) * XMMatrixTranslation(0.3f, 0.0f, 0.0f)}};
+	m_instances = { 
+		{bottomLevelBuffers.pResult, XMMatrixIdentity()},	
+		//{bottomLevelBuffers.pResult, XMMatrixRotationY(XM_PI / 2) * XMMatrixTranslation(0.3f, 0.0f, 0.0f)},
+		//{bottomLevelBuffers.pResult, XMMatrixTranslation(-0.3f, 0.0f, 0.0f)},
+	};
 	CreateTopLevelAS(m_instances);
 
 	// Flush the command list and wait for it to finish
@@ -1142,8 +1186,8 @@ void SceneEditor::OnMouseMove(WPARAM btnState, int x, int y)
 		float dy = XMConvertToRadians(0.25f * static_cast<float>(y - m_lastMousePos.y));
 
 		// Rotate camera.
-		if (fabsf(dx) >= fabsf(dy))m_camera.RotateAroundUp(dx);
-		else m_camera.RotateAroundRight(dy);
+		if (fabsf(dx) > fabsf(dy) )m_camera.RotateAroundUp(-dx);
+		else m_camera.RotateAroundRight(-dy);
 	}
 	else if ((btnState & MK_RBUTTON) != 0)
 	{

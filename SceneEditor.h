@@ -34,6 +34,7 @@ using Microsoft::WRL::ComPtr;
 namespace SceneObject {
 	enum Enum {
 		Test_Triangle = 0,
+		Test_Plane,
 		Count
 	};
 }
@@ -86,6 +87,7 @@ private:
 	ComPtr<ID3D12Resource> m_MaterialBuffer[SceneObject::Count];
 	int m_MaterialBufferSize;
 	void CreateMaterialBufferAndSetAttributes(XMFLOAT3 Kd = { 0.5f,0.5f,0.5f }, XMFLOAT3 emit = { 0.0f,0.0f,0.0f }, int bufferIndex = 0);
+	void CreateMaterialBufferAndSetAttributes(PrimitiveMaterialBuffer &desc, int bufferIndex = 0);
 
 
 	// Synchronization objects.
@@ -103,7 +105,7 @@ private:
 	void PopulateCommandList();
 	void PopulateRaytracingCmdList();
 	void WaitForPreviousFrame();
-	void SceneEditor::UploadGeometryBuffer(std::vector<Vertex> vertices, std::vector<Index> indices, int bufferIndex);
+	void SceneEditor::AllocateUploadGeometryBuffer(std::vector<Vertex> vertices, std::vector<Index> indices, int bufferIndex);
 	void CheckRaytracingSupport();
 
 	// #DXR-AccelerationStructure

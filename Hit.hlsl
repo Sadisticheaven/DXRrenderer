@@ -22,7 +22,18 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 
 	uint vertId = 3 * PrimitiveIndex();
 	//float3 normal = cross( Vertex[Indices[vertId + 1]].position - Vertex[Indices[vertId + 2]].position, Vertex[Indices[vertId + 0]].position - Vertex[Indices[vertId + 1]].position);
-
-	float3 Kd = abs(MaterialAttributes.Kd);
+	float3 Kd = float3(0.7, 0.7, 0.7);
+	switch (InstanceID())
+	{
+	case 0:
+		Kd = cross(Vertex[Indices[vertId + 2]].position - Vertex[Indices[vertId + 1]].position, Vertex[Indices[vertId + 1]].position - Vertex[Indices[vertId + 0]].position);
+		break;
+	case 1:
+		Kd = abs(MaterialAttributes.Kd);
+		break;
+	case 2:
+		Kd = Vertex[Indices[vertId + 0]].color * barycentrics.x + Vertex[Indices[vertId + 1]].color * barycentrics.y + Vertex[Indices[vertId + 2]].color * barycentrics.z;
+		break;
+	}
   payload.colorAndDistance = float4(Kd, RayTCurrent());
 }

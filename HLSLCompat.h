@@ -42,7 +42,7 @@ struct PayLoad
 struct Vertex
 {
 	XMFLOAT3 position;
-	XMFLOAT4 normal;
+	XMFLOAT4 color;
 };
 
 struct SceneConstants
