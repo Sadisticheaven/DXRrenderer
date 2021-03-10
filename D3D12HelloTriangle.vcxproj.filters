@@ -25,6 +25,9 @@
     <Filter Include="imgui">
       <UniqueIdentifier>{4ebe52f1-a3d1-42e0-a251-b398d07b49ef}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Assets\cornelbox">
+      <UniqueIdentifier>{eb46e5ed-2cbc-424e-8ff6-8af551a1e1bc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -152,5 +155,25 @@
     <ClCompile Include="ImguiManager.cpp">
       <Filter>Source Files\SceneEditor</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cornellbox\floor.obj">
+      <Filter>Assets\cornelbox</Filter>
+    </None>
+    <None Include="cornellbox\left.obj">
+      <Filter>Assets\cornelbox</Filter>
+    </None>
+    <None Include="cornellbox\light.obj">
+      <Filter>Assets\cornelbox</Filter>
+    </None>
+    <None Include="cornellbox\right.obj">
+      <Filter>Assets\cornelbox</Filter>
+    </None>
+    <None Include="cornellbox\shortbox.obj">
+      <Filter>Assets\cornelbox</Filter>
+    </None>
+    <None Include="cornellbox\tallbox.obj">
+      <Filter>Assets\cornelbox</Filter>
+    </None>
   </ItemGroup>
 </Project>
