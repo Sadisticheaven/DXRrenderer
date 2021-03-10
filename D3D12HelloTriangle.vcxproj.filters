@@ -90,6 +90,9 @@
     <ClInclude Include="ImguiManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="obj_load.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

@@ -15,8 +15,8 @@ using namespace DirectX;
 class Camera
 {
 public:
-	Camera(XMVECTOR eye = XMVectorSet(0.0f, 0.0f, 2.0f, 0.0f),
-		XMVECTOR at = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f),
+	Camera(XMVECTOR eye = XMVectorSet(278.0f, 273.0f, -800.0f, 0.0f),
+		XMVECTOR at = XMVectorSet(278.0f, 273.0f, -700.0f, 0.0f),
 		XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)) :m_eye(eye), m_at(at)
 	{
 		m_up = XMVector3Normalize(up);

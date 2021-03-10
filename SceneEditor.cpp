@@ -11,7 +11,7 @@
 #include "stdafx.h"
 #include "SceneEditor.h"
 #include <stdexcept>
-
+#include "obj_load.h"
 #include "DXRHelper.h"
 #include "nv_helpers_dx12/BottomLevelASGenerator.h"
 #include "nv_helpers_dx12/RaytracingPipelineGenerator.h"  
@@ -288,6 +288,7 @@ void SceneEditor::LoadAssets()
 		XMFLOAT3 red(0.63f, 0.065f, 0.05f);
 		XMFLOAT3 green(0.14f, 0.45f, 0.091f);
 		XMFLOAT3 white(0.725f, 0.71f, 0.68f);
+		XMFLOAT3 test(0.225f, 0.71f, 0.78f);
 		XMFLOAT3 light_kd(0.65f, 0.65f, 0.65f);
 		XMFLOAT3 le1 = fmf3(8.0f, XMFLOAT3(0.747f + 0.058f, 0.747f + 0.258f, 0.747f));
 		XMFLOAT3 le2 = fmf3(15.6f, XMFLOAT3(0.740f + 0.287f, 0.740f + 0.160f, 0.740f));
@@ -303,50 +304,23 @@ void SceneEditor::LoadAssets()
 	// Create the vertex and index buffer.
 	{
 		// Define the geometry for a triangle.
-		std::vector<Vertex> vertices =
-		{
-			{ { 0.0f, 0.25f , 0.0f }, { 1.0f, 1.0f, 0.0f, 1.0f } },
-			{ { 0.25f, -0.25f , 0.0f }, { 0.0f, 1.0f, 1.0f, 1.0f } },
-			{ { -0.25f, -0.25f , 0.0f }, { 1.0f, 0.0f, 1.0f, 1.0f } },
-			//{ { 1.0f, -1.5f , 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-			//{ { -1.0f, -1.5f , -1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-		};
-
-		std::vector<Index> indices =
-		{
-			//1,2,3,
-			0,1,2,
-		};
+		std::vector<Vertex> vertices;
+		std::vector<Index> indices;
+		LoadFile("./cornellbox/floor.obj", vertices, indices);
 		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::floor);
-	}
-
-	{// Create Plane
-		std::vector<Vertex> vertices =
-		{
-			{{-1.5f, -.8f, 01.5f}, {1.0f, 1.0f, 1.0f, 1.0f}}, // 0
-			{{-1.5f, -.8f, -1.5f}, {1.0f, 1.0f, 1.0f, 1.0f}}, // 1
-			{{01.5f, -.8f, 01.5f}, {1.0f, 1.0f, 1.0f, 1.0f}}, // 2
-			{{01.5f, -.8f, -1.5f}, {1.0f, 1.0f, 1.0f, 1.0f}}  // 3
-		};
-
-		std::vector<Index> indices =
-		{
-			0,1,2,
-			1,3,2
-
-		};
+		LoadFile("./cornellbox/shortbox.obj", vertices, indices);
 		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::shortbox);
-		for (int i = 0; i < 4; ++i)vertices[i].position.y += 0.3;
+		LoadFile("./cornellbox/tallbox.obj", vertices, indices);
 		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::tallbox);
-		for (int i = 0; i < 4; ++i)vertices[i].position.y += 0.3;
+		LoadFile("./cornellbox/left.obj", vertices, indices);
 		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::left);
-		for (int i = 0; i < 4; ++i)vertices[i].position.y += 0.3;
-		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::right); 
-		for (int i = 0; i < 4; ++i)vertices[i].position.y += 0.3;
+		LoadFile("./cornellbox/right.obj", vertices, indices);
+		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::right);
+		LoadFile("./cornellbox/light.obj", vertices, indices);
 		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::light);
-		PrimitiveMaterialBuffer planeMaterial;
-		planeMaterial.Kd = XMFLOAT3(1, 0, 0);
-		planeMaterial.emit = XMFLOAT3(0, 1, 0);
+		//PrimitiveMaterialBuffer planeMaterial;
+		//planeMaterial.Kd = XMFLOAT3(1, 0, 0);
+		//planeMaterial.emit = XMFLOAT3(0, 1, 0);
 		//CreateMaterialBufferAndSetAttributes(planeMaterial, SceneObject::shortbox);
 		//CreateMaterialBufferAndSetAttributes(XMFLOAT3(0, 1, 0), XMFLOAT3(0, 1, 0), SceneObject::Test_Plane);
 	}
