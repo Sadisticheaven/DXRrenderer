@@ -35,5 +35,6 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 		Kd = Vertex[Indices[vertId + 0]].color * barycentrics.x + Vertex[Indices[vertId + 1]].color * barycentrics.y + Vertex[Indices[vertId + 2]].color * barycentrics.z;
 		break;
 	}
+	Kd = MaterialAttributes.Kd;
   payload.colorAndDistance = float4(Kd, RayTCurrent());
 }

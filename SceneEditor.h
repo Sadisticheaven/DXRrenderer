@@ -33,8 +33,12 @@ using Microsoft::WRL::ComPtr;
 
 namespace SceneObject {
 	enum Enum {
-		Test_Triangle = 0,
-		Test_Plane,
+		floor = 0,
+		shortbox,
+		tallbox,
+		left,
+		right,
+		light,
 		Count
 	};
 }
@@ -85,7 +89,7 @@ private:
 
 	PrimitiveMaterialBuffer m_MaterialAttributes[SceneObject::Count];
 	ComPtr<ID3D12Resource> m_MaterialBuffer[SceneObject::Count];
-	int m_MaterialBufferSize;
+	int m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
 	void CreateMaterialBufferAndSetAttributes(XMFLOAT3 Kd = { 0.5f,0.5f,0.5f }, XMFLOAT3 emit = { 0.0f,0.0f,0.0f }, int bufferIndex = 0);
 	void CreateMaterialBufferAndSetAttributes(PrimitiveMaterialBuffer &desc, int bufferIndex = 0);
 
@@ -118,7 +122,7 @@ private:
 	};
 	AccelerationStructureBuffers m_topLevelASBuffers;
 
-	ComPtr<ID3D12Resource> m_bottomLevelAS; // Storage for the bottom Level AS
+	std::vector<ComPtr<ID3D12Resource>> m_bottomLevelAS; // Storage for the bottom Level AS
 	nv_helpers_dx12::TopLevelASGenerator m_topLevelASGenerator;
 	std::vector<std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>> m_instances;
 
