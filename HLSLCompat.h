@@ -6,17 +6,16 @@
 
 
 
-#ifndef RAYTRACINGHLSLCOMPAT_H
-#define RAYTRACINGHLSLCOMPAT_H
+#ifndef HLSLCOMPAT_H
+#define HLSLCOMPAT_H
 
 //**********************************************************************************************
 //
-// RaytracingHLSLCompat.h
+// HLSLCompat.h
 //
 // A header with shared definitions for C++ and HLSL source files. 
 //
 //**********************************************************************************************
-
 #ifdef HLSL
 typedef float2 XMFLOAT2;
 typedef float3 XMFLOAT3;
@@ -39,10 +38,15 @@ struct PayLoad
 	UINT recursionDepth;
 };
 
+struct Ray {
+	XMFLOAT3 origin;
+	XMFLOAT3 direction;
+};
+
 struct Vertex
 {
 	XMFLOAT3 position;
-	XMFLOAT4 color;
+	XMFLOAT3 normal;
 };
 
 struct SceneConstants

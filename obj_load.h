@@ -70,6 +70,13 @@ namespace algorithm
 		return XMFLOAT3(left.x + right.x, left.y + right.y, left.z + right.z);
 	}
 
+	void operator+=(XMFLOAT3& left, const XMFLOAT3& right)
+	{
+		left.x += right.x;
+		left.y += right.y;
+		left.z += right.z;
+	}
+
 	// A test to see if P1 is on the same side as P2 of a line segment ab
 	bool SameSide(XMFLOAT3 p1, XMFLOAT3 p2, XMFLOAT3 a, XMFLOAT3 b)
 	{
@@ -89,6 +96,8 @@ namespace algorithm
 		XMFLOAT3 v = t3 - t1;
 
 		XMFLOAT3 normal = math::CrossV3(u, v);
+
+		/*XMVECTOR normal = XMVector3Normalize(XMVector3Cross(XMLoadFloat3(&u), XMLoadFloat3(&v)));*/
 
 		return normal;
 	}
@@ -207,7 +216,8 @@ namespace algorithm
 	}
 }
 
-bool LoadFile(std::string Path, std::vector<Vertex> &vertices, std::vector<Index> &indices)
+using namespace algorithm;
+bool LoadObjFile(std::string Path, std::vector<Vertex> &vertices, std::vector<Index> &indices)
 {
 	// If the file is not an .obj file return false
 	if (Path.substr(Path.size() - 4, 4) != ".obj")
@@ -236,6 +246,7 @@ bool LoadFile(std::string Path, std::vector<Vertex> &vertices, std::vector<Index
 
 
 	std::string curline;
+	int vnorCount = 0;
 	while (std::getline(file, curline))
 	{
 
@@ -300,6 +311,7 @@ bool LoadFile(std::string Path, std::vector<Vertex> &vertices, std::vector<Index
 			vpos.z = std::stof(spos[2]);
 
 			Positions.push_back(vpos);
+			Normals.emplace_back();
 		}
 		// Generate a Vertex Texture Coordinate
 		if (algorithm::firstToken(curline) == "vt")
@@ -323,23 +335,32 @@ bool LoadFile(std::string Path, std::vector<Vertex> &vertices, std::vector<Index
 			vnor.x = std::stof(snor[0]);
 			vnor.y = std::stof(snor[1]);
 			vnor.z = std::stof(snor[2]);
-
-			Normals.push_back(vnor);
+			
+			//Normals.push_back(vnor);
+			Normals[vnorCount++] += vnor;
 		}
 		// Generate a Face (vertices & indices)
 		if (algorithm::firstToken(curline) == "f")
 		{
 			std::vector<std::string> snor;
-			XMFLOAT3 vnor;
+			//XMFLOAT3 vnor;
 			algorithm::split(algorithm::tail(curline), snor, " ");
-
-			indices.emplace_back(std::stof(snor[0]) - 1);
-			indices.emplace_back(std::stof(snor[1]) - 1);
-			indices.emplace_back(std::stof(snor[2]) - 1);
-
-			Normals.push_back(vnor);
-
-
+			std::vector<int> index;
+			index.emplace_back(std::stof(snor[0]) - 1);
+			index.emplace_back(std::stof(snor[1]) - 1);
+			index.emplace_back(std::stof(snor[2]) - 1);
+			indices.emplace_back(index[0]);
+			indices.emplace_back(index[1]);
+			indices.emplace_back(index[2]);
+		
+			XMFLOAT3 normal = GenTriNormal(Positions[index[0]], Positions[index[1]], Positions[index[2]]);
+			
+			for (auto no : index) {
+				XMFLOAT3 preNormal = Normals[no];
+				XMFLOAT3 newNormal = normal + preNormal;
+				DirectX::XMStoreFloat3(&Normals[no], XMVector3Normalize(XMLoadFloat3(&newNormal)));
+			}
+			//Normals.push_back(vnor);
 		}
 		// Get Mesh Material Name
 		if (algorithm::firstToken(curline) == "usemtl")
@@ -354,8 +375,11 @@ bool LoadFile(std::string Path, std::vector<Vertex> &vertices, std::vector<Index
 
 	file.close();
 
-	for (auto vertex : Positions) {
-		vertices.push_back({ vertex ,XMFLOAT4(0.0f,0.0f,0.0f,0.0f) });
+	/*for (auto vertex : Positions) {
+		vertices.push_back({ vertex ,XMFLOAT4(0.0f,0.0f,0.0f,0.0f)});
+	}*/
+	for (int i = 0; i < Positions.size(); ++i) {
+		vertices.push_back({ Positions[i], Normals[i] });
 	}
 	// Set Materials for each Mesh
 	return true;

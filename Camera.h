@@ -62,6 +62,6 @@ private:
 	XMVECTOR m_right;
 	XMVECTOR m_direction;
 	float m_fovAngleY = 45.0f * XM_PI / 180.0f;
-	float m_movSpeed = 0.02;
+	float m_movSpeed = 10.f;
 };
 

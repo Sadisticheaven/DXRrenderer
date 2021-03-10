@@ -17,13 +17,17 @@
 #include "nv_helpers_dx12/RaytracingPipelineGenerator.h"  
 #include "nv_helpers_dx12/RootSignatureGenerator.h"
 
-const std::wstring HitGroupName[] = {
-	L"Hit_floor",
-	L"Hit_shortbox",
-	L"Hit_tallbox",
-	L"Hit_left",
-	L"Hit_right",
-	L"Hit_light",
+const std::wstring ws_raygenShaderName = L"RayGen";
+const std::vector<std::wstring> ws_missShaderNames = { L"Miss" };
+const std::vector<std::wstring> ws_closestHitShaderNames = { L"ClosestHit" };
+
+const std::vector<std::wstring> ws_hitGroupNames = {
+		L"Hit_floor",
+		L"Hit_shortbox",
+		L"Hit_tallbox",
+		L"Hit_left",
+		L"Hit_right",
+		L"Hit_light",
 };
 
 
@@ -306,17 +310,17 @@ void SceneEditor::LoadAssets()
 		// Define the geometry for a triangle.
 		std::vector<Vertex> vertices;
 		std::vector<Index> indices;
-		LoadFile("./cornellbox/floor.obj", vertices, indices);
+		LoadObjFile("./cornellbox/floor.obj", vertices, indices);
 		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::floor);
-		LoadFile("./cornellbox/shortbox.obj", vertices, indices);
+		LoadObjFile("./cornellbox/shortbox.obj", vertices, indices);
 		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::shortbox);
-		LoadFile("./cornellbox/tallbox.obj", vertices, indices);
+		LoadObjFile("./cornellbox/tallbox.obj", vertices, indices);
 		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::tallbox);
-		LoadFile("./cornellbox/left.obj", vertices, indices);
+		LoadObjFile("./cornellbox/left.obj", vertices, indices);
 		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::left);
-		LoadFile("./cornellbox/right.obj", vertices, indices);
+		LoadObjFile("./cornellbox/right.obj", vertices, indices);
 		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::right);
-		LoadFile("./cornellbox/light.obj", vertices, indices);
+		LoadObjFile("./cornellbox/light.obj", vertices, indices);
 		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::light);
 		//PrimitiveMaterialBuffer planeMaterial;
 		//planeMaterial.Kd = XMFLOAT3(1, 0, 0);
@@ -778,14 +782,16 @@ void SceneEditor::CreateAccelerationStructures() {
 				{ {m_vertexBuffer[i].Get(), m_vertexCount[i]} },// VertexBuffers vector
 				{ {m_indexBuffer[i].Get(), m_indexCount[i]} })// IndexBuffers vector
 		);
+		// Store the AS buffers. The rest of the buffers will be released once we exit
+		// the function
 		m_bottomLevelAS[i] = bottomLevelBuffers[i].pResult;
 	}
 
-	// Just one instance for now
 	for (int i = 0; i < SceneObject::Count; ++i) {
 		m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(bottomLevelBuffers[i].pResult, XMMatrixIdentity()));
 	}
-	/*m_instances = {
+	/*// Just one instance for now
+	m_instances = {
 		{bottomLevelBuffers.pResult, XMMatrixIdentity()},
 		{planebottomLevelBuffers.pResult, XMMatrixRotationY(XM_PI / 2)},
 		{planebottomLevelBuffers.pResult, XMMatrixRotationX(XM_PI / 3)},
@@ -810,9 +816,6 @@ void SceneEditor::CreateAccelerationStructures() {
 	ThrowIfFailed(
 		m_commandList->Reset(m_commandAllocator.Get(), m_pipelineState.Get()));
 
-	// Store the AS buffers. The rest of the buffers will be released once we exit
-	// the function
-	//m_bottomLevelAS = bottomLevelBuffers.pResult;
 }
 
 //-----------------------------------------------------------------------------
@@ -880,9 +883,9 @@ void SceneEditor::CreateRaytracingPipeline()
 	// has to be done explicitly in the lines below. Note that a single library
 	// can contain an arbitrary number of symbols, whose semantic is given in HLSL
 	// using the [shader("xxx")] syntax
-	pipeline.AddLibrary(m_rayGenLibrary.Get(), { L"RayGen" });
-	pipeline.AddLibrary(m_missLibrary.Get(), { L"Miss" });
-	pipeline.AddLibrary(m_hitLibrary.Get(), { L"ClosestHit" });
+	pipeline.AddLibrary(m_rayGenLibrary.Get(), { ws_raygenShaderName });
+	pipeline.AddLibrary(m_missLibrary.Get(), ws_missShaderNames);
+	pipeline.AddLibrary(m_hitLibrary.Get(), ws_closestHitShaderNames);
 
 	// To be used, each DX12 shader needs a root signature defining which
 	// parameters and buffers will be accessed.
@@ -906,17 +909,17 @@ void SceneEditor::CreateRaytracingPipeline()
 
 	// Hit group for the triangles, with a shader simply interpolating vertex colors
 	for (int i = 0; i < SceneObject::Count; ++i)
-		pipeline.AddHitGroup(HitGroupName[i], L"ClosestHit");
+		pipeline.AddHitGroup(ws_hitGroupNames[i], ws_closestHitShaderNames[0]);
 
 	// The following section associates the root signature to each shader. Note
 	// that we can explicitly show that some shaders share the same root signature
 	// (eg. Miss and ShadowMiss). Note that the hit shaders are now only referred
 	// to as hit groups, meaning that the underlying intersection, any-hit and
 	// closest-hit shaders share the same root signature.
-	pipeline.AddRootSignatureAssociation(m_rayGenSignature.Get(), { L"RayGen" });
-	pipeline.AddRootSignatureAssociation(m_missSignature.Get(), { L"Miss" });
+	pipeline.AddRootSignatureAssociation(m_rayGenSignature.Get(), { ws_raygenShaderName });
+	pipeline.AddRootSignatureAssociation(m_missSignature.Get(), { ws_missShaderNames });
 	for (int i = 0; i < SceneObject::Count; ++i)
-		pipeline.AddRootSignatureAssociation(m_hitSignature.Get(), { HitGroupName[i] });
+		pipeline.AddRootSignatureAssociation(m_hitSignature.Get(), { ws_hitGroupNames[i] });
 
 	// The payload size defines the maximum size of the data carried by the rays,
 	// ie. the the data
@@ -1072,7 +1075,7 @@ void SceneEditor::CreateShaderBindingTable() {
 	//m_sbtHelper.AddHitGroup(L"HitGroup", {});
 	// Access vertexBuffer in hit shader
 	for (int i = 0; i < SceneObject::Count; ++i)
-		m_sbtHelper.AddHitGroup(HitGroupName[i], {
+		m_sbtHelper.AddHitGroup(ws_hitGroupNames[i], {
 			(void*)(m_vertexBuffer[i]->GetGPUVirtualAddress()),
 			(void*)(m_indexBuffer[i]->GetGPUVirtualAddress()),
 			(void*)(m_MaterialBuffer[i]->GetGPUVirtualAddress()),

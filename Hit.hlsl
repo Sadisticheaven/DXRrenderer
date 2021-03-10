@@ -1,6 +1,6 @@
 #define HLSL
 #include "HLSLCompat.h"
-
+#include "ShaderHelper.hlsli"
 
 StructuredBuffer<Vertex> Vertex : register(t0);
 StructuredBuffer<Index> Indices: register(t1);
@@ -23,7 +23,7 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	uint vertId = 3 * PrimitiveIndex();
 	//float3 normal = cross( Vertex[Indices[vertId + 1]].position - Vertex[Indices[vertId + 2]].position, Vertex[Indices[vertId + 0]].position - Vertex[Indices[vertId + 1]].position);
 	float3 Kd = float3(0.7, 0.7, 0.7);
-	switch (InstanceID())
+	/*switch (InstanceID())
 	{
 	case 0:
 		Kd = cross(Vertex[Indices[vertId + 2]].position - Vertex[Indices[vertId + 1]].position, Vertex[Indices[vertId + 1]].position - Vertex[Indices[vertId + 0]].position);
@@ -34,7 +34,9 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	case 2:
 		Kd = Vertex[Indices[vertId + 0]].color * barycentrics.x + Vertex[Indices[vertId + 1]].color * barycentrics.y + Vertex[Indices[vertId + 2]].color * barycentrics.z;
 		break;
-	}
-	Kd = MaterialAttributes.Kd;
+	}*/
+	//Kd = MaterialAttributes.Kd;
+    Kd = Vertex[Indices[vertId]].normal;
+
   payload.colorAndDistance = float4(Kd, RayTCurrent());
 }
