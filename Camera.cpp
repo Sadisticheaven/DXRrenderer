@@ -27,13 +27,13 @@ void Camera::MoveEyeDown()
 
 void Camera::MoveEyeLeft()
 {
-	m_eye -= m_right * m_movSpeed;
+	m_eye += m_left * m_movSpeed;
 	m_at = m_eye + m_direction;
 }
 
 void Camera::MoveEyeRight()
 {
-	m_eye += m_right * m_movSpeed;
+	m_eye -= m_left * m_movSpeed;
 	m_at = m_eye + m_direction;
 }
 
@@ -41,13 +41,13 @@ void Camera::RotateAroundUp(float dx) {
 	XMMATRIX rotateMat = XMMatrixRotationAxis(m_up, dx);
 	m_direction = XMVector3Normalize(XMVector3TransformNormal(m_direction, rotateMat));
 	m_at = m_eye + m_direction;
-	m_right = XMVector3Normalize(XMVector3Cross(m_direction, m_up));
+	m_left = XMVector3Normalize(XMVector3Cross(m_direction, m_up));
 }
-void Camera::RotateAroundRight(float dy) {
-	XMMATRIX rotateMat = XMMatrixRotationAxis(m_right, dy);
+void Camera::RotateAroundLeft(float dy) {
+	XMMATRIX rotateMat = XMMatrixRotationAxis(m_left, -dy);
 	m_direction = XMVector3Normalize(XMVector3TransformNormal(m_direction, rotateMat));
 	m_at = m_eye + m_direction;
-	m_up = XMVector3Normalize(XMVector3Cross(m_right, m_direction));
+	m_up = XMVector3Normalize(XMVector3Cross(m_left, m_direction));
 }
 void Camera::ScaleFov(float d) {
 	m_fovAngleY += d * XM_PI / 180.0f;

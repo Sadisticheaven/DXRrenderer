@@ -1153,12 +1153,12 @@ void SceneEditor::UpdateCameraBuffer() {
 	XMVECTOR At = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
 	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);*/
 	//matrices.view = XMMatrixLookAtRH(Eye, At, Up);
-	matrices.view = XMMatrixLookAtRH(m_camera.GetEye(), m_camera.GetAt(), m_camera.GetUp());
+	matrices.view = XMMatrixLookAtLH(m_camera.GetEye(), m_camera.GetAt(), m_camera.GetUp());
 
 	//float fovAngleY = 10.0f * XM_PI / 180.0f;
 
 	matrices.projection =
-		XMMatrixPerspectiveFovRH(m_camera.GetFov(), m_aspectRatio, 0.1f, 1000.0f);
+		XMMatrixPerspectiveFovLH(m_camera.GetFov(), m_aspectRatio, 0.1f, 1000.0f);
 
 	// Raytracing has to do the contrary of rasterization: rays are defined in
 	// camera space, and are transformed into world space. To do this, we need to
@@ -1206,8 +1206,8 @@ void SceneEditor::OnMouseMove(WPARAM btnState, int x, int y)
 		float dy = XMConvertToRadians(0.25f * static_cast<float>(y - m_lastMousePos.y));
 
 		// Rotate camera.
-		if (fabsf(dx) > fabsf(dy))m_camera.RotateAroundUp(-dx);
-		else m_camera.RotateAroundRight(-dy);
+		if (fabsf(dx) > fabsf(dy))m_camera.RotateAroundUp(dx);
+		else m_camera.RotateAroundLeft(dy);
 	}
 	else if ((btnState & MK_RBUTTON) != 0)
 	{

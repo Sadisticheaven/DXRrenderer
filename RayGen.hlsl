@@ -53,7 +53,8 @@ void RayGen() {
 
 		// Parameter name: RayFlags
 		// Flags can be used to specify the behavior upon hitting a surface
-		RAY_FLAG_NONE,
+		//RAY_FLAG_NONE
+		RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
 
 		// Parameter name: InstanceInclusionMask
 		// Instance inclusion mask, which can be used to mask out some geometry to this ray by

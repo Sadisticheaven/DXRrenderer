@@ -15,13 +15,13 @@ using namespace DirectX;
 class Camera
 {
 public:
-	Camera(XMVECTOR eye = XMVectorSet(278.0f, 273.0f, -800.0f, 0.0f),
-		XMVECTOR at = XMVectorSet(278.0f, 273.0f, -799.0f, 0.0f),
+	Camera(XMVECTOR eye = XMVectorSet(278.0f, 273.0f, -800.0f, 0.0f),/*278.0f, 273.0f*/
+		XMVECTOR at = XMVectorSet(278.0f, 273.0f, 0.0f, 0.0f),/*278.0f, 273.0f*/
 		XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)) :m_eye(eye), m_at(at)
 	{
 		m_up = XMVector3Normalize(up);
 		m_direction = XMVector3Normalize(m_at - m_eye);
-		m_right = XMVector3Normalize(XMVector3Cross(m_direction, m_up));
+		m_left = XMVector3Normalize(XMVector3Cross(m_direction, m_up));
 	}
 
 	void SetEye(float x, float y, float z, float w) { m_eye = XMVectorSet(x, y, z, w); }
@@ -41,7 +41,7 @@ public:
 	XMVECTOR GetEye() { return m_eye; }
 	XMVECTOR GetAt() { return m_at; }
 	XMVECTOR GetUp() { return m_up; }
-	XMVECTOR GetRight() { return m_right; }
+	XMVECTOR GetRight() { return m_left; }
 	XMVECTOR GetDirection() { return m_direction; }
 	float GetFov() { return m_fovAngleY; }
 
@@ -52,14 +52,14 @@ public:
 	void MoveEyeLeft();
 	void MoveEyeRight();
 	void RotateAroundUp(float dx);
-	void RotateAroundRight(float dy);
+	void RotateAroundLeft(float dy);
 	void ScaleFov(float d);
 
 private:
 	XMVECTOR m_eye;
 	XMVECTOR m_at;
 	XMVECTOR m_up;
-	XMVECTOR m_right;
+	XMVECTOR m_left;
 	XMVECTOR m_direction;
 	float m_fovAngleY = 45.0f * XM_PI / 180.0f;
 	float m_movSpeed = 10.f;
