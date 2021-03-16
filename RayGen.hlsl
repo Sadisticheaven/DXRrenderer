@@ -15,8 +15,8 @@ void RayGen() {
 	// Initialize the ray payload
 	PayLoad payload;
 	//payload.colorAndDistance = float4(1, 0, 0, 1);
-	payload.colorAndDistance = float4(0, 0, 0, 0);
-
+	payload.irradiance = float4(0, 0, 0, 0);
+	payload.recursionDepth = 0;
 	// Get the location within the dispatched 2D grid of work items
 	// (often maps to pixels, so this could represent a pixel coordinate). 
 	//uint2 launchIndex = DispatchRaysIndex();
@@ -95,6 +95,6 @@ void RayGen() {
 		payload
 	);
 
-	gOutput[launchIndex] = float4(payload.colorAndDistance.rgb, 1.f);
+	gOutput[launchIndex] = float4(payload.irradiance, 1.f);
 	//gOutput[launchIndex] += 0.01 * float4(payload.colorAndDistance.rgb, 1.f);
 }

@@ -31,10 +31,11 @@ typedef UINT32 Index;
 
 #endif //HLSL
 
+#define MAX_RAY_RECURSION_DEPTH 6
 
 struct PayLoad
 {
-	XMFLOAT4 colorAndDistance;
+	XMFLOAT3 irradiance;
 	UINT recursionDepth;
 };
 
@@ -69,12 +70,12 @@ namespace MaterialType {
 }
 struct PrimitiveMaterialBuffer
 {
-	XMFLOAT3 Kd;
-	XMFLOAT3 Ks;
-	XMFLOAT3 Kr;
-	XMFLOAT3 Kt;
-	XMFLOAT3 opacity;
-	XMFLOAT3 emit;
+	XMFLOAT4 Kd;
+	XMFLOAT4 Ks;
+	XMFLOAT4 Kr;
+	XMFLOAT4 Kt;
+	XMFLOAT4 opacity;
+	XMFLOAT4 emit;
 	float roughness;
 	//BOOL hasDiffuseTexture;
 	//BOOL hasNormalTexture;
@@ -82,9 +83,9 @@ struct PrimitiveMaterialBuffer
 	MaterialType::Type type;
 	float padding;
 #ifndef HLSL
-	PrimitiveMaterialBuffer() :Kd(0, 0, 0), Ks(0, 0, 0), Kr(0, 0, 0), Kt(0, 0, 0), opacity(0, 0, 0), emit(0, 0, 0), roughness(0), type(MaterialType::Matte), padding(0) {
+	//PrimitiveMaterialBuffer() :Kd(0, 0, 0), Ks(0, 0, 0), Kr(0, 0, 0), Kt(0, 0, 0), opacity(0, 0, 0), emit(0, 0, 0), roughness(0), type(MaterialType::Matte), padding(0) {
 
-	}
+	//}
 #endif
 };
 // Attributes output by the raytracing when hitting a surface,

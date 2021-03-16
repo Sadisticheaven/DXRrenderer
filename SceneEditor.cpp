@@ -142,7 +142,7 @@ void SceneEditor::LoadPipeline()
 	swapChainDesc.BufferCount = FrameCount;
 	swapChainDesc.Width = m_width;
 	swapChainDesc.Height = m_height;
-	swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapChainDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	swapChainDesc.SampleDesc.Count = 1;
@@ -239,8 +239,8 @@ void SceneEditor::AllocateUploadGeometryBuffer(std::vector<Vertex> vertices, std
 	}
 }
 
-void SceneEditor::CreateMaterialBufferAndSetAttributes(XMFLOAT3 Kd, XMFLOAT3 emit, int bufferIndex) {
-	//m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
+void SceneEditor::CreateMaterialBufferAndSetAttributes(XMFLOAT4 Kd, XMFLOAT4 emit, int bufferIndex) {
+	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
 	//int k = sizeof(PrimitiveMaterialBuffer);
 	m_MaterialBuffer[bufferIndex] = nv_helpers_dx12::CreateBuffer(
 		m_device.Get(), m_MaterialBufferSize, D3D12_RESOURCE_FLAG_NONE,
@@ -249,7 +249,7 @@ void SceneEditor::CreateMaterialBufferAndSetAttributes(XMFLOAT3 Kd, XMFLOAT3 emi
 	m_MaterialAttributes[bufferIndex].emit = emit;
 	uint8_t* pData;
 	ThrowIfFailed(m_MaterialBuffer[bufferIndex]->Map(0, nullptr, (void**)&pData));
-	memcpy(pData, &(m_MaterialAttributes[bufferIndex]), m_MaterialBufferSize);
+	memcpy(pData, &(m_MaterialAttributes[bufferIndex]), sizeof(PrimitiveMaterialBuffer));
 	m_MaterialBuffer[bufferIndex]->Unmap(0, nullptr);
 }
 
@@ -285,19 +285,19 @@ void SceneEditor::LoadAssets()
 	// Create the command list.
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
 	{
-		auto fmf3 = [&](const float& f, const XMFLOAT3 vec3) {
-			return XMFLOAT3(f * vec3.x, f * vec3.y, f * vec3.z);
+		auto Float4Multi = [&](const float& f, const XMFLOAT4 vec3) {
+			return XMFLOAT4(f * vec3.x, f * vec3.y, f * vec3.z, 0.0f);
 		};
-		XMFLOAT3 not_emit(0.0f, 0.0f, 0.0f);
-		XMFLOAT3 red(0.63f, 0.065f, 0.05f);
-		XMFLOAT3 green(0.14f, 0.45f, 0.091f);
-		XMFLOAT3 white(0.725f, 0.71f, 0.68f);
-		XMFLOAT3 test(0.225f, 0.71f, 0.78f);
-		XMFLOAT3 light_kd(0.65f, 0.65f, 0.65f);
-		XMFLOAT3 le1 = fmf3(8.0f, XMFLOAT3(0.747f + 0.058f, 0.747f + 0.258f, 0.747f));
-		XMFLOAT3 le2 = fmf3(15.6f, XMFLOAT3(0.740f + 0.287f, 0.740f + 0.160f, 0.740f));
-		XMFLOAT3 le3 = fmf3(18.4f, XMFLOAT3(0.737f + 0.642f, 0.737f + 0.159f, 0.737f));
-		XMFLOAT3 light_emit(le1.x + le2.x + le3.x, le1.y + le2.y + le3.y, le1.z + le2.z + le3.z);
+		XMFLOAT4 not_emit(0.0f, 0.0f, 0.0f, 0.0f);
+		XMFLOAT4 red(0.63f, 0.065f, 0.05f, 0.0f);
+		XMFLOAT4 green(0.14f, 0.45f, 0.091f, 0.0f);
+		XMFLOAT4 white(0.725f, 0.71f, 0.68f, 0.0f);
+		XMFLOAT4 test(0.225f, 0.71f, 0.78f, 0.0f);
+		XMFLOAT4 light_kd(0.65f, 0.65f, 0.65f, 0.0f);
+		XMFLOAT4 le1 = Float4Multi(8.0f, XMFLOAT4(0.747f + 0.058f, 0.747f + 0.258f, 0.747f, 0.0f));
+		XMFLOAT4 le2 = Float4Multi(15.6f, XMFLOAT4(0.740f + 0.287f, 0.740f + 0.160f, 0.740f, 0.0f));
+		XMFLOAT4 le3 = Float4Multi(18.4f, XMFLOAT4(0.737f + 0.642f, 0.737f + 0.159f, 0.737f, 0.0f));
+		XMFLOAT4 light_emit(le1.x + le2.x + le3.x, le1.y + le2.y + le3.y, le1.z + le2.z + le3.z, 0.0f);
 		CreateMaterialBufferAndSetAttributes(white, not_emit, SceneObject::floor);
 		CreateMaterialBufferAndSetAttributes(white, not_emit, SceneObject::shortbox);
 		CreateMaterialBufferAndSetAttributes(white, not_emit, SceneObject::tallbox);
@@ -396,7 +396,7 @@ void SceneEditor::OnResize(HWND hWnd, int width, int height)
 	ThrowIfFailed(m_swapChain->ResizeBuffers(
 		FrameCount,
 		width, height,
-		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R16G16B16A16_FLOAT,
 		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
@@ -436,7 +436,7 @@ void SceneEditor::OnResize(HWND hWnd, int width, int height)
 		m_outputResource.Reset();
 
 		// Create the output resource. The dimensions and format should match the swap-chain.
-		auto uavDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, m_width, m_height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+		auto uavDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R16G16B16A16_FLOAT, m_width, m_height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 		auto defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 		ThrowIfFailed(m_device->CreateCommittedResource(
@@ -845,6 +845,7 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateHitSignature() {
 	// but we want to access vertex buffer in hit shader, so add a parameter of SRV
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 0);
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1);
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 2);
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);
 	return rsc.Generate(m_device.Get(), true);
 }
@@ -940,7 +941,7 @@ void SceneEditor::CreateRaytracingPipeline()
 	// then requires a trace depth of 1. Note that this recursion depth should be
 	// kept to a minimum for best performance. Path tracing algorithms can be
 	// easily flattened into a simple loop in the ray generation.
-	pipeline.SetMaxRecursionDepth(1);
+	pipeline.SetMaxRecursionDepth(31);
 
 	// Compile the pipeline for execution on the GPU
 	m_rtStateObject = pipeline.Generate();
@@ -960,10 +961,10 @@ void SceneEditor::CreateRaytracingOutputBuffer() {
 	D3D12_RESOURCE_DESC resDesc = {};
 	resDesc.DepthOrArraySize = 1;
 	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	// The backbuffer is actually DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, but sRGB
+	// The backbuffer is actually DXGI_FORMAT_R16G16B16A16_FLOAT_SRGB, but sRGB
 	// formats cannot be used with UAVs. For accuracy we should convert to sRGB
 	// ourselves in the shader
-	resDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	resDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
 	resDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	resDesc.Width = GetWidth();
@@ -1078,6 +1079,7 @@ void SceneEditor::CreateShaderBindingTable() {
 		m_sbtHelper.AddHitGroup(ws_hitGroupNames[i], {
 			(void*)(m_vertexBuffer[i]->GetGPUVirtualAddress()),
 			(void*)(m_indexBuffer[i]->GetGPUVirtualAddress()),
+			(void*)(m_topLevelASBuffers.pResult->GetGPUVirtualAddress()),
 			(void*)(m_MaterialBuffer[i]->GetGPUVirtualAddress()),
 			});
 
