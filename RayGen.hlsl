@@ -12,15 +12,14 @@ ConstantBuffer<SceneConstants> scenePara : register(b0);
 
 [shader("raygeneration")]
 void RayGen() {
-	// Initialize the ray payload
+	uint2 launchIndex = DispatchRaysIndex().xy;
 	PayLoad payload;
-	//payload.colorAndDistance = float4(1, 0, 0, 1);
 	payload.irradiance = float4(0, 0, 0, 0);
 	payload.recursionDepth = 0;
+	payload.seed = scenePara.seed + gOutput[launchIndex] + float4(DispatchRaysIndex(), 1.0);
 	// Get the location within the dispatched 2D grid of work items
 	// (often maps to pixels, so this could represent a pixel coordinate). 
 	//uint2 launchIndex = DispatchRaysIndex();
-	uint2 launchIndex = DispatchRaysIndex().xy;
 	float2 dims = float2(DispatchRaysDimensions().xy);
 	float2 d = (((launchIndex.xy + 0.5f) / dims.xy) * 2.f - 1.f);
 
@@ -43,7 +42,7 @@ void RayGen() {
 	ray.TMin = 0;
 	ray.TMax = 100000;
 
-	
+
 
 	// Trace the ray
 	TraceRay(
@@ -95,6 +94,6 @@ void RayGen() {
 		payload
 	);
 
-	gOutput[launchIndex] = float4(payload.irradiance, 1.f);
-	//gOutput[launchIndex] += 0.01 * float4(payload.colorAndDistance.rgb, 1.f);
+	//gOutput[launchIndex] = float4(payload.irradiance, 1.f);
+	gOutput[launchIndex] = lerp(gOutput[launchIndex], float4(payload.irradiance, 1.0f), 1.0 / (float(scenePara.spp) + 1.0f));
 }

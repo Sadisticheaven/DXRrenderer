@@ -59,6 +59,7 @@ public:
 	virtual void OnMouseUp(WPARAM btnState, int x, int y);
 	virtual void OnMouseMove(WPARAM btnState, int x, int y);
 	virtual void OnKeyDown(UINT8 key);
+	virtual void OnResetSpp() { needRefreshScreen = true; }
 
 private:
 	static const UINT FrameCount = 2;

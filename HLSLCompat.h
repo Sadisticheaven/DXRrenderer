@@ -31,12 +31,14 @@ typedef UINT32 Index;
 
 #endif //HLSL
 
-#define MAX_RAY_RECURSION_DEPTH 6
+#define MAX_RAY_RECURSION_DEPTH 10
 
 struct PayLoad
 {
 	XMFLOAT3 irradiance;
+	XMFLOAT4 seed;
 	UINT recursionDepth;
+
 };
 
 struct Ray {
@@ -56,6 +58,7 @@ struct SceneConstants
 	XMMATRIX projection;
 	XMMATRIX viewI;
 	XMMATRIX projectionI;
+	XMFLOAT4 seed;
 	UINT spp;
 };
 

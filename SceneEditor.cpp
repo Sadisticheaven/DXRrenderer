@@ -927,7 +927,7 @@ void SceneEditor::CreateRaytracingPipeline()
 	// exchanged between shaders, such as the HitInfo structure in the HLSL code.
 	// It is important to keep this value as low as possible as a too high value
 	// would result in unnecessary memory consumption and cache trashing.
-	pipeline.SetMaxPayloadSize(sizeof(PayLoad)); // RGB + distance
+	pipeline.SetMaxPayloadSize(sizeof(PayLoad)); 
 	//pipeline.SetMaxPayloadSize(4 * sizeof(float) ); // RGB + distance
 
 	// Upon hitting a surface, DXR can provide several attributes to the hit. In
@@ -1178,6 +1178,7 @@ void SceneEditor::UpdateCameraBuffer() {
 		matrices.spp++;
 	}
 	// Copy the matrix contents
+	matrices.seed = XMFLOAT4(rand() / double(0xfff), rand() / double(0xfff), rand() / double(0xfff), rand() / double(0xfff));
 	uint8_t* pData;
 	ThrowIfFailed(m_cameraBuffer->Map(0, nullptr, (void**)&pData));
 	memcpy(pData, &matrices, m_cameraBufferSize);
@@ -1210,6 +1211,7 @@ void SceneEditor::OnMouseMove(WPARAM btnState, int x, int y)
 		// Rotate camera.
 		if (fabsf(dx) > fabsf(dy))m_camera.RotateAroundUp(dx);
 		else m_camera.RotateAroundLeft(dy);
+		OnResetSpp();
 	}
 	else if ((btnState & MK_RBUTTON) != 0)
 	{
@@ -1219,6 +1221,7 @@ void SceneEditor::OnMouseMove(WPARAM btnState, int x, int y)
 
 		// Zoom in or out.
 		m_camera.ScaleFov(dx - dy);
+		OnResetSpp();
 	}
 
 	m_lastMousePos.x = x;

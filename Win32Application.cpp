@@ -53,7 +53,6 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
 
 	// Initialize the sample. OnInit is defined in each child-implementation of DXSample.
 	pSample->OnInit();
-
 	pSample->SetMainWndHandle(m_hwnd);
 
 	ShowWindow(m_hwnd, nCmdShow);
@@ -109,6 +108,7 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
 		{
 			ImGui_ImplDX12_InvalidateDeviceObjects();
 			pSample->OnResize(hWnd, (UINT)LOWORD(lParam), (UINT)HIWORD(lParam));
+			pSample->OnResetSpp();
 			ImGui_ImplDX12_CreateDeviceObjects();
 		}
 		return 0;
@@ -117,11 +117,13 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
 	case WM_MBUTTONDOWN:
 	case WM_RBUTTONDOWN:
 		pSample->OnMouseDown(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		pSample->OnResetSpp();
 		return 0;
 	case WM_LBUTTONUP:
 	case WM_MBUTTONUP:
 	case WM_RBUTTONUP:
 		pSample->OnMouseUp(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		pSample->OnResetSpp();
 		return 0;
 	case WM_MOUSEMOVE:
 		pSample->OnMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
@@ -131,6 +133,7 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
 		if (pSample)
 		{
 			pSample->OnKeyDown(static_cast<UINT8>(wParam));
+			pSample->OnResetSpp();
 		}
 		if (static_cast<UINT8>(wParam) == VK_ESCAPE)
 			PostQuitMessage(0);
@@ -140,6 +143,7 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
 		if (pSample)
 		{
 			pSample->OnKeyUp(static_cast<UINT8>(wParam));
+			pSample->OnResetSpp();
 		}
 		return 0;
 
