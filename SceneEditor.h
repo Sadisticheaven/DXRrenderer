@@ -63,7 +63,8 @@ public:
 
 private:
 	static const UINT FrameCount = 2;
-
+	//DXGI_FORMAT m_outPutFormat = DXGI_FORMAT_R8G8B8A8_UNORM ;
+	DXGI_FORMAT m_outPutFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
 	// Pipeline objects.
 	CD3DX12_VIEWPORT m_viewport;

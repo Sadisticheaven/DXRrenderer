@@ -54,7 +54,7 @@ void ImguiManager::InitImGui4RayTracing(HWND hwnd)
 	ImGui_ImplWin32_Init(hwnd);
 	ID3D12DescriptorHeap* pSrvHeap4Imgui = m_srvHeap4Imgui.Get();
 	ImGui_ImplDX12_Init(m_device.Get(), 2,
-		DXGI_FORMAT_R8G8B8A8_UNORM, pSrvHeap4Imgui,
+		m_imguiOutputFormat/*DXGI_FORMAT_R8G8B8A8_UNORM*/, pSrvHeap4Imgui,
 		pSrvHeap4Imgui->GetCPUDescriptorHandleForHeapStart(),
 		pSrvHeap4Imgui->GetGPUDescriptorHandleForHeapStart());
 }

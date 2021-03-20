@@ -142,7 +142,7 @@ void SceneEditor::LoadPipeline()
 	swapChainDesc.BufferCount = FrameCount;
 	swapChainDesc.Width = m_width;
 	swapChainDesc.Height = m_height;
-	swapChainDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	swapChainDesc.Format = m_outPutFormat;//DXGI_FORMAT_R16G16B16A16_FLOAT;
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	swapChainDesc.SampleDesc.Count = 1;
@@ -396,7 +396,7 @@ void SceneEditor::OnResize(HWND hWnd, int width, int height)
 	ThrowIfFailed(m_swapChain->ResizeBuffers(
 		FrameCount,
 		width, height,
-		DXGI_FORMAT_R16G16B16A16_FLOAT,
+		m_outPutFormat,//DXGI_FORMAT_R16G16B16A16_FLOAT,
 		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
@@ -436,7 +436,7 @@ void SceneEditor::OnResize(HWND hWnd, int width, int height)
 		m_outputResource.Reset();
 
 		// Create the output resource. The dimensions and format should match the swap-chain.
-		auto uavDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R16G16B16A16_FLOAT, m_width, m_height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+		auto uavDesc = CD3DX12_RESOURCE_DESC::Tex2D(m_outPutFormat/*DXGI_FORMAT_R16G16B16A16_FLOAT*/, m_width, m_height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 		auto defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 		ThrowIfFailed(m_device->CreateCommittedResource(
@@ -964,7 +964,7 @@ void SceneEditor::CreateRaytracingOutputBuffer() {
 	// The backbuffer is actually DXGI_FORMAT_R16G16B16A16_FLOAT_SRGB, but sRGB
 	// formats cannot be used with UAVs. For accuracy we should convert to sRGB
 	// ourselves in the shader
-	resDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	resDesc.Format = m_outPutFormat;// DXGI_FORMAT_R16G16B16A16_FLOAT;
 
 	resDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	resDesc.Width = GetWidth();
@@ -1175,7 +1175,8 @@ void SceneEditor::UpdateCameraBuffer() {
 		needRefreshScreen = false;
 	}
 	else {
-		matrices.spp++;
+		matrices.spp ++;
+		matrices.spp = min(matrices.spp, 1000);
 	}
 	// Copy the matrix contents
 	matrices.seed = XMFLOAT4(rand() / double(0xfff), rand() / double(0xfff), rand() / double(0xfff), rand() / double(0xfff));

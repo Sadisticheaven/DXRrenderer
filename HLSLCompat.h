@@ -59,7 +59,7 @@ struct SceneConstants
 	XMMATRIX viewI;
 	XMMATRIX projectionI;
 	XMFLOAT4 seed;
-	UINT spp;
+	float spp;
 };
 
 namespace MaterialType {

@@ -95,5 +95,6 @@ void RayGen() {
 	);
 
 	//gOutput[launchIndex] = float4(payload.irradiance, 1.f);
+	payload.irradiance = clamp(payload.irradiance, 0.0, 300);
 	gOutput[launchIndex] = lerp(gOutput[launchIndex], float4(payload.irradiance, 1.0f), 1.0 / (float(scenePara.spp) + 1.0f));
 }

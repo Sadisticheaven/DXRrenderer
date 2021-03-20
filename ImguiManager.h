@@ -14,4 +14,6 @@ public:
 private:
 	ComPtr<ID3D12Device5> m_device;
 	ComPtr<ID3D12DescriptorHeap> m_srvHeap4Imgui;
+	//DXGI_FORMAT m_imguiOutputFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+	DXGI_FORMAT m_imguiOutputFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 };
