@@ -8,15 +8,17 @@ RWTexture2D< float4 > gOutput : register(u0);
 RaytracingAccelerationStructure SceneBVH : register(t0);// declared in CreateRayGenSignature()
 
 // #DXR Extra: Perspective Camera
-ConstantBuffer<SceneConstants> scenePara : register(b0);
+ConstantBuffer<SceneConstants> sceneParameter : register(b0);
 
 [shader("raygeneration")]
 void RayGen() {
+	if (sceneParameter.CurrSampleIdx > 10000)
+		return;
 	uint2 launchIndex = DispatchRaysIndex().xy;
 	PayLoad payload;
-	payload.irradiance = float4(0, 0, 0, 0);
+	payload.radiance = float4(0, 0, 0, 0);
 	payload.recursionDepth = 0;
-	payload.seed = scenePara.seed + gOutput[launchIndex] + float4(DispatchRaysIndex(), 1.0);
+	payload.seed = sceneParameter.seed + gOutput[launchIndex] + float4(DispatchRaysIndex(), 1.0);
 	// Get the location within the dispatched 2D grid of work items
 	// (often maps to pixels, so this could represent a pixel coordinate). 
 	//uint2 launchIndex = DispatchRaysIndex();
@@ -35,9 +37,9 @@ void RayGen() {
 	float aspectRatio = dims.x / dims.y;
 	// Perspective
 	RayDesc ray;
-	ray.Origin = mul(scenePara.viewI, float4(0, 0, 0, 1));
-	float4 target = mul(scenePara.projectionI, float4(d.x, -d.y, 1, 1));
-	ray.Direction = mul(scenePara.viewI, float4(target.xyz, 0));
+	ray.Origin = mul(sceneParameter.viewI, float4(0, 0, 0, 1));
+	float4 target = mul(sceneParameter.projectionI, float4(d.x, -d.y, 1, 1));
+	ray.Direction = mul(sceneParameter.viewI, float4(target.xyz, 0));
 
 	ray.TMin = 0;
 	ray.TMax = 100000;
@@ -94,7 +96,7 @@ void RayGen() {
 		payload
 	);
 
-	//gOutput[launchIndex] = float4(payload.irradiance, 1.f);
-	payload.irradiance = clamp(payload.irradiance, 0.0, 300);
-	gOutput[launchIndex] = lerp(gOutput[launchIndex], float4(payload.irradiance, 1.0f), 1.0 / (float(scenePara.spp) + 1.0f));
+	//gOutput[launchIndex] = float4(payload.radiance, 1.f);
+	payload.radiance = clamp(payload.radiance, 0.0, 300);
+	gOutput[launchIndex] = lerp(gOutput[launchIndex], float4(payload.radiance, 1.0f), 1.0 / (float(sceneParameter.CurrSampleIdx) + 1.0f));
 }

@@ -84,7 +84,7 @@ float3 createSampleRay(float3 wi, float3 N, inout float4 seed, MaterialType::Typ
 
 
 float3 CastRay(Ray ray, uint curRecursionDepth, float4 seed) {
-	if (curRecursionDepth > MAX_RAY_RECURSION_DEPTH)
+	if (curRecursionDepth >= MAX_RAY_RECURSION_DEPTH)
 		return float3(0.0f, 0.0f, 0.0f);
 	RayDesc rayDesc;
 	rayDesc.Origin = ray.origin;
@@ -92,7 +92,7 @@ float3 CastRay(Ray ray, uint curRecursionDepth, float4 seed) {
 	rayDesc.TMin = 0;
 	rayDesc.TMax = 100000;
 	PayLoad rayPayload;
-	rayPayload.irradiance = float3(0.0, 0.0, 0.0);
+	rayPayload.radiance = float3(0.0, 0.0, 0.0);
 	rayPayload.recursionDepth = curRecursionDepth + 1;
 	rayPayload.seed = seed;
 	TraceRay(
@@ -105,7 +105,7 @@ float3 CastRay(Ray ray, uint curRecursionDepth, float4 seed) {
 		rayDesc,
 		rayPayload
 	);
-	return rayPayload.irradiance;
+	return rayPayload.radiance;
 }
 
 
@@ -113,7 +113,7 @@ float3 CastRay(Ray ray, uint curRecursionDepth, float4 seed) {
 void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes attrib)
 {
 	if (MaterialAttributes.emit.x >= 0.1) {
-		payload.irradiance = MaterialAttributes.emit;
+		payload.radiance = MaterialAttributes.emit;
 		return;
 	}
 	float3 barycentrics =
@@ -139,11 +139,13 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	float dot_value = dot(sp_direction, normal);
 	//float4 randomFloat = createRandomFloat4(payload.seed);
 	//float3 dir = normalize(randomFloat * 2.0 - 1.0 + normal);
-
-	Ray ray;
-	ray.origin = HitWorldPosition();
-	ray.direction = sp_direction;
-	float3 color = CastRay(ray, payload.recursionDepth, createRandomFloat4(random_seed)) * eval * dot_value / pdf;
+	float3 color = float3(0.0, 0.0, 0.0);
+	if (random(float2(random_seed.x + random_seed.y, random_seed.z + random_seed.w)) <= PROBABILITY_RUSSIAN_ROULETTE) {
+		Ray ray;
+		ray.origin = HitWorldPosition();
+		ray.direction = sp_direction;
+		color = CastRay(ray, payload.recursionDepth, createRandomFloat4(random_seed)) * eval * dot_value / pdf / PROBABILITY_RUSSIAN_ROULETTE;
+	}
 	//Kd = Vertex[Indices[vertId]].normal;
-	payload.irradiance = float4(color, 1.0) + MaterialAttributes.emit;
+	payload.radiance = float4(color, 1.0) + MaterialAttributes.emit;
 }
