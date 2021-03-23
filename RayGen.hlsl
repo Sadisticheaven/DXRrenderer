@@ -12,13 +12,13 @@ ConstantBuffer<SceneConstants> sceneParameter : register(b0);
 
 [shader("raygeneration")]
 void RayGen() {
-	if (sceneParameter.CurrSampleIdx > 10000)
-		return;
+	//if (sceneParameter.CurrSampleIdx > 10000)
+	//	return;
 	uint2 launchIndex = DispatchRaysIndex().xy;
 	PayLoad payload;
 	payload.radiance = float4(0, 0, 0, 0);
 	payload.recursionDepth = 0;
-	payload.seed = sceneParameter.seed + gOutput[launchIndex] + float4(DispatchRaysIndex(), 1.0);
+	payload.seed = sceneParameter.seed + gOutput[launchIndex] + float4(DispatchRaysIndex(), 1.0) * float4(0.11, 0.42, 0.75, 1.0);
 	// Get the location within the dispatched 2D grid of work items
 	// (often maps to pixels, so this could represent a pixel coordinate). 
 	//uint2 launchIndex = DispatchRaysIndex();

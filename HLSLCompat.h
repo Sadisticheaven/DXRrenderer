@@ -31,7 +31,7 @@ typedef UINT32 Index;
 
 #endif //HLSL
 
-#define MAX_RAY_RECURSION_DEPTH 5
+#define MAX_RAY_RECURSION_DEPTH 3
 #define PROBABILITY_RUSSIAN_ROULETTE 0.8
 
 struct PayLoad
@@ -47,11 +47,11 @@ struct Ray {
 	XMFLOAT3 direction;
 };
 
-struct Vertex
+typedef struct Vertex
 {
 	XMFLOAT3 position;
 	XMFLOAT3 normal;
-};
+}Vertex;
 
 struct SceneConstants
 {

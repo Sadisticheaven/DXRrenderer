@@ -847,6 +847,8 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateHitSignature() {
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1);
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 2);
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 3);//光源顶点
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 4);//光源索引
 	return rsc.Generate(m_device.Get(), true);
 }
 
@@ -1081,6 +1083,8 @@ void SceneEditor::CreateShaderBindingTable() {
 			(void*)(m_indexBuffer[i]->GetGPUVirtualAddress()),
 			(void*)(m_topLevelASBuffers.pResult->GetGPUVirtualAddress()),
 			(void*)(m_MaterialBuffer[i]->GetGPUVirtualAddress()),
+			(void*)(m_vertexBuffer[SceneObject::light]->GetGPUVirtualAddress()),
+			(void*)(m_indexBuffer[SceneObject::light]->GetGPUVirtualAddress()),
 			});
 
 

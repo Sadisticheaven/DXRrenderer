@@ -2,10 +2,14 @@
 #include "HLSLCompat.h"
 #include "ShaderHelper.hlsli"
 
-StructuredBuffer<Vertex> Vertex : register(t0);
+
+StructuredBuffer<Vertex> Vertices: register(t0);
 StructuredBuffer<Index> Indices: register(t1);
-RaytracingAccelerationStructure l_scene : register(t2);
+RaytracingAccelerationStructure SceneBVH : register(t2);
 ConstantBuffer<PrimitiveMaterialBuffer> MaterialAttributes : register(b0);
+StructuredBuffer<Vertex> light_vertices: register(t3);
+StructuredBuffer<Index> light_indices: register(t4);
+
 
 #define M_PI 3.14159265358979323846   // pi
 
@@ -66,6 +70,53 @@ float4 createRandomFloat4(float4 seed)
 
 }
 
+float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N, inout float4 seed, in UINT curRecursionDepth)
+{
+	if (curRecursionDepth >= MAX_RAY_RECURSION_DEPTH)
+	{
+		return float3(0.0, 0.0, 0.0);
+	}
+	seed = createRandomFloat4(seed);
+	float2 ramdomBary = float2(random(seed.xy + seed.yz), random(seed.yz + seed.zw));
+	uint vertId = ramdomBary.x <= ramdomBary.y ? 0 : 3;
+	float3 barycentrics =
+		float3(1.f - ramdomBary.x - ramdomBary.y, ramdomBary.x, ramdomBary.y);
+	float3 normal = barycentrics.x * light_vertices[light_indices[vertId + 0]].normal +
+		barycentrics.y * light_vertices[light_indices[vertId + 1]].normal +
+		barycentrics.z * light_vertices[light_indices[vertId + 2]].normal;
+	float3 position = barycentrics.x * light_vertices[light_indices[vertId + 0]].position +
+		barycentrics.y * light_vertices[light_indices[vertId + 1]].position +
+		barycentrics.z * light_vertices[light_indices[vertId + 2]].position;
+	float pdf = 130 * 105;
+
+	// Set the ray's extents.
+	float3 direction = position - hitWorldPosition;
+	float disPow2 = dot(direction, direction);
+	float dis = sqrt(disPow2);
+	direction = normalize(direction);
+	float3 eval = get_eval(worldRayDirection, direction, N, MaterialAttributes.Kd.xyz, MaterialType::Matte);
+	RayDesc rayDesc;
+	rayDesc.Origin = hitWorldPosition;
+	rayDesc.Direction = direction;
+	rayDesc.TMin = 0;
+	rayDesc.TMax = dis + 1;
+	PayLoad rayPayload;
+	rayPayload.radiance = float3(0.0, 0.0, 0.0);
+	rayPayload.recursionDepth = curRecursionDepth + 1;
+	rayPayload.seed = seed;
+	TraceRay(
+		SceneBVH,
+		RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
+		0xFF,
+		0,
+		0,
+		0,
+		rayDesc,
+		rayPayload);
+
+	return rayPayload.radiance * eval * dot(direction, N) * dot(-direction, normal) / disPow2 * pdf;
+}
+
 float3 createSampleRay(float3 wi, float3 N, inout float4 seed, MaterialType::Type materialType) {
 	switch (materialType) {
 	case MaterialType::Matte:
@@ -96,7 +147,7 @@ float3 CastRay(Ray ray, uint curRecursionDepth, float4 seed) {
 	rayPayload.recursionDepth = curRecursionDepth + 1;
 	rayPayload.seed = seed;
 	TraceRay(
-		l_scene,
+		SceneBVH,
 		RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
 		0xFF,
 		0,
@@ -112,25 +163,26 @@ float3 CastRay(Ray ray, uint curRecursionDepth, float4 seed) {
 [shader("closesthit")]
 void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes attrib)
 {
-	if (MaterialAttributes.emit.x >= 0.1) {
-		payload.radiance = MaterialAttributes.emit;
-		return;
-	}
 	float3 barycentrics =
 		float3(1.f - attrib.barycentrics.x - attrib.barycentrics.y, attrib.barycentrics.x, attrib.barycentrics.y);
 	uint vertId = 3 * PrimitiveIndex();
 	//以下方式为计算点法线并插值
-	float3 normal = barycentrics.x * Vertex[Indices[vertId + 0]].normal +
-		barycentrics.y * Vertex[Indices[vertId + 1]].normal +
-		barycentrics.z * Vertex[Indices[vertId + 2]].normal;
-
-
+	//float3 normal = barycentrics.x * Vertices[Indices[vertId + 0]].normal +
+	//	barycentrics.y * Vertices[Indices[vertId + 1]].normal +
+	//	barycentrics.z * Vertices[Indices[vertId + 2]].normal;
 	//以下方式为计算面法线
-	//float3 normal = normalize(cross(Vertex[Indices[vertId + 0]].position - Vertex[Indices[vertId + 1]].position,
-	//								Vertex[Indices[vertId + 0]].position - Vertex[Indices[vertId + 2]].position));
-	normal = normalize(normal);
+	float3 normal = normalize(cross(Vertices[Indices[vertId + 0]].position - Vertices[Indices[vertId + 1]].position,
+		Vertices[Indices[vertId + 0]].position - Vertices[Indices[vertId + 2]].position));
+	normal = normalize(mul((float3x3)ObjectToWorld3x4(), normal));
 	float3 worldRayDirection = WorldRayDirection();
+	float3 hitWorldPosition = HitWorldPosition();
 	float4 random_seed = payload.seed;
+
+	if (MaterialAttributes.emit.x >= 0.1) {
+		float rate = dot(normal, -normalize(worldRayDirection));
+		payload.radiance = MaterialAttributes.emit.xyz * rate;
+		return;
+	}
 
 	float3 sp_direction = createSampleRay(worldRayDirection, normal, random_seed, MaterialType::Matte);
 	float pdf = get_pdf(worldRayDirection, sp_direction, normal, MaterialType::Matte);
@@ -139,13 +191,13 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	float dot_value = dot(sp_direction, normal);
 	//float4 randomFloat = createRandomFloat4(payload.seed);
 	//float3 dir = normalize(randomFloat * 2.0 - 1.0 + normal);
-	float3 color = float3(0.0, 0.0, 0.0);
+	float3 L_intdir = float3(0.0, 0.0, 0.0);
 	if (random(float2(random_seed.x + random_seed.y, random_seed.z + random_seed.w)) <= PROBABILITY_RUSSIAN_ROULETTE) {
 		Ray ray;
 		ray.origin = HitWorldPosition();
 		ray.direction = sp_direction;
-		color = CastRay(ray, payload.recursionDepth, createRandomFloat4(random_seed)) * eval * dot_value / pdf / PROBABILITY_RUSSIAN_ROULETTE;
+		L_intdir = CastRay(ray, payload.recursionDepth, createRandomFloat4(random_seed)) * eval * dot_value / pdf / PROBABILITY_RUSSIAN_ROULETTE;
 	}
-	//Kd = Vertex[Indices[vertId]].normal;
-	payload.radiance = float4(color, 1.0) + MaterialAttributes.emit;
+	float3 L_dir = get_light_dir(worldRayDirection, hitWorldPosition, normal, random_seed, payload.recursionDepth);
+	payload.radiance = L_intdir + L_dir;
 }
