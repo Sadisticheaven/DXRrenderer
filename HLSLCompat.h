@@ -31,7 +31,7 @@ typedef UINT32 Index;
 
 #endif //HLSL
 
-#define MAX_RAY_RECURSION_DEPTH 3
+#define MAX_RAY_RECURSION_DEPTH 6
 #define PROBABILITY_RUSSIAN_ROULETTE 0.8
 
 struct PayLoad
