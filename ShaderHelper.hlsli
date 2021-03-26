@@ -21,6 +21,18 @@
 //    float3 origin;
 //    float3 direction;
 //};
+float random(float2 p)
+{
+    float2 K1 = float2(23.14069263277926, 2.665144142690225);
+    return abs(frac(cos(dot(p, K1)) * 12345.6789));
+}
+
+float4 createRandomFloat4(float4 seed)
+{
+    return normalize(float4(random(seed.xy), random(seed.yz), random(seed.zw), random(seed.wx)));
+
+}
+
 
 float length_toPow2(float2 p)
 {

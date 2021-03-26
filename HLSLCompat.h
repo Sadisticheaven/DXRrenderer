@@ -58,6 +58,7 @@ struct SceneConstants
 	XMMATRIX projection;
 	XMMATRIX viewI;
 	XMMATRIX projectionI;
+	XMMATRIX invViewProj;
 	XMFLOAT4 seed;
 	float spp;
 };
@@ -93,5 +94,6 @@ struct PrimitiveMaterialBuffer
 };
 // Attributes output by the raytracing when hitting a surface,
 // here the barycentric coordinates
+
 
 #endif //RAYTRACINGHLSLCOMPAT_H

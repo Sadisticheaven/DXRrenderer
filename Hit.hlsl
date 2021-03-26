@@ -9,12 +9,6 @@ ConstantBuffer<PrimitiveMaterialBuffer> MaterialAttributes : register(b0);
 
 #define M_PI 3.14159265358979323846   // pi
 
-float random(float2 p)
-{
-	float2 K1 = float2(23.14069263277926, 2.665144142690225);
-	return abs(frac(cos(dot(p, K1)) * 12345.6789));
-}
-
 float get_pdf(float3 wi, float3 wo, float3 N, MaterialType::Type materialType) {
 	switch (materialType) {
 	case MaterialType::Matte:
@@ -60,11 +54,7 @@ float3 toWorld(float3 a, float3 N) {
 	return a.x * B + a.y * C + a.z * N;
 }
 
-float4 createRandomFloat4(float4 seed)
-{
-	return normalize(float4(random(seed.xy), random(seed.yz), random(seed.zw), random(seed.wx)));
 
-}
 
 float3 createSampleRay(float3 wi, float3 N, inout float4 seed, MaterialType::Type materialType) {
 	switch (materialType) {
@@ -132,11 +122,13 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	float3 worldRayDirection = WorldRayDirection();
 	float4 random_seed = payload.seed;
 
+
 	float3 sp_direction = createSampleRay(worldRayDirection, normal, random_seed, MaterialType::Matte);
 	float pdf = get_pdf(worldRayDirection, sp_direction, normal, MaterialType::Matte);
 	float3 Kd = MaterialAttributes.Kd.xyz;
 	float3 eval = get_eval(worldRayDirection, sp_direction, normal, Kd, MaterialType::Matte);
 	float dot_value = dot(sp_direction, normal);
+
 	//float4 randomFloat = createRandomFloat4(payload.seed);
 	//float3 dir = normalize(randomFloat * 2.0 - 1.0 + normal);
 
