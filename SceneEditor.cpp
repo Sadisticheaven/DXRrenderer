@@ -348,7 +348,7 @@ void SceneEditor::LoadAssets()
 void SceneEditor::OnUpdate()
 {
 	// #DXR Extra: Perspective Camera
-	UpdateCameraBuffer();
+	UpdateSceneParameterBuffer();
 }
 
 // Render the scene.
@@ -847,6 +847,8 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateHitSignature() {
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1);
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 2);
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 3);//光源顶点
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 4);//光源索引
 	return rsc.Generate(m_device.Get(), true);
 }
 
@@ -1081,6 +1083,8 @@ void SceneEditor::CreateShaderBindingTable() {
 			(void*)(m_indexBuffer[i]->GetGPUVirtualAddress()),
 			(void*)(m_topLevelASBuffers.pResult->GetGPUVirtualAddress()),
 			(void*)(m_MaterialBuffer[i]->GetGPUVirtualAddress()),
+			(void*)(m_vertexBuffer[SceneObject::light]->GetGPUVirtualAddress()),
+			(void*)(m_indexBuffer[SceneObject::light]->GetGPUVirtualAddress()),
 			});
 
 
@@ -1144,7 +1148,7 @@ void SceneEditor::CreateCameraBuffer()
 //--------------------------------------------------------------------------------
 // Create and copies the viewmodel and perspective matrices of the camera
 //
-void SceneEditor::UpdateCameraBuffer() {
+void SceneEditor::UpdateSceneParameterBuffer() {
 	//SceneConstants matrices;
 
 	// Initialize the view matrix, ideally this should be based on user
@@ -1171,12 +1175,12 @@ void SceneEditor::UpdateCameraBuffer() {
 
 	//set spp as 0 if some parameters change
 	if (needRefreshScreen) {
-		matrices.spp = 0;
+		matrices.CurrSampleIdx = 0;
 		needRefreshScreen = false;
 	}
 	else {
-		matrices.spp ++;
-		matrices.spp = min(matrices.spp, 1000);
+		matrices.CurrSampleIdx ++;
+		//matrices.CurrSampleIdx = min(matrices.CurrSampleIdx, 1000);
 	}
 	// Copy the matrix contents
 	matrices.seed = XMFLOAT4(rand() / double(0xfff), rand() / double(0xfff), rand() / double(0xfff), rand() / double(0xfff));

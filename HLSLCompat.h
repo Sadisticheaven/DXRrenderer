@@ -31,11 +31,12 @@ typedef UINT32 Index;
 
 #endif //HLSL
 
-#define MAX_RAY_RECURSION_DEPTH 10
+#define MAX_RAY_RECURSION_DEPTH 5
+#define PROBABILITY_RUSSIAN_ROULETTE 0.8
 
 struct PayLoad
 {
-	XMFLOAT3 irradiance;
+	XMFLOAT3 radiance;
 	XMFLOAT4 seed;
 	UINT recursionDepth;
 
@@ -46,11 +47,11 @@ struct Ray {
 	XMFLOAT3 direction;
 };
 
-struct Vertex
+typedef struct Vertex
 {
 	XMFLOAT3 position;
 	XMFLOAT3 normal;
-};
+}Vertex;
 
 struct SceneConstants
 {
@@ -60,7 +61,7 @@ struct SceneConstants
 	XMMATRIX projectionI;
 	XMMATRIX invViewProj;
 	XMFLOAT4 seed;
-	float spp;
+	float CurrSampleIdx;
 };
 
 namespace MaterialType {
