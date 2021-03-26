@@ -19,6 +19,12 @@ float random(float2 p)
 	return abs(frac(cos(dot(p, K1)) * 12345.6789));
 }
 
+float4 createRandomFloat4(float4 seed)
+{
+	return (float4(random(seed.xy), random(seed.yz), random(seed.zw), random(seed.wx)));
+
+}
+
 float get_pdf(float3 wi, float3 wo, float3 N, MaterialType::Type materialType) {
 	switch (materialType) {
 	case MaterialType::Matte:
@@ -68,11 +74,6 @@ float3 toWorld(float3 a, float3 N) {
 	return a.x * B + a.y * C + a.z * N;
 }
 
-float4 createRandomFloat4(float4 seed)
-{
-	return normalize(float4(random(seed.xy), random(seed.yz), random(seed.zw), random(seed.wx)));
-
-}
 
 float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N, inout float4 seed, in UINT curRecursionDepth)
 {
@@ -137,8 +138,8 @@ float3 createSampleRay(float3 wi, float3 N, inout float4 seed, MaterialType::Typ
 	{
 		seed = createRandomFloat4(seed);
 		float4 random_float = seed;
-		float x_1 = random_float.x, x_2 = random_float.z;
-		float z = abs(1.0f - 2.0f * x_1);
+		float x_1 = sqrt(random_float.x), x_2 = random_float.z;
+		float z = x_1;
 		float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
 		float3 localRay = float3(r * cos(phi), r * sin(phi), z);
 		return toWorld(localRay, N);
@@ -216,6 +217,7 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	}
 
 	float cos_value = dot(sp_direction, normal);
+	cos_value = 0.5f;
 	float3 L_intdir = float3(0.0, 0.0, 0.0);
 
 	if (random(float2(random_seed.x + random_seed.y, random_seed.z + random_seed.w)) <= PROBABILITY_RUSSIAN_ROULETTE) {
