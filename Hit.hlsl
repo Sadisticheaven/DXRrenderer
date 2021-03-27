@@ -13,12 +13,21 @@ StructuredBuffer<Index> light_indices: register(t4);
 
 #define M_PI 3.14159265358979323846   // pi
 
-float get_pdf(float3 wi, float3 wo, float3 N, MaterialType::Type materialType) {
-	switch (materialType) {
-	case MaterialType::Matte:
+
+
+float get_pdf(float3 wi, float3 wo, float3 N) {
+	switch (MaterialAttributes.type) {
+	case MaterialType::Lambert:
 	{
 		if (dot(wo, N) > 0.0)
-			return 0.5f / M_PI;
+			return 1.0f;
+		else
+			return 0.0f;
+	}
+	case MaterialType::Mirror:
+	{
+		if (dot(wo, N) > 0.0)
+			return  1.0f;
 		else
 			return 0.0f;
 	}
@@ -26,15 +35,44 @@ float get_pdf(float3 wi, float3 wo, float3 N, MaterialType::Type materialType) {
 	}
 }
 
-bool get_eval(float3 wi, float3 wo, float3 N, float3 Kd, MaterialType::Type materialType, inout float3 eval) {
-	switch (materialType) {
-	case MaterialType::Matte:
+bool get_eval(float3 wi, float3 wo, float3 N, inout float3 eval) {
+	float cosalpha = dot(N, wo);
+	if (cosalpha > 0.0f) {
+		float3 Kd = MaterialAttributes.Kd;
+		float3 Kr = MaterialAttributes.Kr;
+		float alpha = MaterialAttributes.smoothness;
+		float3 f_r = Kd + Kr * (alpha + 2) / (alpha + 1);
+		eval = f_r;
+		return true;
+	}
+	else {
+		eval = float3(0.0, 0.0, 0.0);
+		return false;
+	}
+	/*
+	switch (MaterialAttributes.type) {
+	case MaterialType::Lambert:
 	{
-		// calculate the contribution of diffuse   model
 		float cosalpha = dot(N, wo);
 		if (cosalpha > 0.0f) {
-			float3 diffuse = Kd / M_PI;
+			float3 diffuse = MaterialAttributes.Kd;
 			eval = diffuse;
+			return true;
+		}
+		else {
+			eval = float3(0.0, 0.0, 0.0);
+			return false;
+		}
+	}
+	case MaterialType::Mirror:
+	{
+		float cosalpha = dot(N, wo);
+		if (cosalpha > 0.0f) {
+			float3 Kd = MaterialAttributes.Kd;
+			float3 Kr = MaterialAttributes.Kr;
+			float alpha = MaterialAttributes.smoothness;
+			float3 f_r = Kd +Kr*(alpha+2)/(alpha+1);
+			eval = f_r;
 			return true;
 		}
 		else {
@@ -45,7 +83,7 @@ bool get_eval(float3 wi, float3 wo, float3 N, float3 Kd, MaterialType::Type mate
 	default:
 		eval = float3(0.0, 0.0, 0.0);
 		return false;
-	}
+	}*/
 }
 
 float3 toWorld(float3 a, float3 N) {
@@ -76,15 +114,14 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 
 	float3 barycentrics = float3(1.f - ramdomBary.x - ramdomBary.y, ramdomBary.x, ramdomBary.y);
 
-	float3 light_normal = barycentrics.x * light_vertices[light_indices[vertId + 0]].normal +
+	float3 light_normal = normalize(barycentrics.x * light_vertices[light_indices[vertId + 0]].normal +
 		barycentrics.y * light_vertices[light_indices[vertId + 1]].normal +
-		barycentrics.z * light_vertices[light_indices[vertId + 2]].normal;
-	light_normal = normalize(light_normal);
+		barycentrics.z * light_vertices[light_indices[vertId + 2]].normal);
 
 	float3 position = barycentrics.x * light_vertices[light_indices[vertId + 0]].position +
 		barycentrics.y * light_vertices[light_indices[vertId + 1]].position +
 		barycentrics.z * light_vertices[light_indices[vertId + 2]].position;
-	float pdf = 130 * 105;
+	float pdf = 130 * 105 / M_PI;
 
 	// Set the ray's extents.
 	float3 direction = position - hitWorldPosition;
@@ -93,7 +130,7 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 	direction = normalize(direction);
 
 	float3 eval;
-	if (get_eval(worldRayDirection, direction, N, MaterialAttributes.Kd.xyz, MaterialType::Matte, eval) == false) {
+	if (get_eval(worldRayDirection, direction, N, eval) == false) {
 		return eval;
 	}
 
@@ -120,9 +157,9 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 	return rayPayload.radiance * eval * dot(direction, N) * dot(-direction, light_normal) / disPow2 * pdf;
 }
 
-float3 createSampleRay(float3 wi, float3 N, inout float4 seed, MaterialType::Type materialType) {
-	switch (materialType) {
-	case MaterialType::Matte:
+float3 createSampleRay(float3 wi, float3 N, inout float4 seed) {
+	switch (MaterialAttributes.type) {
+	case MaterialType::Lambert:
 	{
 		seed = createRandomFloat4(seed);
 		float4 random_float = seed;
@@ -131,6 +168,16 @@ float3 createSampleRay(float3 wi, float3 N, inout float4 seed, MaterialType::Typ
 		float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
 		float3 localRay = float3(r * cos(phi), r * sin(phi), z);
 		return toWorld(localRay, N);
+	}
+	case MaterialType::Mirror: {
+		seed = createRandomFloat4(seed);
+		float3 reflect_dir = reflect(wi, N);
+		float4 random_float = seed;
+		float x_1 = pow(random_float.x, 1.0 / MaterialAttributes.smoothness), x_2 = random_float.z;
+		float z = x_1;
+		float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
+		float3 localRay = float3(r * cos(phi), r * sin(phi), z);
+		return toWorld(localRay, reflect_dir);
 	}
 	default: return float3(0.0, 0.0, 0.0);
 	}
@@ -166,6 +213,51 @@ float3 CastRay(Ray ray, uint curRecursionDepth, float4 seed) {
 	return rayPayload.radiance;
 }
 
+float3 get_light_indir(float3 worldRayDirection, float3 normal, float3 hitWorldPosition, uint curRecursionDepth, inout float4 random_seed) {
+	float3 L_intdir = float3(0.0, 0.0, 0.0);
+	switch (MaterialAttributes.type) {
+	case MaterialType::Lambert:
+	{
+		float3 sp_direction = createSampleRay(worldRayDirection, normal, random_seed);
+		float pdf = get_pdf(worldRayDirection, sp_direction, normal);
+		float3 Kd = MaterialAttributes.Kd.xyz;
+
+		float3 eval;
+		if (get_eval(worldRayDirection, sp_direction, normal, eval) == false) {
+			return L_intdir;
+		}
+
+		if (random(float2(random_seed.x + random_seed.y, random_seed.z + random_seed.w)) <= PROBABILITY_RUSSIAN_ROULETTE) {
+			Ray ray;
+			ray.origin = hitWorldPosition;
+			ray.direction = sp_direction;
+			L_intdir = CastRay(ray, curRecursionDepth, createRandomFloat4(random_seed)) * eval * pdf / PROBABILITY_RUSSIAN_ROULETTE;
+		}
+		break;
+	}
+	case MaterialType::Mirror:
+	{
+		float3 sp_direction = createSampleRay(worldRayDirection, normal, random_seed);
+		float pdf = get_pdf(worldRayDirection, sp_direction, normal);
+		float3 Kd = MaterialAttributes.Kd.xyz;
+
+		float3 eval;
+		if (get_eval(worldRayDirection, sp_direction, normal, eval) == false) {
+			return L_intdir;
+		}
+
+		Ray ray;
+		ray.origin = hitWorldPosition;
+		ray.direction = sp_direction;
+		L_intdir = CastRay(ray, curRecursionDepth, createRandomFloat4(random_seed)) * eval * pdf;
+		break;
+	}
+	default:
+		break;
+	}
+	return L_intdir;
+}
+
 
 [shader("closesthit")]
 void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes attrib)
@@ -174,44 +266,24 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 		float3(1.f - attrib.barycentrics.x - attrib.barycentrics.y, attrib.barycentrics.x, attrib.barycentrics.y);
 	uint vertId = 3 * PrimitiveIndex();
 
-	float3 normal = normalize(cross(Vertices[Indices[vertId + 0]].position - Vertices[Indices[vertId + 1]].position,
-		Vertices[Indices[vertId + 0]].position - Vertices[Indices[vertId + 2]].position));
+	float3 normal = barycentrics.x * Vertices[Indices[vertId + 0]].normal +
+		barycentrics.y * Vertices[Indices[vertId + 1]].normal +
+		barycentrics.z * Vertices[Indices[vertId + 2]].normal;
+
+	//float3 normal = normalize(cross(Vertices[Indices[vertId + 0]].position - Vertices[Indices[vertId + 1]].position,
+	//	Vertices[Indices[vertId + 0]].position - Vertices[Indices[vertId + 2]].position));
 	normal = normalize(mul((float3x3)ObjectToWorld3x4(), normal));
 
 	float3 worldRayDirection = WorldRayDirection();
 	float3 hitWorldPosition = HitWorldPosition();
 	float4 random_seed = payload.seed;
 
-	if (MaterialAttributes.emit.x >= 0.1) {
-		float rate = dot(normal, -normalize(worldRayDirection));
-		payload.radiance = MaterialAttributes.emit.xyz * rate;
-		return;
-	}
 
-	float3 sp_direction = createSampleRay(worldRayDirection, normal, random_seed, MaterialType::Matte);
+	float emit_rate = dot(normal, -normalize(worldRayDirection));
 
-	float pdf = get_pdf(worldRayDirection, sp_direction, normal, MaterialType::Matte);
-	float3 Kd = MaterialAttributes.Kd.xyz;
 
-	float3 eval;
-	if (get_eval(worldRayDirection, sp_direction, normal, Kd, MaterialType::Matte, eval) == false) {
-		payload.radiance = eval;
-		return;
-	}
-
-	float cos_value = 0.5f; //dot(sp_direction, normal);
-	//float cos_value = dot(sp_direction, normal);
-	
-	float3 L_intdir = float3(0.0, 0.0, 0.0);
-
-	if (random(float2(random_seed.x + random_seed.y, random_seed.z + random_seed.w)) <= PROBABILITY_RUSSIAN_ROULETTE) {
-		Ray ray;
-		ray.origin = HitWorldPosition();
-		ray.direction = sp_direction;
-		L_intdir = CastRay(ray, payload.recursionDepth, createRandomFloat4(random_seed)) * eval * cos_value / pdf / PROBABILITY_RUSSIAN_ROULETTE;
-	}
-
+	float3 L_indir = get_light_indir(worldRayDirection, normal, hitWorldPosition, payload.recursionDepth, random_seed);
 	float3 L_dir = get_light_dir(worldRayDirection, hitWorldPosition, normal, random_seed, payload.recursionDepth);
 
-	payload.radiance = L_intdir + L_dir;
+	payload.radiance = MaterialAttributes.emit.xyz * emit_rate + L_indir + L_dir;
 }
