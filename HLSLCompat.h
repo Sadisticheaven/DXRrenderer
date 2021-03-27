@@ -51,7 +51,7 @@ typedef struct Vertex
 {
 	XMFLOAT3 position;
 	XMFLOAT3 normal;
-}Vertex;
+};
 
 struct SceneConstants
 {

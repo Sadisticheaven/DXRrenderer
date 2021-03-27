@@ -30,7 +30,6 @@ float random(float2 p)
 float4 createRandomFloat4(float4 seed)
 {
     return normalize(float4(random(seed.xy), random(seed.yz), random(seed.zw), random(seed.wx)));
-
 }
 
 
