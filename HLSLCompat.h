@@ -79,14 +79,12 @@ struct PrimitiveMaterialBuffer
 	XMFLOAT4 Ks;
 	XMFLOAT4 Kr;
 	XMFLOAT4 Kt;
-	XMFLOAT4 opacity;
 	XMFLOAT4 emit;
-	float roughness;
+	float smoothness;
 	//BOOL hasDiffuseTexture;
 	//BOOL hasNormalTexture;
 	//BOOL hasPerVertexTangents;
 	MaterialType::Type type;
-	float padding;
 #ifndef HLSL
 	//PrimitiveMaterialBuffer() :Kd(0, 0, 0), Ks(0, 0, 0), Kr(0, 0, 0), Kt(0, 0, 0), opacity(0, 0, 0), emit(0, 0, 0), roughness(0), type(MaterialType::Matte), padding(0) {
 

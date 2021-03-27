@@ -29,7 +29,7 @@ float random(float2 p)
 
 float4 createRandomFloat4(float4 seed)
 {
-    return normalize(float4(random(seed.xy), random(seed.yz), random(seed.zw), random(seed.wx)));
+    return float4(random(seed.xy), random(seed.yz), random(seed.zw), random(seed.wx));
 }
 
 
@@ -41,6 +41,20 @@ float length_toPow2(float2 p)
 float length_toPow2(float3 p)
 {
     return dot(p, p);
+}
+
+float sqrt_n(float o, float k) {
+    float l = 0, r = max(o, 1.0);
+    float mid=(l+r)/2,pre=r;
+    while (abs(mid-pre)>0.0001) {
+        pre = mid;
+        if (pow(o, mid) > o)
+            l = mid;
+        else
+            r=
+        mid = (l + r) / 2;
+
+    }
 }
 
 // Returns a cycling <0 -> 1 -> 0> animation interpolant 

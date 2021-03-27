@@ -239,15 +239,19 @@ void SceneEditor::AllocateUploadGeometryBuffer(std::vector<Vertex> vertices, std
 	}
 }
 
-void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, XMFLOAT4 Kd, XMFLOAT4 emit, MaterialType::Type type) {
+void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, XMFLOAT4 emit, XMFLOAT4 Ks, float alpha, XMFLOAT4 Kr, XMFLOAT4 Kt) {
 	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
 	//int k = sizeof(PrimitiveMaterialBuffer);
 	m_MaterialBuffer[bufferIndex] = nv_helpers_dx12::CreateBuffer(
 		m_device.Get(), m_MaterialBufferSize, D3D12_RESOURCE_FLAG_NONE,
 		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
 	m_MaterialAttributes[bufferIndex].Kd = Kd;
+	m_MaterialAttributes[bufferIndex].Ks = Ks;
+	m_MaterialAttributes[bufferIndex].Kr = Kr;
+	m_MaterialAttributes[bufferIndex].Kt = Kt;
 	m_MaterialAttributes[bufferIndex].emit = emit;
 	m_MaterialAttributes[bufferIndex].type = type;
+	m_MaterialAttributes[bufferIndex].smoothness = alpha;
 	uint8_t* pData;
 	ThrowIfFailed(m_MaterialBuffer[bufferIndex]->Map(0, nullptr, (void**)&pData));
 	memcpy(pData, &(m_MaterialAttributes[bufferIndex]), sizeof(PrimitiveMaterialBuffer));
@@ -299,12 +303,13 @@ void SceneEditor::LoadAssets()
 		XMFLOAT4 le2 = Float4Multi(15.6f, XMFLOAT4(0.740f + 0.287f, 0.740f + 0.160f, 0.740f, 0.0f));
 		XMFLOAT4 le3 = Float4Multi(18.4f, XMFLOAT4(0.737f + 0.642f, 0.737f + 0.159f, 0.737f, 0.0f));
 		XMFLOAT4 light_emit(le1.x + le2.x + le3.x, le1.y + le2.y + le3.y, le1.z + le2.z + le3.z, 0.0f);
-		CreateMaterialBufferAndSetAttributes(SceneObject::floor, white, not_emit, MaterialType::Lambert);
-		CreateMaterialBufferAndSetAttributes(SceneObject::shortbox, white, not_emit, MaterialType::Lambert);
-		CreateMaterialBufferAndSetAttributes(SceneObject::tallbox, white, not_emit, MaterialType::Lambert);
-		CreateMaterialBufferAndSetAttributes(SceneObject::left, red, not_emit, MaterialType::Lambert);
-		CreateMaterialBufferAndSetAttributes(SceneObject::right, green, not_emit, MaterialType::Lambert);
-		CreateMaterialBufferAndSetAttributes(SceneObject::light, light_kd, light_emit, MaterialType::Lambert);
+		XMFLOAT4 default_Ks(0.04f, 0.04f, 0.04f,0.0f);
+		CreateMaterialBufferAndSetAttributes(SceneObject::floor, MaterialType::Lambert, white, not_emit);
+		CreateMaterialBufferAndSetAttributes(SceneObject::shortbox, MaterialType::Lambert, white, not_emit);
+		CreateMaterialBufferAndSetAttributes(SceneObject::tallbox, MaterialType::Mirror, white, not_emit, default_Ks, 100);
+		CreateMaterialBufferAndSetAttributes(SceneObject::left, MaterialType::Lambert, red, not_emit);
+		CreateMaterialBufferAndSetAttributes(SceneObject::right, MaterialType::Lambert, green, not_emit);
+		CreateMaterialBufferAndSetAttributes(SceneObject::light, MaterialType::Lambert, light_kd, light_emit);
 	}
 	// Create the vertex and index buffer.
 	{

@@ -20,7 +20,14 @@ float get_pdf(float3 wi, float3 wo, float3 N) {
 	case MaterialType::Lambert:
 	{
 		if (dot(wo, N) > 0.0)
-			return  M_PI;
+			return 1.0f;
+		else
+			return 0.0f;
+	}
+	case MaterialType::Mirror:
+	{
+		if (dot(wo, N) > 0.0)
+			return  1.0f;
 		else
 			return 0.0f;
 	}
@@ -28,15 +35,44 @@ float get_pdf(float3 wi, float3 wo, float3 N) {
 	}
 }
 
-bool get_eval(float3 wi, float3 wo, float3 N, float3 Kd, inout float3 eval) {
+bool get_eval(float3 wi, float3 wo, float3 N, inout float3 eval) {
+	float cosalpha = dot(N, wo);
+	if (cosalpha > 0.0f) {
+		float3 Kd = MaterialAttributes.Kd;
+		float3 Kr = MaterialAttributes.Kr;
+		float alpha = MaterialAttributes.smoothness;
+		float3 f_r = Kd + Kr * (alpha + 2) / (alpha + 1);
+		eval = f_r;
+		return true;
+	}
+	else {
+		eval = float3(0.0, 0.0, 0.0);
+		return false;
+	}
+	/*
 	switch (MaterialAttributes.type) {
 	case MaterialType::Lambert:
 	{
-		// calculate the contribution of diffuse   model
 		float cosalpha = dot(N, wo);
 		if (cosalpha > 0.0f) {
-			float3 diffuse = Kd / M_PI;
+			float3 diffuse = MaterialAttributes.Kd;
 			eval = diffuse;
+			return true;
+		}
+		else {
+			eval = float3(0.0, 0.0, 0.0);
+			return false;
+		}
+	}
+	case MaterialType::Mirror:
+	{
+		float cosalpha = dot(N, wo);
+		if (cosalpha > 0.0f) {
+			float3 Kd = MaterialAttributes.Kd;
+			float3 Kr = MaterialAttributes.Kr;
+			float alpha = MaterialAttributes.smoothness;
+			float3 f_r = Kd +Kr*(alpha+2)/(alpha+1);
+			eval = f_r;
 			return true;
 		}
 		else {
@@ -47,7 +83,7 @@ bool get_eval(float3 wi, float3 wo, float3 N, float3 Kd, inout float3 eval) {
 	default:
 		eval = float3(0.0, 0.0, 0.0);
 		return false;
-	}
+	}*/
 }
 
 float3 toWorld(float3 a, float3 N) {
@@ -78,15 +114,14 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 
 	float3 barycentrics = float3(1.f - ramdomBary.x - ramdomBary.y, ramdomBary.x, ramdomBary.y);
 
-	float3 light_normal = barycentrics.x * light_vertices[light_indices[vertId + 0]].normal +
+	float3 light_normal = normalize(barycentrics.x * light_vertices[light_indices[vertId + 0]].normal +
 		barycentrics.y * light_vertices[light_indices[vertId + 1]].normal +
-		barycentrics.z * light_vertices[light_indices[vertId + 2]].normal;
-	light_normal = normalize(light_normal);
+		barycentrics.z * light_vertices[light_indices[vertId + 2]].normal);
 
 	float3 position = barycentrics.x * light_vertices[light_indices[vertId + 0]].position +
 		barycentrics.y * light_vertices[light_indices[vertId + 1]].position +
 		barycentrics.z * light_vertices[light_indices[vertId + 2]].position;
-	float pdf = 130 * 105;
+	float pdf = 130 * 105 / M_PI;
 
 	// Set the ray's extents.
 	float3 direction = position - hitWorldPosition;
@@ -95,7 +130,7 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 	direction = normalize(direction);
 
 	float3 eval;
-	if (get_eval(worldRayDirection, direction, N, MaterialAttributes.Kd.xyz, eval) == false) {
+	if (get_eval(worldRayDirection, direction, N, eval) == false) {
 		return eval;
 	}
 
@@ -133,6 +168,16 @@ float3 createSampleRay(float3 wi, float3 N, inout float4 seed) {
 		float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
 		float3 localRay = float3(r * cos(phi), r * sin(phi), z);
 		return toWorld(localRay, N);
+	}
+	case MaterialType::Mirror: {
+		seed = createRandomFloat4(seed);
+		float3 reflect_dir = reflect(wi, N);
+		float4 random_float = seed;
+		float x_1 = pow(random_float.x, 1.0 / MaterialAttributes.smoothness), x_2 = random_float.z;
+		float z = x_1;
+		float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
+		float3 localRay = float3(r * cos(phi), r * sin(phi), z);
+		return toWorld(localRay, reflect_dir);
 	}
 	default: return float3(0.0, 0.0, 0.0);
 	}
@@ -178,7 +223,7 @@ float3 get_light_indir(float3 worldRayDirection, float3 normal, float3 hitWorldP
 		float3 Kd = MaterialAttributes.Kd.xyz;
 
 		float3 eval;
-		if (get_eval(worldRayDirection, sp_direction, normal, Kd, eval) == false) {
+		if (get_eval(worldRayDirection, sp_direction, normal, eval) == false) {
 			return L_intdir;
 		}
 
@@ -188,6 +233,23 @@ float3 get_light_indir(float3 worldRayDirection, float3 normal, float3 hitWorldP
 			ray.direction = sp_direction;
 			L_intdir = CastRay(ray, curRecursionDepth, createRandomFloat4(random_seed)) * eval * pdf / PROBABILITY_RUSSIAN_ROULETTE;
 		}
+		break;
+	}
+	case MaterialType::Mirror:
+	{
+		float3 sp_direction = createSampleRay(worldRayDirection, normal, random_seed);
+		float pdf = get_pdf(worldRayDirection, sp_direction, normal);
+		float3 Kd = MaterialAttributes.Kd.xyz;
+
+		float3 eval;
+		if (get_eval(worldRayDirection, sp_direction, normal, eval) == false) {
+			return L_intdir;
+		}
+
+		Ray ray;
+		ray.origin = hitWorldPosition;
+		ray.direction = sp_direction;
+		L_intdir = CastRay(ray, curRecursionDepth, createRandomFloat4(random_seed)) * eval * pdf;
 		break;
 	}
 	default:
@@ -204,9 +266,9 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 		float3(1.f - attrib.barycentrics.x - attrib.barycentrics.y, attrib.barycentrics.x, attrib.barycentrics.y);
 	uint vertId = 3 * PrimitiveIndex();
 
-	float3 normal = barycentrics.x * Vertices[Indices[vertId + 0]].normal + 
-					barycentrics.y * Vertices[Indices[vertId + 1]].normal + 
-					barycentrics.z * Vertices[Indices[vertId + 2]].normal;
+	float3 normal = barycentrics.x * Vertices[Indices[vertId + 0]].normal +
+		barycentrics.y * Vertices[Indices[vertId + 1]].normal +
+		barycentrics.z * Vertices[Indices[vertId + 2]].normal;
 
 	//float3 normal = normalize(cross(Vertices[Indices[vertId + 0]].position - Vertices[Indices[vertId + 1]].position,
 	//	Vertices[Indices[vertId + 0]].position - Vertices[Indices[vertId + 2]].position));
