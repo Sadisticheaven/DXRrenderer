@@ -299,12 +299,12 @@ void SceneEditor::LoadAssets()
 		XMFLOAT4 le2 = Float4Multi(15.6f, XMFLOAT4(0.740f + 0.287f, 0.740f + 0.160f, 0.740f, 0.0f));
 		XMFLOAT4 le3 = Float4Multi(18.4f, XMFLOAT4(0.737f + 0.642f, 0.737f + 0.159f, 0.737f, 0.0f));
 		XMFLOAT4 light_emit(le1.x + le2.x + le3.x, le1.y + le2.y + le3.y, le1.z + le2.z + le3.z, 0.0f);
-		CreateMaterialBufferAndSetAttributes(SceneObject::floor, white, not_emit, MaterialType::Matte);
-		CreateMaterialBufferAndSetAttributes(SceneObject::shortbox, white, not_emit, MaterialType::Matte);
-		CreateMaterialBufferAndSetAttributes(SceneObject::tallbox, white, not_emit, MaterialType::Matte);
-		CreateMaterialBufferAndSetAttributes(SceneObject::left, red, not_emit, MaterialType::Matte);
-		CreateMaterialBufferAndSetAttributes(SceneObject::right, green, not_emit, MaterialType::Matte);
-		CreateMaterialBufferAndSetAttributes(SceneObject::light, light_kd, light_emit, MaterialType::Matte);
+		CreateMaterialBufferAndSetAttributes(SceneObject::floor, white, not_emit, MaterialType::Lambert);
+		CreateMaterialBufferAndSetAttributes(SceneObject::shortbox, white, not_emit, MaterialType::Lambert);
+		CreateMaterialBufferAndSetAttributes(SceneObject::tallbox, white, not_emit, MaterialType::Lambert);
+		CreateMaterialBufferAndSetAttributes(SceneObject::left, red, not_emit, MaterialType::Lambert);
+		CreateMaterialBufferAndSetAttributes(SceneObject::right, green, not_emit, MaterialType::Lambert);
+		CreateMaterialBufferAndSetAttributes(SceneObject::light, light_kd, light_emit, MaterialType::Lambert);
 	}
 	// Create the vertex and index buffer.
 	{

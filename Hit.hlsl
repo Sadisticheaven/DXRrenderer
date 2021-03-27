@@ -17,7 +17,7 @@ StructuredBuffer<Index> light_indices: register(t4);
 
 float get_pdf(float3 wi, float3 wo, float3 N) {
 	switch (MaterialAttributes.type) {
-	case MaterialType::Matte:
+	case MaterialType::Lambert:
 	{
 		if (dot(wo, N) > 0.0)
 			return  M_PI;
@@ -30,7 +30,7 @@ float get_pdf(float3 wi, float3 wo, float3 N) {
 
 bool get_eval(float3 wi, float3 wo, float3 N, float3 Kd, inout float3 eval) {
 	switch (MaterialAttributes.type) {
-	case MaterialType::Matte:
+	case MaterialType::Lambert:
 	{
 		// calculate the contribution of diffuse   model
 		float cosalpha = dot(N, wo);
@@ -124,7 +124,7 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 
 float3 createSampleRay(float3 wi, float3 N, inout float4 seed) {
 	switch (MaterialAttributes.type) {
-	case MaterialType::Matte:
+	case MaterialType::Lambert:
 	{
 		seed = createRandomFloat4(seed);
 		float4 random_float = seed;
@@ -171,7 +171,7 @@ float3 CastRay(Ray ray, uint curRecursionDepth, float4 seed) {
 float3 get_light_indir(float3 worldRayDirection, float3 normal, float3 hitWorldPosition, uint curRecursionDepth, inout float4 random_seed) {
 	float3 L_intdir = float3(0.0, 0.0, 0.0);
 	switch (MaterialAttributes.type) {
-	case MaterialType::Matte:
+	case MaterialType::Lambert:
 	{
 		float3 sp_direction = createSampleRay(worldRayDirection, normal, random_seed);
 		float pdf = get_pdf(worldRayDirection, sp_direction, normal);

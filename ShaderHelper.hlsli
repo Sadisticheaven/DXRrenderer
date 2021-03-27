@@ -111,21 +111,21 @@ float3 HitAttribute(float3 vertexAttribute[3], float2 barycentrics)
 }
 
 // Generate a ray in world space for a camera pixel corresponding to an index from the dispatched 2D grid.
-inline Ray GenerateCameraRay(uint2 index, in float3 cameraPosition, in float4x4 projectionToWorld)
+RayDesc GenerateCameraRay(uint2 index,SceneConstants sceneParameter)
 {
-    float2 xy = index + 0.5f; // center in the middle of the pixel.
-    float2 screenPos = xy / DispatchRaysDimensions().xy * 2.0 - 1.0;
+    float2 launchIndex = index;
+    float2 dims = float2(DispatchRaysDimensions().xy);
+    float2 d = (((launchIndex.xy + 0.5f) / dims.xy) * 2.f - 1.f);
 
-    // Invert Y for DirectX-style coordinates.
-    screenPos.y = -screenPos.y;
+    float aspectRatio = dims.x / dims.y;
 
-    // Unproject the pixel coordinate into a world positon.
-    float4 world = mul(float4(screenPos, 0, 1), projectionToWorld);
-    world.xyz /= world.w;
+    RayDesc ray;
+    ray.Origin = mul(sceneParameter.viewI, float4(0, 0, 0, 1));
+    float4 target = mul(sceneParameter.projectionI, float4(d.x, -d.y, 1, 1));
+    ray.Direction = mul(sceneParameter.viewI, float4(target.xyz, 0));
 
-    Ray ray;
-    ray.origin = cameraPosition;
-    ray.direction = normalize(world.xyz - ray.origin);
+    ray.TMin = 0;
+    ray.TMax = 100000;
 
     return ray;
 }
@@ -155,42 +155,42 @@ float2 TexCoords(in float3 position)
     return position.xz;
 }
 
-// Calculate ray differentials.
-void CalculateRayDifferentials(out float2 ddx_uv, out float2 ddy_uv, in float2 uv, in float3 hitPosition, in float3 surfaceNormal, in float3 cameraPosition, in float4x4 projectionToWorld)
-{
-    // Compute ray differentials by intersecting the tangent plane to the  surface.
-    Ray ddx = GenerateCameraRay(DispatchRaysIndex().xy + uint2(1, 0), cameraPosition, projectionToWorld);
-    Ray ddy = GenerateCameraRay(DispatchRaysIndex().xy + uint2(0, 1), cameraPosition, projectionToWorld);
-
-    // Compute ray differentials.
-    float3 ddx_pos = ddx.origin - ddx.direction * dot(ddx.origin - hitPosition, surfaceNormal) / dot(ddx.direction, surfaceNormal);
-    float3 ddy_pos = ddy.origin - ddy.direction * dot(ddy.origin - hitPosition, surfaceNormal) / dot(ddy.direction, surfaceNormal);
-
-    // Calculate texture sampling footprint.
-    ddx_uv = TexCoords(ddx_pos) - uv;
-    ddy_uv = TexCoords(ddy_pos) - uv;
-}
+//// Calculate ray differentials.
+//void CalculateRayDifferentials(out float2 ddx_uv, out float2 ddy_uv, in float2 uv, in float3 hitPosition, in float3 surfaceNormal, in float3 cameraPosition, in float4x4 projectionToWorld)
+//{
+//    // Compute ray differentials by intersecting the tangent plane to the  surface.
+//    Ray ddx = GenerateCameraRay(DispatchRaysIndex().xy + uint2(1, 0), cameraPosition, projectionToWorld);
+//    Ray ddy = GenerateCameraRay(DispatchRaysIndex().xy + uint2(0, 1), cameraPosition, projectionToWorld);
+//
+//    // Compute ray differentials.
+//    float3 ddx_pos = ddx.origin - ddx.direction * dot(ddx.origin - hitPosition, surfaceNormal) / dot(ddx.direction, surfaceNormal);
+//    float3 ddy_pos = ddy.origin - ddy.direction * dot(ddy.origin - hitPosition, surfaceNormal) / dot(ddy.direction, surfaceNormal);
+//
+//    // Calculate texture sampling footprint.
+//    ddx_uv = TexCoords(ddx_pos) - uv;
+//    ddy_uv = TexCoords(ddy_pos) - uv;
+//}
 
 // Forward declaration.
-float CheckersTextureBoxFilter(in float2 uv, in float2 dpdx, in float2 dpdy, in UINT ratio);
+//float CheckersTextureBoxFilter(in float2 uv, in float2 dpdx, in float2 dpdy, in UINT ratio);
 
 // Return analytically integrated checkerboard texture (box filter).
-float AnalyticalCheckersTexture(in float3 hitPosition, in float3 surfaceNormal, in float3 cameraPosition, in float4x4 projectionToWorld)
-{
-    float2 ddx_uv;
-    float2 ddy_uv;
-    float2 uv = TexCoords(hitPosition);
-
-    CalculateRayDifferentials(ddx_uv, ddy_uv, uv, hitPosition, surfaceNormal, cameraPosition, projectionToWorld);
-    return CheckersTextureBoxFilter(uv, ddx_uv, ddy_uv, 50);
-}
+//float AnalyticalCheckersTexture(in float3 hitPosition, in float3 surfaceNormal, in float3 cameraPosition, in float4x4 projectionToWorld)
+//{
+//    float2 ddx_uv;
+//    float2 ddy_uv;
+//    float2 uv = TexCoords(hitPosition);
+//
+//    CalculateRayDifferentials(ddx_uv, ddy_uv, uv, hitPosition, surfaceNormal, cameraPosition, projectionToWorld);
+//    return CheckersTextureBoxFilter(uv, ddx_uv, ddy_uv, 50);
+//}
 
 // Fresnel reflectance - schlick approximation.
-float3 FresnelReflectanceSchlick(in float3 I, in float3 N, in float3 f0)
-{
-    float cosi = saturate(dot(-I, N));
-    return f0 + (1 - f0) * pow(1 - cosi, 5);
-}
+//float3 FresnelReflectanceSchlick(in float3 I, in float3 N, in float3 f0)
+//{
+//    float cosi = saturate(dot(-I, N));
+//    return f0 + (1 - f0) * pow(1 - cosi, 5);
+//}
 
 
 #endif // RAYTRACINGSHADERHELPER_H

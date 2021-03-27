@@ -66,10 +66,10 @@ struct SceneConstants
 
 namespace MaterialType {
 	enum Type {
-		Default = 0,
-		Matte,      // Lambertian scattering
-		Mirror,     // Specular reflector that isn't modified by the Fresnel equations.
-		AnalyticalCheckerboardTexture,
+		Lambert,     
+		Mirror,     
+		glass,
+		Disney_brdf,
 		Count
 	};
 }

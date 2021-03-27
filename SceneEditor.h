@@ -92,7 +92,7 @@ private:
 	PrimitiveMaterialBuffer m_MaterialAttributes[SceneObject::Count];
 	ComPtr<ID3D12Resource> m_MaterialBuffer[SceneObject::Count];
 	int m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
-	void CreateMaterialBufferAndSetAttributes(int bufferIndex,XMFLOAT4 Kd , XMFLOAT4 emit = { 0.0f,0.0f,0.0f,0.0f }, MaterialType::Type type= MaterialType::Matte);
+	void CreateMaterialBufferAndSetAttributes(int bufferIndex,XMFLOAT4 Kd , XMFLOAT4 emit = { 0.0f,0.0f,0.0f,0.0f }, MaterialType::Type type= MaterialType::Lambert);
 	void CreateMaterialBufferAndSetAttributes(PrimitiveMaterialBuffer &desc, int bufferIndex = 0);
 
 
