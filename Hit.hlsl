@@ -189,6 +189,7 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	}
 
 	float3 sp_direction = createSampleRay(worldRayDirection, normal, random_seed, MaterialType::Matte);
+
 	float pdf = get_pdf(worldRayDirection, sp_direction, normal, MaterialType::Matte);
 	float3 Kd = MaterialAttributes.Kd.xyz;
 
@@ -199,6 +200,7 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	}
 
 	float cos_value = 0.5f; //dot(sp_direction, normal);
+	//float cos_value = dot(sp_direction, normal);
 	
 	float3 L_intdir = float3(0.0, 0.0, 0.0);
 

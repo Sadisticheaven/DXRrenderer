@@ -17,6 +17,7 @@
 #include "nv_helpers_dx12/RaytracingPipelineGenerator.h"  
 #include "nv_helpers_dx12/RootSignatureGenerator.h"
 
+
 const std::wstring ws_raygenShaderName = L"RayGen";
 const std::vector<std::wstring> ws_missShaderNames = { L"Miss" };
 const std::vector<std::wstring> ws_closestHitShaderNames = { L"ClosestHit" };
@@ -44,7 +45,7 @@ SceneEditor::SceneEditor(UINT width, UINT height, std::wstring name) :
 void SceneEditor::OnInit()
 {
 	LoadPipeline();
-
+	
 	m_imguiManager = ImguiManager(m_device);
 
 	LoadAssets();

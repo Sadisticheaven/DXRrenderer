@@ -39,3 +39,5 @@
 
 #define SizeOfIn256(obj) (((sizeof(obj)-1)/ 256 + 1)*256)
 #define SizeOfIn64(obj) (((sizeof(obj)-1)/ 64 + 1)*64)
+//assimp
+#include "assimp/include/assimp/Importer.hpp"
