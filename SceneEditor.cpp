@@ -356,6 +356,7 @@ void SceneEditor::OnUpdate()
 {
 	// #DXR Extra: Perspective Camera
 	UpdateSceneParameterBuffer();
+	UpdateSmoothness(2);//update smoothness of tallbox
 }
 
 // Render the scene.
@@ -1149,6 +1150,19 @@ void SceneEditor::CreateCameraBuffer()
 	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle =
 		m_constHeap->GetCPUDescriptorHandleForHeapStart();
 	m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
+}
+
+void SceneEditor::UpdateSmoothness(int bufferIndex)
+{
+	if (m_MaterialAttributes[bufferIndex].smoothness == m_imguiManager.smoothness)
+		return;
+	OnResetSpp();
+	m_MaterialAttributes[bufferIndex].smoothness = m_imguiManager.smoothness;
+	uint8_t* pData;
+	ThrowIfFailed(m_MaterialBuffer[bufferIndex]->Map(0, nullptr, (void**)&pData));
+	memcpy(pData, &(m_MaterialAttributes[bufferIndex]), sizeof(PrimitiveMaterialBuffer));
+	m_MaterialBuffer[bufferIndex]->Unmap(0, nullptr);
+
 }
 
 // #DXR Extra: Perspective Camera
