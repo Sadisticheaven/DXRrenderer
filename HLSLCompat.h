@@ -68,7 +68,7 @@ namespace MaterialType {
 	enum Type {
 		Lambert,     
 		Mirror,     
-		glass,
+		Glass,
 		Disney_brdf,
 		Count
 	};

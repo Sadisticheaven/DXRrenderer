@@ -239,7 +239,7 @@ void SceneEditor::AllocateUploadGeometryBuffer(std::vector<Vertex> vertices, std
 	}
 }
 
-void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, XMFLOAT4 emit, XMFLOAT4 Ks, float alpha, XMFLOAT4 Kr, XMFLOAT4 Kt) {
+void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, XMFLOAT4 emit, XMFLOAT4 Ks, float smoothness, XMFLOAT4 Kr, XMFLOAT4 Kt) {
 	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
 	//int k = sizeof(PrimitiveMaterialBuffer);
 	m_MaterialBuffer[bufferIndex] = nv_helpers_dx12::CreateBuffer(
@@ -251,7 +251,7 @@ void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, Material
 	m_MaterialAttributes[bufferIndex].Kt = Kt;
 	m_MaterialAttributes[bufferIndex].emit = emit;
 	m_MaterialAttributes[bufferIndex].type = type;
-	m_MaterialAttributes[bufferIndex].smoothness = alpha;
+	m_MaterialAttributes[bufferIndex].smoothness = smoothness;
 	uint8_t* pData;
 	ThrowIfFailed(m_MaterialBuffer[bufferIndex]->Map(0, nullptr, (void**)&pData));
 	memcpy(pData, &(m_MaterialAttributes[bufferIndex]), sizeof(PrimitiveMaterialBuffer));
@@ -297,18 +297,18 @@ void SceneEditor::LoadAssets()
 		XMFLOAT4 red(0.63f, 0.065f, 0.05f, 0.0f);
 		XMFLOAT4 green(0.14f, 0.45f, 0.091f, 0.0f);
 		XMFLOAT4 white(0.725f, 0.71f, 0.68f, 0.0f);
-		XMFLOAT4 test(0.225f, 0.71f, 0.78f, 0.0f);
 		XMFLOAT4 light_kd(0.65f, 0.65f, 0.65f, 0.0f);
+		XMFLOAT4 test(0.5, 0.8, 0.9, 1.0);
 		XMFLOAT4 le1 = Float4Multi(8.0f, XMFLOAT4(0.747f + 0.058f, 0.747f + 0.258f, 0.747f, 0.0f));
 		XMFLOAT4 le2 = Float4Multi(15.6f, XMFLOAT4(0.740f + 0.287f, 0.740f + 0.160f, 0.740f, 0.0f));
 		XMFLOAT4 le3 = Float4Multi(18.4f, XMFLOAT4(0.737f + 0.642f, 0.737f + 0.159f, 0.737f, 0.0f));
 		XMFLOAT4 light_emit(le1.x + le2.x + le3.x, le1.y + le2.y + le3.y, le1.z + le2.z + le3.z, 0.0f);
-		XMFLOAT4 default_Ks(0.04f, 0.04f, 0.04f,0.0f);
+		XMFLOAT4 default_Ks(0.04f, 0.04f, 0.04f, 0.0f);
 		CreateMaterialBufferAndSetAttributes(SceneObject::floor, MaterialType::Lambert, white, not_emit);
 		CreateMaterialBufferAndSetAttributes(SceneObject::shortbox, MaterialType::Lambert, white, not_emit);
-		CreateMaterialBufferAndSetAttributes(SceneObject::tallbox, MaterialType::Mirror, white, not_emit, default_Ks, 100);
+		CreateMaterialBufferAndSetAttributes(SceneObject::tallbox, MaterialType::Glass, test, not_emit, default_Ks, 2.1);
 		CreateMaterialBufferAndSetAttributes(SceneObject::left, MaterialType::Lambert, red, not_emit);
-		CreateMaterialBufferAndSetAttributes(SceneObject::right, MaterialType::Lambert, green, not_emit);
+		CreateMaterialBufferAndSetAttributes(SceneObject::right, MaterialType::Mirror, green, not_emit, default_Ks,1.0);
 		CreateMaterialBufferAndSetAttributes(SceneObject::light, MaterialType::Lambert, light_kd, light_emit);
 	}
 	// Create the vertex and index buffer.
