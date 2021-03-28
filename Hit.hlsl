@@ -77,10 +77,10 @@ bool get_eval(float3 wi, float3 wo, float3 N, inout float3 eval) {
 		float cosalpha = dot(N, wo);
 		if (cosalpha > 0.0f) {
 			float3 Kd = MaterialAttributes.Kd;
-			float3 Kr = MaterialAttributes.Kr;
+			float3 Ks = MaterialAttributes.Ks;
 			float s = MaterialAttributes.smoothness;
-			float alpha = pow(1000.0f,  s);
-			float3 f_r = Kd + Kr * (alpha + 2) / (alpha + 1);
+			float alpha = pow(1000.0f, s);
+			float3 f_r = Kd + Ks * (alpha + 2) / (alpha + 1);
 			eval = f_r;
 			return true;
 		}
@@ -193,7 +193,7 @@ float3 createSampleRay(float3 wi, float3 N, inout float4 seed) {
 	seed = createRandomFloat4(seed);
 	float4 random_float = seed;
 	float s = MaterialAttributes.smoothness;
-	float alpha = pow(1000.0f,  s);
+	float alpha = pow(1000.0f, s);
 	float x_1 = pow(random_float.x, 1.0 / alpha), x_2 = random_float.z;
 	float z = x_1;
 	float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
@@ -213,7 +213,7 @@ float3 createSampleRay(float3 wi, float3 N, inout float4 seed) {
 		wi = normalize(wi);
 		float3 outward_normal;
 		float3 reflected = reflect(wi, N);
-		float ref_idx = 1.02;
+		float ref_idx = MaterialAttributes.index_of_refraction;
 		float ni_over_nt;
 		float3 refracted;
 		float reflect_prob;
