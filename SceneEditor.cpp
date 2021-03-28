@@ -306,10 +306,10 @@ void SceneEditor::LoadAssets()
 		XMFLOAT4 light_emit(le1.x + le2.x + le3.x, le1.y + le2.y + le3.y, le1.z + le2.z + le3.z, 0.0f);
 		XMFLOAT4 default_Ks(0.04f, 0.04f, 0.04f, 0.0f);
 		CreateMaterialBufferAndSetAttributes(SceneObject::floor, MaterialType::Lambert, white, not_emit);
-		CreateMaterialBufferAndSetAttributes(SceneObject::shortbox, MaterialType::Lambert, white, not_emit);
-		CreateMaterialBufferAndSetAttributes(SceneObject::tallbox, MaterialType::Glass, test, not_emit, default_Ks, 2.1);
+		CreateMaterialBufferAndSetAttributes(SceneObject::shortbox, MaterialType::Glass, white, not_emit,default_Ks, 2.1);
+		CreateMaterialBufferAndSetAttributes(SceneObject::tallbox, MaterialType::Mirror, white, not_emit, default_Ks, 1.0);
 		CreateMaterialBufferAndSetAttributes(SceneObject::left, MaterialType::Lambert, red, not_emit);
-		CreateMaterialBufferAndSetAttributes(SceneObject::right, MaterialType::Mirror, green, not_emit, default_Ks,1.0);
+		CreateMaterialBufferAndSetAttributes(SceneObject::right, MaterialType::Lambert, green, not_emit);
 		CreateMaterialBufferAndSetAttributes(SceneObject::light, MaterialType::Lambert, light_kd, light_emit);
 	}
 	// Create the vertex and index buffer.
@@ -356,7 +356,7 @@ void SceneEditor::OnUpdate()
 {
 	// #DXR Extra: Perspective Camera
 	UpdateSceneParameterBuffer();
-	UpdateSmoothness(2);//update smoothness of tallbox
+	UpdateSmoothness(SceneObject::tallbox);//update smoothness of tallbox
 }
 
 // Render the scene.

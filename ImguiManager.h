@@ -11,7 +11,7 @@ public:
 	void CreateSRVHeap4Imgui();
 	void StartImgui(ComPtr<ID3D12GraphicsCommandList4> m_commandList);
 	void InitImGui4RayTracing(HWND hwnd);
-	float smoothness = 0.f;
+	float smoothness = 1.0f;
 private:
 	ComPtr<ID3D12Device5> m_device;
 	ComPtr<ID3D12DescriptorHeap> m_srvHeap4Imgui;

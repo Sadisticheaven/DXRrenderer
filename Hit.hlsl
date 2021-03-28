@@ -16,8 +16,8 @@ StructuredBuffer<Index> light_indices: register(t4);
 
 
 float get_pdf(float3 wi, float3 wo, float3 N) {
-	if (MaterialAttributes.type == MaterialType::Glass)
-		return 1.0f;
+	//if (MaterialAttributes.type == MaterialType::Glass)
+	return 1.0f;
 	if (dot(wo, N) > 0.0)
 		return 1.0f;
 	else
@@ -49,7 +49,7 @@ bool get_eval(float3 wi, float3 wo, float3 N, inout float3 eval) {
 		float3 Kd = MaterialAttributes.Kd;
 		float3 Ks = MaterialAttributes.Ks;
 		float s = MaterialAttributes.smoothness;
-		float alpha = pow(1000.0f, s * s);
+		float alpha = pow(1000.0f,  s);
 		float3 f_r = Kd + Ks * (alpha + 2) / (alpha + 1);
 		eval = f_r;
 		return true;
@@ -79,7 +79,7 @@ bool get_eval(float3 wi, float3 wo, float3 N, inout float3 eval) {
 			float3 Kd = MaterialAttributes.Kd;
 			float3 Kr = MaterialAttributes.Kr;
 			float s = MaterialAttributes.smoothness;
-			float alpha = pow(1000.0f, s * s);
+			float alpha = pow(1000.0f,  s);
 			float3 f_r = Kd + Kr * (alpha + 2) / (alpha + 1);
 			eval = f_r;
 			return true;
@@ -151,7 +151,7 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 	RayDesc rayDesc;
 	rayDesc.Origin = hitWorldPosition;
 	rayDesc.Direction = direction;
-	rayDesc.TMin = 0.1;
+	rayDesc.TMin = 0.5;
 	rayDesc.TMax = dis + 1.0f;
 
 	PayLoad rayPayload;
@@ -171,12 +171,29 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 	return rayPayload.radiance * eval * dot(direction, N) * dot(-direction, light_normal) / disPow2 * pdf;
 }
 
+bool canRefract(float3 v, float3 n, float ni_over_nt, inout float3 refracted) {
+	float3 uv = normalize(v);
+	float dt = dot(uv, n);
+	float discriminant = 1.0 - ni_over_nt * (1 - dt * dt);
+	if (discriminant > 0) {
+		refracted = ni_over_nt * (uv - n * dt) - n * sqrt(discriminant);
+		return true;
+	}
+	return false;
+}
+
+float m_schlick(float cosine, float ref_idx) {
+	float r0 = (1 - ref_idx) / (1 + ref_idx);
+	r0 *= r0;
+	return r0 + (1 - r0) * pow(1 - cosine, 5);
+}
+
 float3 createSampleRay(float3 wi, float3 N, inout float4 seed) {
 
 	seed = createRandomFloat4(seed);
 	float4 random_float = seed;
 	float s = MaterialAttributes.smoothness;
-	float alpha = pow(1000.0f, s * s);
+	float alpha = pow(1000.0f,  s);
 	float x_1 = pow(random_float.x, 1.0 / alpha), x_2 = random_float.z;
 	float z = x_1;
 	float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
@@ -193,7 +210,35 @@ float3 createSampleRay(float3 wi, float3 N, inout float4 seed) {
 	}
 	case MaterialType::Glass:
 	{
-		return toWorld(localRay, wi);
+		wi = normalize(wi);
+		float3 outward_normal;
+		float3 reflected = reflect(wi, N);
+		float ref_idx = 1.02;
+		float ni_over_nt;
+		float3 refracted;
+		float reflect_prob;
+		float cosine;
+		if (dot(wi, N) > 0) {
+			outward_normal = -N;
+			ni_over_nt = ref_idx;
+			cosine = ref_idx * dot(wi, N);
+		}
+		else {
+			outward_normal = N;
+			ni_over_nt = 1.0 / ref_idx;
+			cosine = -dot(wi, N);
+		}
+		if (canRefract(wi, outward_normal, ni_over_nt, refracted)) {
+			reflect_prob = m_schlick(cosine, ref_idx);
+		}
+		else {
+			reflect_prob = 1.0;
+		}
+		if (seed.w < reflect_prob)
+			return toWorld(localRay, reflected);
+		else
+			return toWorld(localRay, refracted);
+		//return toWorld(localRay, wi);
 	}
 	default: return float3(0.0, 0.0, 0.0);
 	}
@@ -208,7 +253,7 @@ float3 CastRay(Ray ray, uint curRecursionDepth, float4 seed) {
 	RayDesc rayDesc;
 	rayDesc.Origin = ray.origin;
 	rayDesc.Direction = ray.direction;
-	rayDesc.TMin = 0.1;
+	rayDesc.TMin = 0.5;
 	rayDesc.TMax = 100000;
 
 	PayLoad rayPayload;
@@ -243,8 +288,8 @@ float3 get_light_indir(float3 worldRayDirection, float3 normal, float3 hitWorldP
 		Ray ray;
 		ray.origin = hitWorldPosition;
 		if (MaterialAttributes.type == MaterialType::Glass) {
-			if (curRecursionDepth >= MAX_RAY_RECURSION_DEPTH)
-				--curRecursionDepth;
+			//if (curRecursionDepth >= MAX_RAY_RECURSION_DEPTH)
+				//--curRecursionDepth;
 		}
 		ray.direction = sp_direction;
 		L_intdir = CastRay(ray, curRecursionDepth, createRandomFloat4(random_seed)) * eval * pdf / PROBABILITY_RUSSIAN_ROULETTE;
