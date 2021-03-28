@@ -17,6 +17,7 @@
 #include "nv_helpers_dx12/RaytracingPipelineGenerator.h"  
 #include "nv_helpers_dx12/RootSignatureGenerator.h"
 
+
 const std::wstring ws_raygenShaderName = L"RayGen";
 const std::vector<std::wstring> ws_missShaderNames = { L"Miss" };
 const std::vector<std::wstring> ws_closestHitShaderNames = { L"ClosestHit" };
@@ -44,7 +45,7 @@ SceneEditor::SceneEditor(UINT width, UINT height, std::wstring name) :
 void SceneEditor::OnInit()
 {
 	LoadPipeline();
-
+	
 	m_imguiManager = ImguiManager(m_device);
 
 	LoadAssets();
@@ -355,6 +356,7 @@ void SceneEditor::OnUpdate()
 {
 	// #DXR Extra: Perspective Camera
 	UpdateSceneParameterBuffer();
+	UpdateSmoothness(2);//update smoothness of tallbox
 }
 
 // Render the scene.
@@ -1148,6 +1150,19 @@ void SceneEditor::CreateCameraBuffer()
 	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle =
 		m_constHeap->GetCPUDescriptorHandleForHeapStart();
 	m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
+}
+
+void SceneEditor::UpdateSmoothness(int bufferIndex)
+{
+	if (m_MaterialAttributes[bufferIndex].smoothness == m_imguiManager.smoothness)
+		return;
+	OnResetSpp();
+	m_MaterialAttributes[bufferIndex].smoothness = m_imguiManager.smoothness;
+	uint8_t* pData;
+	ThrowIfFailed(m_MaterialBuffer[bufferIndex]->Map(0, nullptr, (void**)&pData));
+	memcpy(pData, &(m_MaterialAttributes[bufferIndex]), sizeof(PrimitiveMaterialBuffer));
+	m_MaterialBuffer[bufferIndex]->Unmap(0, nullptr);
+
 }
 
 // #DXR Extra: Perspective Camera

@@ -197,4 +197,7 @@ private:
 	Camera m_camera;
 	POINT m_lastMousePos;
 
+	//update value by imgui
+	void UpdateSmoothness(int bufferIndex);
+
 };
