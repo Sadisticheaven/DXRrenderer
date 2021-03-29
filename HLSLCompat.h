@@ -68,7 +68,7 @@ namespace MaterialType {
 	enum Type {
 		Lambert,     
 		Mirror,     
-		glass,
+		Glass,
 		Disney_brdf,
 		Count
 	};
@@ -77,9 +77,8 @@ struct PrimitiveMaterialBuffer
 {
 	XMFLOAT4 Kd;
 	XMFLOAT4 Ks;
-	XMFLOAT4 Kr;
-	XMFLOAT4 Kt;
 	XMFLOAT4 emit;
+	float index_of_refraction;
 	float smoothness;
 	//BOOL hasDiffuseTexture;
 	//BOOL hasNormalTexture;

@@ -46,7 +46,7 @@ SceneEditor::SceneEditor(UINT width, UINT height, std::wstring name) :
 void SceneEditor::OnInit()
 {
 	LoadPipeline();
-	
+
 	m_imguiManager = ImguiManager(m_device);
 
 	LoadAssets();
@@ -245,10 +245,8 @@ void SceneEditor::AllocateUploadGeometryBuffer(Model &model, int bufferIndex)
 {
 	std::vector<Vertex> vertices;
 	std::vector<Index> indices;
-	// 将模型的所有mesh存入一个顶点和索引数组
 	for (int i = 0, offset = 0; i < model.meshes.size(); ++i) {
 		vertices.insert(vertices.end(), model.meshes[i].vertices.begin(), model.meshes[i].vertices.end());
-		// 在连接索引时后面mesh的索引要偏移，偏移量为之前的mesh顶点数量之和
 		for (int j = 0; j < model.meshes[i].indices.size(); ++j)
 			model.meshes[i].indices[j] += offset;
 		indices.insert(indices.end(), model.meshes[i].indices.begin(), model.meshes[i].indices.end());
@@ -300,7 +298,7 @@ void SceneEditor::AllocateUploadGeometryBuffer(Model &model, int bufferIndex)
 	}
 }
 
-void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, XMFLOAT4 emit, XMFLOAT4 Ks, float alpha, XMFLOAT4 Kr, XMFLOAT4 Kt) {
+void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, XMFLOAT4 emit, XMFLOAT4 Ks, float smoothness, float index_of_refraction) {
 	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
 	//int k = sizeof(PrimitiveMaterialBuffer);
 	m_MaterialBuffer[bufferIndex] = nv_helpers_dx12::CreateBuffer(
@@ -308,11 +306,10 @@ void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, Material
 		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
 	m_MaterialAttributes[bufferIndex].Kd = Kd;
 	m_MaterialAttributes[bufferIndex].Ks = Ks;
-	m_MaterialAttributes[bufferIndex].Kr = Kr;
-	m_MaterialAttributes[bufferIndex].Kt = Kt;
+	m_MaterialAttributes[bufferIndex].index_of_refraction = index_of_refraction;
 	m_MaterialAttributes[bufferIndex].emit = emit;
 	m_MaterialAttributes[bufferIndex].type = type;
-	m_MaterialAttributes[bufferIndex].smoothness = alpha;
+	m_MaterialAttributes[bufferIndex].smoothness = smoothness;
 	uint8_t* pData;
 	ThrowIfFailed(m_MaterialBuffer[bufferIndex]->Map(0, nullptr, (void**)&pData));
 	memcpy(pData, &(m_MaterialAttributes[bufferIndex]), sizeof(PrimitiveMaterialBuffer));
@@ -358,16 +355,16 @@ void SceneEditor::LoadAssets()
 		XMFLOAT4 red(0.63f, 0.065f, 0.05f, 0.0f);
 		XMFLOAT4 green(0.14f, 0.45f, 0.091f, 0.0f);
 		XMFLOAT4 white(0.725f, 0.71f, 0.68f, 0.0f);
-		XMFLOAT4 test(0.225f, 0.71f, 0.78f, 0.0f);
 		XMFLOAT4 light_kd(0.65f, 0.65f, 0.65f, 0.0f);
+		XMFLOAT4 test(0.5, 0.8, 0.9, 1.0);
 		XMFLOAT4 le1 = Float4Multi(8.0f, XMFLOAT4(0.747f + 0.058f, 0.747f + 0.258f, 0.747f, 0.0f));
 		XMFLOAT4 le2 = Float4Multi(15.6f, XMFLOAT4(0.740f + 0.287f, 0.740f + 0.160f, 0.740f, 0.0f));
 		XMFLOAT4 le3 = Float4Multi(18.4f, XMFLOAT4(0.737f + 0.642f, 0.737f + 0.159f, 0.737f, 0.0f));
 		XMFLOAT4 light_emit(le1.x + le2.x + le3.x, le1.y + le2.y + le3.y, le1.z + le2.z + le3.z, 0.0f);
-		XMFLOAT4 default_Ks(0.04f, 0.04f, 0.04f,0.0f);
+		XMFLOAT4 default_Ks(0.04f, 0.04f, 0.04f, 0.0f);
 		CreateMaterialBufferAndSetAttributes(SceneObject::floor, MaterialType::Lambert, white, not_emit);
-		CreateMaterialBufferAndSetAttributes(SceneObject::shortbox, MaterialType::Lambert, white, not_emit);
-		CreateMaterialBufferAndSetAttributes(SceneObject::tallbox, MaterialType::Mirror, white, not_emit, default_Ks, 20000);
+		CreateMaterialBufferAndSetAttributes(SceneObject::shortbox, MaterialType::Glass, white, not_emit, default_Ks, 2.1f, 1.02f);
+		CreateMaterialBufferAndSetAttributes(SceneObject::tallbox, MaterialType::Mirror, white, not_emit, default_Ks, 1.0);
 		CreateMaterialBufferAndSetAttributes(SceneObject::left, MaterialType::Lambert, red, not_emit);
 		CreateMaterialBufferAndSetAttributes(SceneObject::right, MaterialType::Lambert, green, not_emit);
 		CreateMaterialBufferAndSetAttributes(SceneObject::light, MaterialType::Lambert, light_kd, light_emit);
@@ -434,7 +431,7 @@ void SceneEditor::OnUpdate()
 {
 	// #DXR Extra: Perspective Camera
 	UpdateSceneParameterBuffer();
-	UpdateSmoothness(2);//update smoothness of tallbox
+	UpdateSmoothness(SceneObject::tallbox);//update smoothness of tallbox
 }
 
 // Render the scene.
@@ -934,8 +931,8 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateHitSignature() {
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1);
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 2);
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 3);//光源顶点
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 4);//光源索引
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 3);//???????
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 4);//???????
 	return rsc.Generate(m_device.Get(), true);
 }
 
