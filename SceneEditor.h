@@ -14,13 +14,14 @@
 #include "DXSample.h"
 #include <dxcapi.h>
 #include <vector>
-#include "HLSLCompat.h"
+//#include "HLSLCompat.h"
 #include "nv_helpers_dx12/TopLevelASGenerator.h"
 #include "nv_helpers_dx12/ShaderBindingTableGenerator.h"
 //#include <DirectXMath.h>
 //#include "d3dx12.h"
 //#include <dxgi1_4.h>
 #include <Camera.h>
+#include "Model.h"
 
 using namespace DirectX;
 
@@ -39,6 +40,7 @@ namespace SceneObject {
 		left,
 		right,
 		light,
+		nanosuit,
 		Count
 	};
 }
@@ -113,6 +115,7 @@ private:
 	void PopulateRaytracingCmdList();
 	void WaitForPreviousFrame();
 	void SceneEditor::AllocateUploadGeometryBuffer(std::vector<Vertex> vertices, std::vector<Index> indices, int bufferIndex);
+	void SceneEditor::AllocateUploadGeometryBuffer(Model &model, int bufferIndex);
 	void CheckRaytracingSupport();
 
 	// #DXR-AccelerationStructure

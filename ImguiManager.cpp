@@ -37,7 +37,7 @@ void ImguiManager::StartImgui(ComPtr<ID3D12GraphicsCommandList4> m_commandList)
 	//	ImGui::End();
 	//}
 	ImGui::Begin("Hello, world!");
-	ImGui::SliderFloat("smoothness", &smoothness, 0.f, 20000.f);
+	ImGui::SliderFloat("smoothness", &smoothness, 1.f, 20000.f);
 	ImGui::End();
 	// set a srvheap for imgui to seperate it from raytracing
 	m_commandList->SetDescriptorHeaps(1, m_srvHeap4Imgui.GetAddressOf());

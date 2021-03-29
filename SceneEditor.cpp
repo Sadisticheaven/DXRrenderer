@@ -29,6 +29,7 @@ const std::vector<std::wstring> ws_hitGroupNames = {
 		L"Hit_left",
 		L"Hit_right",
 		L"Hit_light",
+		L"nanosuit"
 };
 
 
@@ -240,6 +241,65 @@ void SceneEditor::AllocateUploadGeometryBuffer(std::vector<Vertex> vertices, std
 	}
 }
 
+void SceneEditor::AllocateUploadGeometryBuffer(Model &model, int bufferIndex)
+{
+	std::vector<Vertex> vertices;
+	std::vector<Index> indices;
+	// 将模型的所有mesh存入一个顶点和索引数组
+	for (int i = 0, offset = 0; i < model.meshes.size(); ++i) {
+		vertices.insert(vertices.end(), model.meshes[i].vertices.begin(), model.meshes[i].vertices.end());
+		// 在连接索引时后面mesh的索引要偏移，偏移量为之前的mesh顶点数量之和
+		for (int j = 0; j < model.meshes[i].indices.size(); ++j)
+			model.meshes[i].indices[j] += offset;
+		indices.insert(indices.end(), model.meshes[i].indices.begin(), model.meshes[i].indices.end());
+		offset += model.meshes[i].vertices.size();
+	}
+
+	m_vertexCount[bufferIndex] = static_cast<UINT>(vertices.size());
+	m_indexCount[bufferIndex] = static_cast<UINT>(indices.size());
+
+	const UINT VertexBufferSize = static_cast<UINT>(vertices.size()) * sizeof(Vertex);
+	{
+		CD3DX12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		CD3DX12_RESOURCE_DESC bufferResource = CD3DX12_RESOURCE_DESC::Buffer(VertexBufferSize);
+		ThrowIfFailed(m_device->CreateCommittedResource(
+			&heapProperty, D3D12_HEAP_FLAG_NONE, &bufferResource, //
+			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_vertexBuffer[bufferIndex])));
+
+		// Copy the triangle data to the vertex buffer.
+		UINT8* pVertexDataBegin;
+		CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_vertexBuffer[bufferIndex]->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
+		memcpy(pVertexDataBegin, vertices.data(), VertexBufferSize);
+		m_vertexBuffer[bufferIndex]->Unmap(0, nullptr);
+	}
+	// Initialize the vertex buffer view.
+	//m_mengerVBView.BufferLocation = m_mengerVB->GetGPUVirtualAddress();
+	//m_mengerVBView.StrideInBytes = sizeof(Vertex);
+	//m_mengerVBView.SizeInBytes = mengerVBSize;
+	const UINT IndexBufferSize = static_cast<UINT>(indices.size()) * sizeof(UINT);
+
+	// Note: using upload heaps to transfer static data like vert buffers is not
+	// recommended. Every time the GPU needs it, the upload heap will be
+	// marshalled over. Please read up on Default Heap usage. An upload heap is
+	// used here for code simplicity and because there are very few verts to
+	// actually transfer.
+	{
+		CD3DX12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		CD3DX12_RESOURCE_DESC bufferResource = CD3DX12_RESOURCE_DESC::Buffer(IndexBufferSize);
+		ThrowIfFailed(m_device->CreateCommittedResource(
+			&heapProperty, D3D12_HEAP_FLAG_NONE, &bufferResource, //
+			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_indexBuffer[bufferIndex])));
+
+		// Copy the triangle data to the index buffer.
+		UINT8* pIndexDataBegin;
+		CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_indexBuffer[bufferIndex]->Map(0, &readRange, reinterpret_cast<void**>(&pIndexDataBegin)));
+		memcpy(pIndexDataBegin, indices.data(), IndexBufferSize);
+		m_indexBuffer[bufferIndex]->Unmap(0, nullptr);
+	}
+}
+
 void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, XMFLOAT4 emit, XMFLOAT4 Ks, float alpha, XMFLOAT4 Kr, XMFLOAT4 Kt) {
 	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
 	//int k = sizeof(PrimitiveMaterialBuffer);
@@ -311,11 +371,34 @@ void SceneEditor::LoadAssets()
 		CreateMaterialBufferAndSetAttributes(SceneObject::left, MaterialType::Lambert, red, not_emit);
 		CreateMaterialBufferAndSetAttributes(SceneObject::right, MaterialType::Lambert, green, not_emit);
 		CreateMaterialBufferAndSetAttributes(SceneObject::light, MaterialType::Lambert, light_kd, light_emit);
+		CreateMaterialBufferAndSetAttributes(SceneObject::nanosuit, MaterialType::Lambert, white, not_emit);
 	}
 	// Create the vertex and index buffer.
 	{
 		// Define the geometry for a triangle.
-		std::vector<Vertex> vertices;
+		Model model;
+		LoadModelFile("./cornellbox/floor.obj", model);
+		AllocateUploadGeometryBuffer(model, SceneObject::floor);
+
+		LoadModelFile("./cornellbox/shortbox.obj", model);
+		AllocateUploadGeometryBuffer(model, SceneObject::shortbox);
+
+		LoadModelFile("./cornellbox/tallbox.obj", model);
+		AllocateUploadGeometryBuffer(model, SceneObject::tallbox);
+
+		LoadModelFile("./cornellbox/left.obj", model);
+		AllocateUploadGeometryBuffer(model, SceneObject::left);
+
+		LoadModelFile("./cornellbox/right.obj", model);
+		AllocateUploadGeometryBuffer(model, SceneObject::right);
+
+		LoadModelFile("./cornellbox/light.obj", model);
+		AllocateUploadGeometryBuffer(model, SceneObject::light);
+
+		LoadModelFile("./cornellbox/nanosuit.obj", model);
+		AllocateUploadGeometryBuffer(model, SceneObject::nanosuit);
+
+		/*std::vector<Vertex> vertices;
 		std::vector<Index> indices;
 		LoadObjFile("./cornellbox/floor.obj", vertices, indices);
 		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::floor);
@@ -328,12 +411,7 @@ void SceneEditor::LoadAssets()
 		LoadObjFile("./cornellbox/right.obj", vertices, indices);
 		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::right);
 		LoadObjFile("./cornellbox/light.obj", vertices, indices);
-		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::light);
-		//PrimitiveMaterialBuffer planeMaterial;
-		//planeMaterial.Kd = XMFLOAT3(1, 0, 0);
-		//planeMaterial.emit = XMFLOAT3(0, 1, 0);
-		//CreateMaterialBufferAndSetAttributes(planeMaterial, SceneObject::shortbox);
-		//CreateMaterialBufferAndSetAttributes(XMFLOAT3(0, 1, 0), XMFLOAT3(0, 1, 0), SceneObject::Test_Plane);
+		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::light);*/
 	}
 
 	{
@@ -795,9 +873,10 @@ void SceneEditor::CreateAccelerationStructures() {
 		m_bottomLevelAS[i] = bottomLevelBuffers[i].pResult;
 	}
 
-	for (int i = 0; i < SceneObject::Count; ++i) {
+	for (int i = 0; i < SceneObject::Count - 1; ++i) {
 		m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(bottomLevelBuffers[i].pResult, XMMatrixIdentity()));
 	}
+	m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(bottomLevelBuffers[SceneObject::nanosuit].pResult, XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f)));
 	/*// Just one instance for now
 	m_instances = {
 		{bottomLevelBuffers.pResult, XMMatrixIdentity()},

@@ -25,7 +25,6 @@ typedef float4x4 XMMATRIX;
 typedef uint UINT;
 typedef UINT Index;
 #else
-
 using namespace DirectX;
 typedef UINT32 Index;
 
@@ -52,6 +51,7 @@ typedef struct Vertex
 	XMFLOAT3 position;
 	XMFLOAT3 normal;
 };
+
 
 struct SceneConstants
 {
