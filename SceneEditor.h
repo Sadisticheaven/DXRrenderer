@@ -39,6 +39,7 @@ using Microsoft::WRL::ComPtr;
         Enum(left)  \
         Enum(right)  \
         Enum(light)  \
+        Enum(car)  \
         Enum(nanosuit)  \
         Enum(Count)  \
 

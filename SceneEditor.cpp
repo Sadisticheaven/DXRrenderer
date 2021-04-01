@@ -29,7 +29,8 @@ const std::vector<std::wstring> ws_hitGroupNames = {
 		L"Hit_left",
 		L"Hit_right",
 		L"Hit_light",
-		L"nanosuit"
+		L"Hit_car",
+		L"Hit_nanosuit"
 };
 
 
@@ -363,6 +364,7 @@ void SceneEditor::LoadAssets()
 		CreateMaterialBufferAndSetAttributes(SceneObject::left, MaterialType::Lambert, red, not_emit);
 		CreateMaterialBufferAndSetAttributes(SceneObject::right, MaterialType::Lambert, green, not_emit);
 		CreateMaterialBufferAndSetAttributes(SceneObject::light, MaterialType::Lambert, light_kd, light_emit);
+		CreateMaterialBufferAndSetAttributes(SceneObject::car, MaterialType::Glass,white, not_emit, default_Ks, 2.1f, 5.02f);
 		CreateMaterialBufferAndSetAttributes(SceneObject::nanosuit, MaterialType::Glass,white, not_emit, default_Ks, 2.1f, 5.02f);
 	}
 	// Create the vertex and index buffer.
@@ -387,8 +389,13 @@ void SceneEditor::LoadAssets()
 		LoadModelFile("./cornellbox/light.obj", model);
 		AllocateUploadGeometryBuffer(model, SceneObject::light);
 
+		LoadModelFile("./cornellbox/car.fbx", model);
+		AllocateUploadGeometryBuffer(model, SceneObject::car);
+
 		LoadModelFile("./cornellbox/nanosuit.obj", model);
 		AllocateUploadGeometryBuffer(model, SceneObject::nanosuit);
+
+		
 	}
 
 	{
@@ -835,9 +842,10 @@ void SceneEditor::CreateAccelerationStructures() {
 		m_bottomLevelAS[i] = bottomLevelBuffers[i].pResult;
 	}
 
-	for (int i = 0; i < SceneObject::Count - 1; ++i) {
+	for (int i = 0; i < SceneObject::Count - 2; ++i) {
 		m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(bottomLevelBuffers[i].pResult, XMMatrixIdentity()));
 	}
+	m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(bottomLevelBuffers[SceneObject::car].pResult, XMMatrixRotationY(-XM_PIDIV2-XM_PIDIV4) * XMMatrixScaling(2.f, 2.f, 2.f) * XMMatrixTranslation(200.f, 165.f, 160.f)));
 	m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(bottomLevelBuffers[SceneObject::nanosuit].pResult, XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f)));
 	/*// Just one instance for now
 	m_instances = {
@@ -1344,14 +1352,7 @@ void SceneEditor::StartImgui()
 	if(ImGui::Combo("", materialAddress, m_MaterialType, MaterialType::Count))
 		OnResetSpp();
 
-	auto pos = ImGui::GetWindowPos();
-	auto pos2 = ImGui::GetWindowSize();
-	auto pos3 = ImGui::GetMousePos();
-		ImGui::Text("x: %f, y: %f", pos.x, pos.y);
-		ImGui::Text("x: %f, y: %f", pos2.x, pos2.y);
-		ImGui::Text("x: %f, y: %f", pos3.x, pos3.y);
-
-	if(ImGui::IsWindowHovered()||ImGui::IsAnyItemHovered())
+	if(ImGui::IsWindowHovered()||ImGui::IsAnyItemHovered()||ImGui::IsAnyItemActive())
 		m_imguiManager.isHovered = true;
 	else
 		m_imguiManager.isHovered = false;
