@@ -14,7 +14,7 @@
 #include "DXSample.h"
 #include <dxcapi.h>
 #include <vector>
-//#include "HLSLCompat.h"
+#include "HLSLCompat.h"
 #include "nv_helpers_dx12/TopLevelASGenerator.h"
 #include "nv_helpers_dx12/ShaderBindingTableGenerator.h"
 //#include <DirectXMath.h>
@@ -32,8 +32,18 @@ using namespace DirectX;
 // An example of this can be found in the class method: OnDestroy().
 using Microsoft::WRL::ComPtr;
 
+#define FOREACH_ENUM(Enum) \
+        Enum(floor)   \
+        Enum(shortbox)  \
+        Enum(tallbox)   \
+        Enum(left)  \
+        Enum(right)  \
+        Enum(light)  \
+        Enum(nanosuit)  \
+        Enum(Count)  \
+
 namespace SceneObject {
-	enum Enum {
+	/*enum Enum {
 		floor = 0,
 		shortbox,
 		tallbox,
@@ -42,10 +52,12 @@ namespace SceneObject {
 		light,
 		nanosuit,
 		Count
+	};*/
+	enum Enum {
+		FOREACH_ENUM(GENERATE_ENUM)
 	};
+	
 }
-
-
 
 class SceneEditor : public DXSample
 {
@@ -62,12 +74,16 @@ public:
 	virtual void OnMouseMove(WPARAM btnState, int x, int y);
 	virtual void OnKeyDown(UINT8 key);
 	virtual void OnResetSpp() { needRefreshScreen = true; }
+	virtual void StartImgui();
+	//ComPtr<ID3D12Device5> GetDevice() { return m_device; }
+	//ComPtr<ID3D12GraphicsCommandList4> GetCommandList() { return m_commandList; }
 
 private:
 	static const UINT FrameCount = 2;
 	//DXGI_FORMAT m_outPutFormat = DXGI_FORMAT_R8G8B8A8_UNORM ;
 	DXGI_FORMAT m_outPutFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
-
+	char* m_ObjectName[SceneObject::Count + 1] = { FOREACH_ENUM(GENERATE_STRING) };
+	char* m_MaterialType[MaterialType::Count + 1] = { FOREACH_MATERIAL(GENERATE_STRING) };
 	// Pipeline objects.
 	CD3DX12_VIEWPORT m_viewport;
 	CD3DX12_RECT m_scissorRect;
@@ -201,6 +217,7 @@ private:
 	POINT m_lastMousePos;
 
 	//update value by imgui
-	void UpdateSmoothness(int bufferIndex);
+	void UpadteMaterialParameter(int bufferIndex);
+
 
 };

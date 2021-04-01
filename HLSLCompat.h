@@ -32,6 +32,15 @@ typedef UINT32 Index;
 
 #define MAX_RAY_RECURSION_DEPTH 5
 #define PROBABILITY_RUSSIAN_ROULETTE 0.8
+#define FOREACH_MATERIAL(Type) \
+        Type(Lambert)   \
+        Type(Mirror)  \
+        Type(Glass)   \
+        Type(Disney_brdf)  \
+        Type(Count)  \
+
+#define GENERATE_ENUM(ENUM) ENUM,
+#define GENERATE_STRING(STRING) #STRING,
 
 struct PayLoad
 {
@@ -65,12 +74,15 @@ struct SceneConstants
 };
 
 namespace MaterialType {
-	enum Type {
+	/*enum Type {
 		Lambert,     
 		Mirror,     
 		Glass,
 		Disney_brdf,
 		Count
+	};*/
+	enum Type {
+		FOREACH_MATERIAL(GENERATE_ENUM)
 	};
 }
 struct PrimitiveMaterialBuffer

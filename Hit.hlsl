@@ -151,7 +151,7 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 	RayDesc rayDesc;
 	rayDesc.Origin = hitWorldPosition;
 	rayDesc.Direction = direction;
-	rayDesc.TMin = 0.5;
+	rayDesc.TMin = 0.1;
 	rayDesc.TMax = dis + 1.0f;
 
 	PayLoad rayPayload;
@@ -253,7 +253,7 @@ float3 CastRay(Ray ray, uint curRecursionDepth, float4 seed) {
 	RayDesc rayDesc;
 	rayDesc.Origin = ray.origin;
 	rayDesc.Direction = ray.direction;
-	rayDesc.TMin = 0.5;
+	rayDesc.TMin = 0.1;
 	rayDesc.TMax = 100000;
 
 	PayLoad rayPayload;

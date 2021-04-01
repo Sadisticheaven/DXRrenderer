@@ -36,6 +36,8 @@ public:
 	virtual void OnMouseUp(WPARAM btnState, int x, int y) = 0;
 	virtual void OnMouseMove(WPARAM btnState, int x, int y) = 0;
 
+	virtual void StartImgui() = 0;
+
 	// Accessors.
 	UINT GetWidth() const           { return m_width; }
 	UINT GetHeight() const          { return m_height; }

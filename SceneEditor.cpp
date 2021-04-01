@@ -193,7 +193,6 @@ void SceneEditor::LoadPipeline()
 	ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
 }
 
-
 void SceneEditor::AllocateUploadGeometryBuffer(std::vector<Vertex> vertices, std::vector<Index> indices, int bufferIndex)
 {
 	m_vertexCount[bufferIndex] = static_cast<UINT>(vertices.size());
@@ -245,8 +244,10 @@ void SceneEditor::AllocateUploadGeometryBuffer(Model &model, int bufferIndex)
 {
 	std::vector<Vertex> vertices;
 	std::vector<Index> indices;
+	// store all meshes of model into one vertices nad indices
 	for (int i = 0, offset = 0; i < model.meshes.size(); ++i) {
 		vertices.insert(vertices.end(), model.meshes[i].vertices.begin(), model.meshes[i].vertices.end());
+		// each indices of meshes are started from 0, so offset the subsequent indices
 		for (int j = 0; j < model.meshes[i].indices.size(); ++j)
 			model.meshes[i].indices[j] += offset;
 		indices.insert(indices.end(), model.meshes[i].indices.begin(), model.meshes[i].indices.end());
@@ -276,12 +277,6 @@ void SceneEditor::AllocateUploadGeometryBuffer(Model &model, int bufferIndex)
 	//m_mengerVBView.StrideInBytes = sizeof(Vertex);
 	//m_mengerVBView.SizeInBytes = mengerVBSize;
 	const UINT IndexBufferSize = static_cast<UINT>(indices.size()) * sizeof(UINT);
-
-	// Note: using upload heaps to transfer static data like vert buffers is not
-	// recommended. Every time the GPU needs it, the upload heap will be
-	// marshalled over. Please read up on Default Heap usage. An upload heap is
-	// used here for code simplicity and because there are very few verts to
-	// actually transfer.
 	{
 		CD3DX12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 		CD3DX12_RESOURCE_DESC bufferResource = CD3DX12_RESOURCE_DESC::Buffer(IndexBufferSize);
@@ -368,7 +363,7 @@ void SceneEditor::LoadAssets()
 		CreateMaterialBufferAndSetAttributes(SceneObject::left, MaterialType::Lambert, red, not_emit);
 		CreateMaterialBufferAndSetAttributes(SceneObject::right, MaterialType::Lambert, green, not_emit);
 		CreateMaterialBufferAndSetAttributes(SceneObject::light, MaterialType::Lambert, light_kd, light_emit);
-		CreateMaterialBufferAndSetAttributes(SceneObject::nanosuit, MaterialType::Lambert, white, not_emit);
+		CreateMaterialBufferAndSetAttributes(SceneObject::nanosuit, MaterialType::Glass,white, not_emit, default_Ks, 2.1f, 5.02f);
 	}
 	// Create the vertex and index buffer.
 	{
@@ -394,21 +389,6 @@ void SceneEditor::LoadAssets()
 
 		LoadModelFile("./cornellbox/nanosuit.obj", model);
 		AllocateUploadGeometryBuffer(model, SceneObject::nanosuit);
-
-		/*std::vector<Vertex> vertices;
-		std::vector<Index> indices;
-		LoadObjFile("./cornellbox/floor.obj", vertices, indices);
-		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::floor);
-		LoadObjFile("./cornellbox/shortbox.obj", vertices, indices);
-		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::shortbox);
-		LoadObjFile("./cornellbox/tallbox.obj", vertices, indices);
-		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::tallbox);
-		LoadObjFile("./cornellbox/left.obj", vertices, indices);
-		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::left);
-		LoadObjFile("./cornellbox/right.obj", vertices, indices);
-		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::right);
-		LoadObjFile("./cornellbox/light.obj", vertices, indices);
-		AllocateUploadGeometryBuffer(vertices, indices, SceneObject::light);*/
 	}
 
 	{
@@ -431,7 +411,7 @@ void SceneEditor::OnUpdate()
 {
 	// #DXR Extra: Perspective Camera
 	UpdateSceneParameterBuffer();
-	UpdateSmoothness(SceneObject::tallbox);//update smoothness of tallbox
+	UpadteMaterialParameter(m_imguiManager.m_currentObjeectItem);
 }
 
 // Render the scene.
@@ -569,15 +549,10 @@ void SceneEditor::PopulateCommandList()
 	// #DXR
 	PopulateRaytracingCmdList();
 
-
-
 	//define what will be displayed in imgui
-	m_imguiManager.StartImgui(m_commandList);
-
+	StartImgui();
 	// Indicate that the back buffer will now be used to present.
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-
-
 
 	ThrowIfFailed(m_commandList->Close());
 }
@@ -707,19 +682,12 @@ SceneEditor::CreateBottomLevelAS(
 			sizeof(Vertex), 0, 0);
 	}
 
-	// The AS build requires some scratch space to store temporary information.
-	// The amount of scratch memory is dependent on the scene complexity.
 	UINT64 scratchSizeInBytes = 0;
-	// The final AS also needs to be stored in addition to the existing vertex
-	// buffers. It size is also dependent on the scene complexity.
 	UINT64 resultSizeInBytes = 0;
 
 	bottomLevelAS.ComputeASBufferSizes(m_device.Get(), false, &scratchSizeInBytes,
 		&resultSizeInBytes);
 
-	// Once the sizes are obtained, the application is responsible for allocating
-	// the necessary buffers. Since the entire generation will be done on the GPU,
-	// we can directly allocate those on the default heap
 	AccelerationStructureBuffers buffers;
 	buffers.pScratch = nv_helpers_dx12::CreateBuffer(
 		m_device.Get(), scratchSizeInBytes,
@@ -731,9 +699,6 @@ SceneEditor::CreateBottomLevelAS(
 		D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
 		nv_helpers_dx12::kDefaultHeapProps);
 
-	// Build the acceleration structure. Note that this call integrates a barrier
-	// on the generated AS, so that it can be used to compute a top-level AS right
-	// after this method.
 	bottomLevelAS.Generate(m_commandList.Get(), buffers.pScratch.Get(),
 		buffers.pResult.Get(), false, nullptr);
 
@@ -931,8 +896,8 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateHitSignature() {
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1);
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 2);
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 3);//???????
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 4);//???????
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 3);
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 4);
 	return rsc.Generate(m_device.Get(), true);
 }
 
@@ -1228,17 +1193,11 @@ void SceneEditor::CreateCameraBuffer()
 	m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
 }
 
-void SceneEditor::UpdateSmoothness(int bufferIndex)
-{
-	if (m_MaterialAttributes[bufferIndex].smoothness == m_imguiManager.smoothness)
-		return;
-	OnResetSpp();
-	m_MaterialAttributes[bufferIndex].smoothness = m_imguiManager.smoothness;
+void SceneEditor::UpadteMaterialParameter(int bufferIndex) {
 	uint8_t* pData;
 	ThrowIfFailed(m_MaterialBuffer[bufferIndex]->Map(0, nullptr, (void**)&pData));
 	memcpy(pData, &(m_MaterialAttributes[bufferIndex]), sizeof(PrimitiveMaterialBuffer));
 	m_MaterialBuffer[bufferIndex]->Unmap(0, nullptr);
-
 }
 
 // #DXR Extra: Perspective Camera
@@ -1293,7 +1252,6 @@ void SceneEditor::OnMouseDown(WPARAM btnState, int x, int y)
 {
 	m_lastMousePos.x = x;
 	m_lastMousePos.y = y;
-
 	SetCapture(m_mainWndHandle);
 }
 
@@ -1304,6 +1262,9 @@ void SceneEditor::OnMouseUp(WPARAM btnState, int x, int y)
 
 void SceneEditor::OnMouseMove(WPARAM btnState, int x, int y)
 {
+	if (m_imguiManager.isHovered)
+		return;
+
 	if ((btnState & MK_LBUTTON) != 0)
 	{
 		// Make each pixel correspond to a quarter of a degree.
@@ -1355,5 +1316,50 @@ void SceneEditor::OnKeyDown(UINT8 key)
 	default:
 		break;
 	}
+}
+
+void SceneEditor::StartImgui()
+{
+	// Start the Dear ImGui frame
+	ImGui_ImplDX12_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+
+	ImGui::Begin("Parameters");
+	ImGui::Combo("ObjectsName", &m_imguiManager.m_currentObjeectItem, m_ObjectName, SceneObject::Count );
+	
+	auto valueAddress = &m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].smoothness;
+	if (ImGui::SliderFloat("smoothness", valueAddress, 0.1f, 5.f))
+		OnResetSpp();
+	valueAddress = &m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].index_of_refraction;
+	if (ImGui::SliderFloat("refraction", valueAddress, 0.f, 5.f))
+		OnResetSpp();
+
+	ImGui::Text("Color:");
+	if(ImGui::ColorEdit4("", reinterpret_cast<float*>(&m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].Kd)))
+		OnResetSpp();
+
+	ImGui::Text("Material:");
+	auto materialAddress = reinterpret_cast<int*>(&m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].type);
+	if(ImGui::Combo("", materialAddress, m_MaterialType, MaterialType::Count))
+		OnResetSpp();
+
+	auto pos = ImGui::GetWindowPos();
+	auto pos2 = ImGui::GetWindowSize();
+	auto pos3 = ImGui::GetMousePos();
+		ImGui::Text("x: %f, y: %f", pos.x, pos.y);
+		ImGui::Text("x: %f, y: %f", pos2.x, pos2.y);
+		ImGui::Text("x: %f, y: %f", pos3.x, pos3.y);
+
+	if(ImGui::IsWindowHovered()||ImGui::IsAnyItemHovered())
+		m_imguiManager.isHovered = true;
+	else
+		m_imguiManager.isHovered = false;
+
+	ImGui::End();
+	// set a srvheap for imgui to seperate it from raytracing
+	m_commandList->SetDescriptorHeaps(1, m_imguiManager.GetSrvHeap4Imgui().GetAddressOf());
+	ImGui::Render();
+	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList.Get());
 }
 
