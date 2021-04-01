@@ -89,7 +89,8 @@ struct PrimitiveMaterialBuffer
 {
 	XMFLOAT4 Kd;
 	XMFLOAT4 Ks;
-	XMFLOAT4 emit;
+	//XMFLOAT4 emit;
+	float emitIntensity;
 	float index_of_refraction;
 	float smoothness;
 	//BOOL hasDiffuseTexture;

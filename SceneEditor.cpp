@@ -294,7 +294,7 @@ void SceneEditor::AllocateUploadGeometryBuffer(Model &model, int bufferIndex)
 	}
 }
 
-void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, XMFLOAT4 emit, XMFLOAT4 Ks, float smoothness, float index_of_refraction) {
+void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, /*XMFLOAT4*/float emitIntensity, XMFLOAT4 Ks, float smoothness, float index_of_refraction) {
 	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
 	//int k = sizeof(PrimitiveMaterialBuffer);
 	m_MaterialBuffer[bufferIndex] = nv_helpers_dx12::CreateBuffer(
@@ -303,7 +303,7 @@ void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, Material
 	m_MaterialAttributes[bufferIndex].Kd = Kd;
 	m_MaterialAttributes[bufferIndex].Ks = Ks;
 	m_MaterialAttributes[bufferIndex].index_of_refraction = index_of_refraction;
-	m_MaterialAttributes[bufferIndex].emit = emit;
+	m_MaterialAttributes[bufferIndex].emitIntensity = emitIntensity;
 	m_MaterialAttributes[bufferIndex].type = type;
 	m_MaterialAttributes[bufferIndex].smoothness = smoothness;
 	uint8_t* pData;
@@ -347,7 +347,8 @@ void SceneEditor::LoadAssets()
 		auto Float4Multi = [&](const float& f, const XMFLOAT4 vec3) {
 			return XMFLOAT4(f * vec3.x, f * vec3.y, f * vec3.z, 0.0f);
 		};
-		XMFLOAT4 not_emit(0.0f, 0.0f, 0.0f, 0.0f);
+		float not_emit = 0.f;
+		//XMFLOAT4 not_emit(0.0f, 0.0f, 0.0f, 0.0f);
 		XMFLOAT4 red(0.63f, 0.065f, 0.05f, 0.0f);
 		XMFLOAT4 green(0.14f, 0.45f, 0.091f, 0.0f);
 		XMFLOAT4 white(0.725f, 0.71f, 0.68f, 0.0f);
@@ -356,7 +357,8 @@ void SceneEditor::LoadAssets()
 		XMFLOAT4 le1 = Float4Multi(8.0f, XMFLOAT4(0.747f + 0.058f, 0.747f + 0.258f, 0.747f, 0.0f));
 		XMFLOAT4 le2 = Float4Multi(15.6f, XMFLOAT4(0.740f + 0.287f, 0.740f + 0.160f, 0.740f, 0.0f));
 		XMFLOAT4 le3 = Float4Multi(18.4f, XMFLOAT4(0.737f + 0.642f, 0.737f + 0.159f, 0.737f, 0.0f));
-		XMFLOAT4 light_emit(le1.x + le2.x + le3.x, le1.y + le2.y + le3.y, le1.z + le2.z + le3.z, 0.0f);
+		//XMFLOAT4 light_emit(le1.x + le2.x + le3.x, le1.y + le2.y + le3.y, le1.z + le2.z + le3.z, 0.0f);
+		float light_emit = 100.f;
 		XMFLOAT4 default_Ks(0.04f, 0.04f, 0.04f, 0.0f);
 		CreateMaterialBufferAndSetAttributes(SceneObject::floor, MaterialType::Lambert, white, not_emit);
 		CreateMaterialBufferAndSetAttributes(SceneObject::shortbox, MaterialType::Glass, white, not_emit, default_Ks, 2.1f, 1.02f);
@@ -845,7 +847,7 @@ void SceneEditor::CreateAccelerationStructures() {
 	for (int i = 0; i < SceneObject::Count - 2; ++i) {
 		m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(bottomLevelBuffers[i].pResult, XMMatrixIdentity()));
 	}
-	m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(bottomLevelBuffers[SceneObject::car].pResult, XMMatrixRotationY(-XM_PIDIV2-XM_PIDIV4) * XMMatrixScaling(2.f, 2.f, 2.f) * XMMatrixTranslation(200.f, 165.f, 160.f)));
+	m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(bottomLevelBuffers[SceneObject::car].pResult, XMMatrixRotationY(-XM_PIDIV2-XM_PIDIV4) * XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(200.f, 165.f, 160.f)));
 	m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(bottomLevelBuffers[SceneObject::nanosuit].pResult, XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f)));
 	/*// Just one instance for now
 	m_instances = {
@@ -1346,16 +1348,15 @@ void SceneEditor::StartImgui()
 	ImGui::Text("Color:");
 	if(ImGui::ColorEdit4("", reinterpret_cast<float*>(&m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].Kd)))
 		OnResetSpp();
+	if (ImGui::SliderFloat("EmitIntensity", &m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].emitIntensity, 0.f, 1000.f))
+		OnResetSpp();
 
 	ImGui::Text("Material:");
 	auto materialAddress = reinterpret_cast<int*>(&m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].type);
 	if(ImGui::Combo("", materialAddress, m_MaterialType, MaterialType::Count))
 		OnResetSpp();
 
-	if(ImGui::IsWindowHovered()||ImGui::IsAnyItemHovered()||ImGui::IsAnyItemActive())
-		m_imguiManager.isHovered = true;
-	else
-		m_imguiManager.isHovered = false;
+	m_imguiManager.isHovered = ImGui::IsWindowHovered() | ImGui::IsAnyItemHovered() | ImGui::IsAnyItemActive();
 
 	ImGui::End();
 	// set a srvheap for imgui to seperate it from raytracing

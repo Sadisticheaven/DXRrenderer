@@ -381,5 +381,5 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	float3 L_indir = get_light_indir(worldRayDirection, normal, hitWorldPosition, payload.recursionDepth, random_seed);
 	float3 L_dir = get_light_dir(worldRayDirection, hitWorldPosition, normal, random_seed, payload.recursionDepth);
 
-	payload.radiance = MaterialAttributes.emit.xyz * emit_rate + L_indir + L_dir;
+	payload.radiance = MaterialAttributes.Kd.xyz * MaterialAttributes.emitIntensity * emit_rate + L_indir + L_dir;
 }
