@@ -294,14 +294,13 @@ void SceneEditor::AllocateUploadGeometryBuffer(Model& model, int bufferIndex)
 	}
 }
 
-void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, /*XMFLOAT4*/float emitIntensity, XMFLOAT4 Ks, float smoothness, float index_of_refraction) {
+void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, /*XMFLOAT4*/float emitIntensity, float smoothness, float index_of_refraction) {
 	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
 	//int k = sizeof(PrimitiveMaterialBuffer);
 	m_MaterialBuffer[bufferIndex] = nv_helpers_dx12::CreateBuffer(
 		m_device.Get(), m_MaterialBufferSize, D3D12_RESOURCE_FLAG_NONE,
 		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
 	m_MaterialAttributes[bufferIndex].Kd = Kd;
-	m_MaterialAttributes[bufferIndex].Ks = Ks;
 	m_MaterialAttributes[bufferIndex].index_of_refraction = index_of_refraction;
 	m_MaterialAttributes[bufferIndex].emitIntensity = emitIntensity;
 	m_MaterialAttributes[bufferIndex].type = type;
@@ -361,13 +360,13 @@ void SceneEditor::LoadAssets()
 		float light_emit = 100.f;
 		XMFLOAT4 default_Ks(0.14f, 0.14f, 0.14f, 0.0f);
 		CreateMaterialBufferAndSetAttributes(SceneObject::floor, MaterialType::Lambert, white, not_emit);
-		CreateMaterialBufferAndSetAttributes(SceneObject::shortbox, MaterialType::Glass, test, not_emit, default_Ks, 2.0f, 1.2f);
-		CreateMaterialBufferAndSetAttributes(SceneObject::tallbox, MaterialType::Mirror, white, not_emit, default_Ks, 2.0);
+		CreateMaterialBufferAndSetAttributes(SceneObject::shortbox, MaterialType::Glass, test, not_emit, 2.0f, 1.2f);
+		CreateMaterialBufferAndSetAttributes(SceneObject::tallbox, MaterialType::Mirror, white, not_emit, 2.0);
 		CreateMaterialBufferAndSetAttributes(SceneObject::left, MaterialType::Lambert, red, not_emit);
 		CreateMaterialBufferAndSetAttributes(SceneObject::right, MaterialType::Lambert, green, not_emit);
 		CreateMaterialBufferAndSetAttributes(SceneObject::light, MaterialType::Lambert, light_kd, light_emit);
-		CreateMaterialBufferAndSetAttributes(SceneObject::car, MaterialType::Glass, test, not_emit, default_Ks, 2.0f, 5.f);
-		CreateMaterialBufferAndSetAttributes(SceneObject::nanosuit, MaterialType::Glass, test, not_emit, default_Ks, 2.0f, 5.f);
+		CreateMaterialBufferAndSetAttributes(SceneObject::car, MaterialType::Glass, test, not_emit, 2.0f, 5.f);
+		CreateMaterialBufferAndSetAttributes(SceneObject::nanosuit, MaterialType::Glass, test, not_emit, 2.0f, 5.f);
 	}
 	// Create the vertex and index buffer.
 	{
@@ -1342,7 +1341,7 @@ void SceneEditor::StartImgui()
 	if (ImGui::SliderFloat("smoothness", valueAddress, 0.1f, 5.f))
 		OnResetSpp();
 	valueAddress = &m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].index_of_refraction;
-	if (ImGui::SliderFloat("refraction", valueAddress, 0.f, 5.f))
+	if (ImGui::SliderFloat("refraction", valueAddress, 0.f, 15.f))
 		OnResetSpp();
 
 	ImGui::Text("Color:");

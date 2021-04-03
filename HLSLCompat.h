@@ -36,7 +36,7 @@ typedef UINT32 Index;
         Type(Lambert)   \
         Type(Mirror)  \
         Type(Glass)   \
-        Type(Disney_brdf)  \
+        Type(Plastic)  \
         Type(Count)  \
 
 #define GENERATE_ENUM(ENUM) ENUM,
@@ -78,7 +78,7 @@ namespace MaterialType {
 		Lambert,     
 		Mirror,     
 		Glass,
-		Disney_brdf,
+		Disney_brdf_Plastic,
 		Count
 	};*/
 	enum Type {
@@ -88,7 +88,7 @@ namespace MaterialType {
 struct PrimitiveMaterialBuffer
 {
 	XMFLOAT4 Kd;
-	XMFLOAT4 Ks;
+	//XMFLOAT4 Ks;
 	//XMFLOAT4 emit;
 	float emitIntensity;
 	float index_of_refraction;

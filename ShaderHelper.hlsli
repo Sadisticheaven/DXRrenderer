@@ -15,12 +15,31 @@
 #include "HLSLCompat.h"
 
 #define INFINITY (1.0/0.0)
+#define M_PI 3.14159265358979323846   // pi
 
 //struct Ray
 //{
 //    float3 origin;
 //    float3 direction;
 //};
+
+bool canRefract(float3 v, float3 n, float ni_over_nt, inout float3 refracted) {
+    float3 uv = normalize(v);
+    float dt = dot(uv, n);
+    float discriminant = 1.0 - ni_over_nt * (1 - dt * dt);
+    if (discriminant > 0) {
+        refracted = ni_over_nt * (uv - n * dt) - n * sqrt(discriminant);
+        return true;
+    }
+    return false;
+}
+
+float m_schlick(float cosine, float ref_idx) {
+    float r0 = (1 - ref_idx) / (1 + ref_idx);
+    r0 *= r0;
+    return r0 + (1 - r0) * pow(1 - cosine, 5);
+}
+
 float random(float2 p)
 {
     float2 K1 = float2(23.14069263277926, 2.665144142690225);
@@ -32,6 +51,25 @@ float4 createRandomFloat4(float4 seed)
     return float4(random(seed.xy), random(seed.yz), random(seed.zw), random(seed.wx));
 }
 
+float TrowbridgeReitz(in float cos2, in float alpha2)
+{
+    float x = alpha2 + (1 - cos2) / cos2;
+    return alpha2 / (M_PI * cos2 * cos2 * x * x);
+}
+
+float Smith_TrowbridgeReitz(in float3 wi, in float3 wo, in float3 wm, in float3 wn, in float alpha2)
+{
+    if (dot(wo, wm) < 0 || dot(wi, wm) < 0)
+        return 0.0f;
+
+    float cos2 = dot(wn, wo);
+    cos2 *= cos2;
+    float lambda1 = 0.5 * (-1 + sqrt(1 + alpha2 * (1 - cos2) / cos2));
+    cos2 = dot(wn, wi);
+    cos2 *= cos2;
+    float lambda2 = 0.5 * (-1 + sqrt(1 + alpha2 * (1 - cos2) / cos2));
+    return 1 / (1 + lambda1 + lambda2);
+}
 
 float length_toPow2(float2 p)
 {

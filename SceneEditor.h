@@ -112,7 +112,7 @@ private:
 	ComPtr<ID3D12Resource> m_MaterialBuffer[SceneObject::Count];
 	int m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
 	void CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, /*XMFLOAT4 emit = { 0.0f,0.0f,0.0f,0.0f }*/float emitIntensity = 0.f,
-		XMFLOAT4 Ks = { 0.0f,0.0f,0.0f,0.0f }, float smoothness = 0.0f, float index_of_refraction = 1.0f);
+		 float smoothness = 0.0f, float index_of_refraction = 1.0f);
 	void CreateMaterialBufferAndSetAttributes(PrimitiveMaterialBuffer& desc, int bufferIndex = 0);
 
 

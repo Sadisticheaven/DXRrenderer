@@ -11,96 +11,6 @@ StructuredBuffer<Vertex> light_vertices: register(t3);
 StructuredBuffer<Index> light_indices: register(t4);
 
 
-#define M_PI 3.14159265358979323846   // pi
-
-
-
-float get_pdf(float3 wi, float3 wo, float3 N) {
-	//if (MaterialAttributes.type == MaterialType::Glass)
-	return 1.0f;
-	if (dot(wo, N) > 0.0)
-		return 1.0f;
-	else
-		return 0.0f;
-	/*
-	switch (MaterialAttributes.type) {
-	case MaterialType::Lambert:
-	{
-		if (dot(wo, N) > 0.0)
-			return 1.0f;
-		else
-			return 0.0f;
-	}
-	case MaterialType::Mirror:
-	{
-		if (dot(wo, N) > 0.0)
-			return  1.0f;
-		else
-			return 0.0f;
-	}
-	default: return 0;
-	}*/
-}
-
-bool get_eval(float3 wi, float3 wo, float3 N, inout float3 eval) {
-	/*
-	float cosalpha = dot(N, wo);
-	if (cosalpha > 0.0f) {
-		float3 Kd = MaterialAttributes.Kd;
-		float3 Ks = MaterialAttributes.Ks;
-		float s = MaterialAttributes.smoothness;
-		float alpha = pow(1000.0f,  s);
-		float3 f_r = Kd + Ks * (alpha + 2) / (alpha + 1);
-		eval = f_r;
-		return true;
-	}
-	else {
-		eval = float3(0.0, 0.0, 0.0);
-		return false;
-	}*/
-	switch (MaterialAttributes.type) {
-	case MaterialType::Lambert:
-	{
-		float cosalpha = dot(N, wo);
-		if (cosalpha > 0.0f) {
-			float3 diffuse = MaterialAttributes.Kd;
-			eval = diffuse;
-			return true;
-		}
-		else {
-			eval = float3(0.0, 0.0, 0.0);
-			return false;
-		}
-	}
-	case MaterialType::Mirror:
-	{
-		float cosalpha = dot(N, wo);
-		if (cosalpha > 0.0f) {
-			float3 Kd = MaterialAttributes.Kd;
-			float3 Ks = MaterialAttributes.Ks;
-			float s = MaterialAttributes.smoothness;
-			float alpha = pow(1000.0f, s);
-			float3 f_r = Kd + Ks * (alpha + 2) / (alpha + 1);
-			eval = f_r;
-			return true;
-		}
-		else {
-			eval = float3(0.0, 0.0, 0.0);
-			return false;
-		}
-	}
-	case MaterialType::Glass:
-	{
-		float s = MaterialAttributes.smoothness;
-		float alpha = pow(1000.0f, s);
-		eval = MaterialAttributes.Kd + MaterialAttributes.Ks * (alpha + 2) / (alpha + 1);
-		return  true;
-	}
-	default:
-		eval = float3(0.0, 0.0, 0.0);
-		return false;
-	}
-}
 
 float3 toWorld(float3 a, float3 N) {
 	float3 B, C;
@@ -119,12 +29,12 @@ float3 toWorld(float3 a, float3 N) {
 
 float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N, inout float4 seed, in UINT curRecursionDepth)
 {
-	if (curRecursionDepth >= MAX_RAY_RECURSION_DEPTH )
+	if (curRecursionDepth >= MAX_RAY_RECURSION_DEPTH)
 	{
 		return float3(0.0, 0.0, 0.0);
 	}
 
-	if (MaterialAttributes.type != MaterialType::Lambert) {
+	if (MaterialAttributes.type != MaterialType::Lambert && MaterialAttributes.type != MaterialType::Plastic) {
 		return float3(0.0, 0.0, 0.0);
 	}
 
@@ -149,9 +59,8 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 	float dis = sqrt(disPow2);
 	direction = normalize(direction);
 
-	float3 eval;
-	if (get_eval(worldRayDirection, direction, N, eval) == false) {
-		return eval;
+	if (dot(N, direction) <= 0.0f) {
+		return float3(0.0, 0.0, 0.0);
 	}
 
 	RayDesc rayDesc;
@@ -174,49 +83,77 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 		rayDesc,
 		rayPayload);
 
-	return rayPayload.radiance * eval * dot(direction, N) * dot(-direction, light_normal) / disPow2 * pdf;
+	return rayPayload.radiance * MaterialAttributes.Kd * dot(direction, N) * dot(-direction, light_normal) / disPow2 * pdf;
 }
 
-bool canRefract(float3 v, float3 n, float ni_over_nt, inout float3 refracted) {
-	float3 uv = normalize(v);
-	float dt = dot(uv, n);
-	float discriminant = 1.0 - ni_over_nt * (1 - dt * dt);
-	if (discriminant > 0) {
-		refracted = ni_over_nt * (uv - n * dt) - n * sqrt(discriminant);
-		return true;
-	}
-	return false;
-}
+float3 createSampleRay(float3 wi, float3 N, inout float3 eval, inout float4 seed) {
 
-float m_schlick(float cosine, float ref_idx) {
-	float r0 = (1 - ref_idx) / (1 + ref_idx);
-	r0 *= r0;
-	return r0 + (1 - r0) * pow(1 - cosine, 5);
-}
-
-float3 createSampleRay(float3 wi, float3 N, inout float4 seed) {
-
-	seed = createRandomFloat4(seed);
-	float4 random_float = seed;
-	float s = MaterialAttributes.smoothness;
-	float alpha = pow(1000.0f, s);
-	float x_1 = pow(random_float.x, 1.0 / alpha), x_2 = random_float.z;
-	float z = x_1;
-	float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
-	float3 localRay = float3(r * cos(phi), r * sin(phi), z);
+	wi = normalize(wi);
 
 	switch (MaterialAttributes.type) {
 	case MaterialType::Lambert:
 	{
-		return toWorld(localRay, N);
+		//common
+		seed = createRandomFloat4(seed);
+		float4 random_float = seed;
+		float x_1 = pow(random_float.x, 1.0 / 2), x_2 = random_float.z;
+		float z = x_1;
+		float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
+		float3 localRay = float3(r * cos(phi), r * sin(phi), z);
+		//end_common
+
+		float3 wo = toWorld(localRay, N);
+		float cosalpha = dot(N, wo);
+		if (cosalpha > 0.0f) {
+			float3 diffuse = MaterialAttributes.Kd;
+			eval = diffuse;
+		}
+		else {
+			eval = float3(0.0, 0.0, 0.0);
+		}
+		return wo;
 	}
 	case MaterialType::Mirror: {
+		//common
+		seed = createRandomFloat4(seed);
+		float4 random_float = seed;
+		float s = MaterialAttributes.smoothness;
+		float alpha = pow(1000.0f, s);
+		float x_1 = pow(random_float.x, 1.0 / alpha), x_2 = random_float.z;
+		float z = x_1;
+		float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
+		float3 localRay = float3(r * cos(phi), r * sin(phi), z);
+		//end_common
+
 		float3 reflect_dir = reflect(wi, N);
-		return toWorld(localRay, reflect_dir);
+		float3 wo = toWorld(localRay, reflect_dir);
+		float cosalpha = dot(N, wo);
+		if (cosalpha > 0.0f) {
+			float3 Kd = MaterialAttributes.Kd;
+
+			float s = MaterialAttributes.smoothness;
+			float alpha = pow(1000.0f, s);
+			float3 f_r = Kd;
+			eval = f_r;
+		}
+		else {
+			eval = float3(0.0, 0.0, 0.0);
+		}
+		return wo;
 	}
 	case MaterialType::Glass:
 	{
-		wi = normalize(wi);
+		//common
+		seed = createRandomFloat4(seed);
+		float4 random_float = seed;
+		float s = MaterialAttributes.smoothness;
+		float alpha = pow(1000.0f, s);
+		float x_1 = pow(random_float.x, 1.0 / alpha), x_2 = random_float.z;
+		float z = x_1;
+		float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
+		float3 localRay = float3(r * cos(phi), r * sin(phi), z);
+		//end_common
+
 		float3 outward_normal;
 		float3 reflected = reflect(wi, N);
 		float ref_idx = MaterialAttributes.index_of_refraction;
@@ -240,14 +177,53 @@ float3 createSampleRay(float3 wi, float3 N, inout float4 seed) {
 		else {
 			reflect_prob = 1.0;
 		}
+		float3 wo;
 		if (seed.w < reflect_prob)
-			return toWorld(localRay, reflected);
+			wo = toWorld(localRay, reflected);
 		else
-			return toWorld(localRay, refracted);
-		//return toWorld(localRay, wi);
+			wo = toWorld(localRay, refracted);
+		eval = MaterialAttributes.Kd;
+		return wo;
+	}
+	case MaterialType::Plastic:
+	{
+		//common
+		seed = createRandomFloat4(seed);
+		float4 random_float = seed;
+		float s = MaterialAttributes.smoothness;
+		float alpha = pow(1000.0f, s);
+		float x_1, x_2, r, z, phi;
+		float3 localRay, wo = float3(0.0, 0.0, 0.0), H;
+		//end_common
+
+		float reflectivity = MaterialAttributes.smoothness;
+		if (seed.w < reflectivity) {
+			x_1 = pow(random_float.x, 1.0 / alpha), x_2 = random_float.z;
+			z = x_1;
+			r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
+			localRay = float3(r * cos(phi), r * sin(phi), z);
+			float3 reflect_dir = reflect(wi, N);
+			wo = toWorld(localRay, reflect_dir);
+		}
+		else {
+			x_1 = pow(random_float.x, 1.0 / 2.0), x_2 = random_float.z;
+			z = x_1;
+			r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
+			localRay = float3(r * cos(phi), r * sin(phi), z);
+			wo = toWorld(localRay, N);
+		}
+
+		if (dot(wo, N) < 0) {
+			eval = float3(0.0, 0.0, 0.0);
+		}
+		else {
+			eval = MaterialAttributes.Kd;
+		}
+		return wo;
 	}
 	default: return float3(0.0, 0.0, 0.0);
 	}
+	return float3(0.0, 0.0, 0.0);
 }
 
 
@@ -282,81 +258,15 @@ float3 CastRay(Ray ray, uint curRecursionDepth, float4 seed) {
 
 float3 get_light_indir(float3 worldRayDirection, float3 normal, float3 hitWorldPosition, uint curRecursionDepth, inout float4 random_seed) {
 	float3 L_intdir = float3(0.0, 0.0, 0.0);
-	float3 sp_direction = createSampleRay(worldRayDirection, normal, random_seed);
-	float pdf = get_pdf(worldRayDirection, sp_direction, normal);
-
 	float3 eval;
-	if (get_eval(worldRayDirection, sp_direction, normal, eval) == false) {
-		return L_intdir;
-	}
+	float3 sp_direction = createSampleRay(worldRayDirection, normal, eval, random_seed);
 
 	if (random(float2(random_seed.x + random_seed.y, random_seed.z + random_seed.w)) <= PROBABILITY_RUSSIAN_ROULETTE) {
 		Ray ray;
 		ray.origin = hitWorldPosition;
-		if (MaterialAttributes.type == MaterialType::Glass) {
-			//if (curRecursionDepth >= MAX_RAY_RECURSION_DEPTH)
-				//--curRecursionDepth;
-		}
 		ray.direction = sp_direction;
-		L_intdir = CastRay(ray, curRecursionDepth, createRandomFloat4(random_seed)) * eval * pdf / PROBABILITY_RUSSIAN_ROULETTE;
+		L_intdir = CastRay(ray, curRecursionDepth, createRandomFloat4(random_seed)) * eval / PROBABILITY_RUSSIAN_ROULETTE;
 	}
-	/*
-	switch (MaterialAttributes.type) {
-	case MaterialType::Lambert:
-	{
-		float3 sp_direction = createSampleRay(worldRayDirection, normal, random_seed);
-		float pdf = get_pdf(worldRayDirection, sp_direction, normal);
-
-		float3 eval;
-		if (get_eval(worldRayDirection, sp_direction, normal, eval) == false) {
-			return L_intdir;
-		}
-
-		if (random(float2(random_seed.x + random_seed.y, random_seed.z + random_seed.w)) <= PROBABILITY_RUSSIAN_ROULETTE) {
-			Ray ray;
-			ray.origin = hitWorldPosition;
-			ray.direction = sp_direction;
-			L_intdir = CastRay(ray, curRecursionDepth, createRandomFloat4(random_seed)) * eval * pdf / PROBABILITY_RUSSIAN_ROULETTE;
-		}
-		break;
-	}
-	case MaterialType::Mirror:
-	{
-		float3 sp_direction = createSampleRay(worldRayDirection, normal, random_seed);
-		float pdf = get_pdf(worldRayDirection, sp_direction, normal);
-
-		float3 eval;
-		if (get_eval(worldRayDirection, sp_direction, normal, eval) == false) {
-			return L_intdir;
-		}
-		if (random(float2(random_seed.x + random_seed.y, random_seed.z + random_seed.w)) <= PROBABILITY_RUSSIAN_ROULETTE) {
-			Ray ray;
-			ray.origin = hitWorldPosition;
-			ray.direction = sp_direction;
-			L_intdir = CastRay(ray, curRecursionDepth, createRandomFloat4(random_seed)) * eval * pdf / PROBABILITY_RUSSIAN_ROULETTE;
-		}
-		break;
-	}
-	case MaterialType::Glass:
-	{
-		float3 sp_direction = createSampleRay(worldRayDirection, normal, random_seed);
-		float pdf = get_pdf(worldRayDirection, sp_direction, normal);
-
-		float3 eval;
-		if (get_eval(worldRayDirection, sp_direction, normal, eval) == false) {
-			return L_intdir;
-		}
-		if (random(float2(random_seed.x + random_seed.y, random_seed.z + random_seed.w)) <= PROBABILITY_RUSSIAN_ROULETTE) {
-			Ray ray;
-			ray.origin = hitWorldPosition;
-			ray.direction = sp_direction;
-			L_intdir = CastRay(ray, curRecursionDepth, createRandomFloat4(random_seed)) * eval * pdf / PROBABILITY_RUSSIAN_ROULETTE;
-		}
-		break;
-	}
-	default:
-		break;
-	}*/
 	return L_intdir;
 }
 
