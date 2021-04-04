@@ -13,7 +13,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{5018F6A3-6533-4744-B1FD-727D199FD2E9}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>D3D12HelloTriangle</RootNamespace>
+    <RootNamespace>DXRrenderer</RootNamespace>
     <ProjectName>DXRrenderer</ProjectName>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
