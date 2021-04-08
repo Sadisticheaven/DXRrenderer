@@ -14,7 +14,7 @@
 #include "DXSample.h"
 #include <dxcapi.h>
 #include <vector>
-#include "HLSLCompat.h"
+//#include "HLSLCompat.h"
 #include "nv_helpers_dx12/TopLevelASGenerator.h"
 #include "nv_helpers_dx12/ShaderBindingTableGenerator.h"
 //#include <DirectXMath.h>
@@ -22,7 +22,7 @@
 //#include <dxgi1_4.h>
 #include <Camera.h>
 #include "Model.h"
-
+#include <memory>
 using namespace DirectX;
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
@@ -220,5 +220,7 @@ private:
 	//update value by imgui
 	void UpadteMaterialParameter(int bufferIndex);
 
+	// Texture
+	std::unique_ptr<Texture> bricksTex = nullptr;
 
 };

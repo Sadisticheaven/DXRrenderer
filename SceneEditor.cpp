@@ -17,6 +17,7 @@
 #include "nv_helpers_dx12/RaytracingPipelineGenerator.h"  
 #include "nv_helpers_dx12/RootSignatureGenerator.h"
 
+#include <DDSTextureLoader.h>
 
 const std::wstring ws_raygenShaderName = L"RayGen";
 const std::vector<std::wstring> ws_missShaderNames = { L"Miss" };
@@ -368,8 +369,9 @@ void SceneEditor::LoadAssets()
 		CreateMaterialBufferAndSetAttributes(SceneObject::light, MaterialType::Lambert, light_kd, light_emit);
 		CreateMaterialBufferAndSetAttributes(SceneObject::car, MaterialType::Glass,white, not_emit, default_Ks, 2.1f, 5.02f);
 		CreateMaterialBufferAndSetAttributes(SceneObject::nanosuit, MaterialType::Glass,white, not_emit, default_Ks, 2.1f, 5.02f);
+
 	}
-	// Create the vertex and index buffer.
+	// Create the vertex and index buffer. 
 	{
 		// Define the geometry for a triangle.
 		Model model;
@@ -399,6 +401,17 @@ void SceneEditor::LoadAssets()
 
 		
 	}
+
+
+	bricksTex = std::make_unique<Texture>();
+	bricksTex->Name = "bricksTex";
+	bricksTex->Filename = L"./Textures/bricks.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(
+		m_device.Get(),               // D3D设备
+		m_commandList.Get(),             // 提交GPU的命令列表
+		bricksTex->Filename.c_str(),    // 图像文件路径 
+		bricksTex->Resource,            // 载有图像数据的纹理资源
+		bricksTex->UploadHeap));        // 纹理资源，作为上传堆，将图像数据复制到默认堆
 
 	{
 		ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
@@ -902,12 +915,13 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateHitSignature() {
 	nv_helpers_dx12::RootSignatureGenerator rsc;
 	auto default = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 	// but we want to access vertex buffer in hit shader, so add a parameter of SRV
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 0);
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1);
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 2);
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 3);
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 4);
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 0);//Vertices
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1);//Indices
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 2);//TLAS
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);//MaterialAttributes
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 3);//light_vertices
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 4);//light_indices
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 5);//texture
 	return rsc.Generate(m_device.Get(), true);
 }
 
@@ -1063,17 +1077,22 @@ void SceneEditor::CreateShaderResourceHeap() {
 		srvHandle);
 
 	// Add the Top Level AS SRV right after the raytracing output buffer
-	srvHandle.ptr += m_device->GetDescriptorHandleIncrementSize(
-		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	{
+		srvHandle.ptr += m_device->GetDescriptorHandleIncrementSize(
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.RaytracingAccelerationStructure.Location =
-		m_topLevelASBuffers.pResult->GetGPUVirtualAddress();
-	// Write the acceleration structure view in the heap
-	m_device->CreateShaderResourceView(nullptr, &srvDesc, srvHandle);
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.RaytracingAccelerationStructure.Location =
+			m_topLevelASBuffers.pResult->GetGPUVirtualAddress();
+		// Write the acceleration structure view in the heap
+		m_device->CreateShaderResourceView(nullptr, &srvDesc, srvHandle);
+
+		auto ptr = 0;
+	}
+	
 
 	// #DXR Extra: Perspective Camera
 	// Add the constant buffer for the camera after the TLAS
@@ -1099,6 +1118,22 @@ void SceneEditor::CreateShaderResourceHeap() {
 		m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
 	}
 
+	// Add textures
+	{
+		srvHandle.ptr += m_device->GetDescriptorHandleIncrementSize(
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		//auto texResource = bricksTex->Resource;
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Format = bricksTex->Resource->GetDesc().Format;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MostDetailedMip = 0;
+		srvDesc.Texture2D.MipLevels = bricksTex->Resource->GetDesc().MipLevels;
+		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+		srvDesc.Texture2D.PlaneSlice = 0;
+		// Write the texture view in the heap
+		m_device->CreateShaderResourceView(bricksTex->Resource.Get(), &srvDesc, srvHandle);
+	}	
 }
 
 //-----------------------------------------------------------------------------
@@ -1144,6 +1179,8 @@ void SceneEditor::CreateShaderBindingTable() {
 			(void*)(m_MaterialBuffer[i]->GetGPUVirtualAddress()),
 			(void*)(m_vertexBuffer[SceneObject::light]->GetGPUVirtualAddress()),
 			(void*)(m_indexBuffer[SceneObject::light]->GetGPUVirtualAddress()),
+
+			(void*)(bricksTex->Resource->GetGPUVirtualAddress()),
 			});
 
 

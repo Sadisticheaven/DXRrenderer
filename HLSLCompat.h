@@ -47,7 +47,6 @@ struct PayLoad
 	XMFLOAT3 radiance;
 	XMFLOAT4 seed;
 	UINT recursionDepth;
-
 };
 
 struct Ray {
@@ -59,8 +58,11 @@ typedef struct Vertex
 {
 	XMFLOAT3 position;
 	XMFLOAT3 normal;
+	XMFLOAT2 TexCoords;
+	//uv
+	XMFLOAT3 Tangent;
+	XMFLOAT3 Bitangent;
 };
-
 
 struct SceneConstants
 {

@@ -9,6 +9,7 @@ RaytracingAccelerationStructure SceneBVH : register(t2);
 ConstantBuffer<PrimitiveMaterialBuffer> MaterialAttributes : register(b0);
 StructuredBuffer<Vertex> light_vertices: register(t3);
 StructuredBuffer<Index> light_indices: register(t4);
+Texture2D bricksTex : register(t5);
 
 
 #define M_PI 3.14159265358979323846   // pi
@@ -91,7 +92,9 @@ bool get_eval(float3 wi, float3 wo, float3 N, inout float3 eval) {
 	}
 	case MaterialType::Glass:
 	{
-		eval = MaterialAttributes.Kd;
+		float s = MaterialAttributes.smoothness;
+		float alpha = pow(1000.0f, s);
+		eval = MaterialAttributes.Kd + MaterialAttributes.Ks * (alpha + 2) / (alpha + 1);
 		return  true;
 	}
 	default:
@@ -117,8 +120,12 @@ float3 toWorld(float3 a, float3 N) {
 
 float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N, inout float4 seed, in UINT curRecursionDepth)
 {
-	if (curRecursionDepth >= MAX_RAY_RECURSION_DEPTH || MaterialAttributes.type == MaterialType::Glass)
+	if (curRecursionDepth >= MAX_RAY_RECURSION_DEPTH )
 	{
+		return float3(0.0, 0.0, 0.0);
+	}
+
+	if (MaterialAttributes.type != MaterialType::Lambert) {
 		return float3(0.0, 0.0, 0.0);
 	}
 
@@ -151,7 +158,7 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 	RayDesc rayDesc;
 	rayDesc.Origin = hitWorldPosition;
 	rayDesc.Direction = direction;
-	rayDesc.TMin = 0.1;
+	rayDesc.TMin = 0.01;
 	rayDesc.TMax = dis + 1.0f;
 
 	PayLoad rayPayload;
@@ -253,7 +260,7 @@ float3 CastRay(Ray ray, uint curRecursionDepth, float4 seed) {
 	RayDesc rayDesc;
 	rayDesc.Origin = ray.origin;
 	rayDesc.Direction = ray.direction;
-	rayDesc.TMin = 0.1;
+	rayDesc.TMin = 0.01;
 	rayDesc.TMax = 100000;
 
 	PayLoad rayPayload;
@@ -373,7 +380,7 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	float3 worldRayDirection = WorldRayDirection();
 	float3 hitWorldPosition = HitWorldPosition();
 	float4 random_seed = payload.seed;
-
+	 
 
 	float emit_rate = dot(normal, -normalize(worldRayDirection));
 

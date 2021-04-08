@@ -102,6 +102,8 @@
     <ClInclude Include="Model.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="DDSTextureLoader.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -161,6 +163,7 @@
     <ClCompile Include="ImguiManager.cpp">
       <Filter>Source Files\SceneEditor</Filter>
     </ClCompile>
+    <ClCompile Include="DDSTextureLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cornellbox\floor.obj">

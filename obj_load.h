@@ -412,15 +412,16 @@ Mesh processMesh(aiMesh* mesh, const aiScene* scene)
 			//// 纹理坐标
 			//if (mesh->mTextureCoords[0]) // 网格是否包含纹理坐标？
 			//{
-			//	glm::vec2 vec;
+			//	XMFLOAT2 vec;
 			//	// 顶点最多可包含8个不同的纹理坐标。 因此，我们假设我们不会使用顶点可以具有多个纹理坐标的模型，因此我们总是采用第一个集合（0）。
 			//	vec.x = mesh->mTextureCoords[0][i].x;
 			//	vec.y = mesh->mTextureCoords[0][i].y;
 			//	vertex.TexCoords = vec;
 			//}
 			//else
-			//	vertex.TexCoords = glm::vec2(0.0f, 0.0f);
+			//	vertex.TexCoords = XMFLOAT2(0.0f, 0.0f);
 			//// u向量
+			//XMFLOAT3 vector;
 			//vector.x = mesh->mTangents[i].x;
 			//vector.y = mesh->mTangents[i].y;
 			//vector.z = mesh->mTangents[i].z;
@@ -430,6 +431,7 @@ Mesh processMesh(aiMesh* mesh, const aiScene* scene)
 			//vector.y = mesh->mBitangents[i].y;
 			//vector.z = mesh->mBitangents[i].z;
 			//vertex.Bitangent = vector;
+
 			vertices.push_back(vertex);
 		}
 		//现在遍历每个网格面（一个面是一个三角形的网格）并检索相应的顶点索引。
