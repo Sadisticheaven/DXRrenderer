@@ -242,7 +242,7 @@ void SceneEditor::AllocateUploadGeometryBuffer(std::vector<Vertex> vertices, std
 	}
 }
 
-void SceneEditor::AllocateUploadGeometryBuffer(Model &model, int bufferIndex)
+void SceneEditor::AllocateUploadGeometryBuffer(Model& model, int bufferIndex)
 {
 	std::vector<Vertex> vertices;
 	std::vector<Index> indices;
@@ -295,14 +295,13 @@ void SceneEditor::AllocateUploadGeometryBuffer(Model &model, int bufferIndex)
 	}
 }
 
-void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, /*XMFLOAT4*/float emitIntensity, XMFLOAT4 Ks, float smoothness, float index_of_refraction) {
+void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, /*XMFLOAT4*/float emitIntensity, float smoothness, float index_of_refraction) {
 	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
 	//int k = sizeof(PrimitiveMaterialBuffer);
 	m_MaterialBuffer[bufferIndex] = nv_helpers_dx12::CreateBuffer(
 		m_device.Get(), m_MaterialBufferSize, D3D12_RESOURCE_FLAG_NONE,
 		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
 	m_MaterialAttributes[bufferIndex].Kd = Kd;
-	m_MaterialAttributes[bufferIndex].Ks = Ks;
 	m_MaterialAttributes[bufferIndex].index_of_refraction = index_of_refraction;
 	m_MaterialAttributes[bufferIndex].emitIntensity = emitIntensity;
 	m_MaterialAttributes[bufferIndex].type = type;
@@ -354,24 +353,23 @@ void SceneEditor::LoadAssets()
 		XMFLOAT4 green(0.14f, 0.45f, 0.091f, 0.0f);
 		XMFLOAT4 white(0.725f, 0.71f, 0.68f, 0.0f);
 		XMFLOAT4 light_kd(0.65f, 0.65f, 0.65f, 0.0f);
-		XMFLOAT4 test(0.5, 0.8, 0.9, 1.0);
+		XMFLOAT4 test(0.95, 1.0, 1.0, 1.0);
 		XMFLOAT4 le1 = Float4Multi(8.0f, XMFLOAT4(0.747f + 0.058f, 0.747f + 0.258f, 0.747f, 0.0f));
 		XMFLOAT4 le2 = Float4Multi(15.6f, XMFLOAT4(0.740f + 0.287f, 0.740f + 0.160f, 0.740f, 0.0f));
 		XMFLOAT4 le3 = Float4Multi(18.4f, XMFLOAT4(0.737f + 0.642f, 0.737f + 0.159f, 0.737f, 0.0f));
 		//XMFLOAT4 light_emit(le1.x + le2.x + le3.x, le1.y + le2.y + le3.y, le1.z + le2.z + le3.z, 0.0f);
 		float light_emit = 100.f;
-		XMFLOAT4 default_Ks(0.04f, 0.04f, 0.04f, 0.0f);
+		XMFLOAT4 default_Ks(0.14f, 0.14f, 0.14f, 0.0f);
 		CreateMaterialBufferAndSetAttributes(SceneObject::floor, MaterialType::Lambert, white, not_emit);
-		CreateMaterialBufferAndSetAttributes(SceneObject::shortbox, MaterialType::Glass, white, not_emit, default_Ks, 2.1f, 1.02f);
-		CreateMaterialBufferAndSetAttributes(SceneObject::tallbox, MaterialType::Mirror, white, not_emit, default_Ks, 1.0);
+		CreateMaterialBufferAndSetAttributes(SceneObject::shortbox, MaterialType::Glass, test, not_emit, 2.0f, 1.2f);
+		CreateMaterialBufferAndSetAttributes(SceneObject::tallbox, MaterialType::Mirror, white, not_emit, 2.0);
 		CreateMaterialBufferAndSetAttributes(SceneObject::left, MaterialType::Lambert, red, not_emit);
 		CreateMaterialBufferAndSetAttributes(SceneObject::right, MaterialType::Lambert, green, not_emit);
 		CreateMaterialBufferAndSetAttributes(SceneObject::light, MaterialType::Lambert, light_kd, light_emit);
-		CreateMaterialBufferAndSetAttributes(SceneObject::car, MaterialType::Glass,white, not_emit, default_Ks, 2.1f, 5.02f);
-		CreateMaterialBufferAndSetAttributes(SceneObject::nanosuit, MaterialType::Glass,white, not_emit, default_Ks, 2.1f, 5.02f);
-
+		CreateMaterialBufferAndSetAttributes(SceneObject::car, MaterialType::Glass, test, not_emit, 2.0f, 5.f);
+		CreateMaterialBufferAndSetAttributes(SceneObject::nanosuit, MaterialType::Glass, test, not_emit, 2.0f, 5.f);
 	}
-	// Create the vertex and index buffer. 
+	// Create the vertex and index buffer.
 	{
 		// Define the geometry for a triangle.
 		Model model;
@@ -399,7 +397,7 @@ void SceneEditor::LoadAssets()
 		LoadModelFile("./cornellbox/nanosuit.obj", model);
 		AllocateUploadGeometryBuffer(model, SceneObject::nanosuit);
 
-		
+
 	}
 
 
@@ -407,11 +405,11 @@ void SceneEditor::LoadAssets()
 	bricksTex->Name = "bricksTex";
 	bricksTex->Filename = L"./Textures/bricks.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(
-		m_device.Get(),               // D3D设备
-		m_commandList.Get(),             // 提交GPU的命令列表
-		bricksTex->Filename.c_str(),    // 图像文件路径 
-		bricksTex->Resource,            // 载有图像数据的纹理资源
-		bricksTex->UploadHeap));        // 纹理资源，作为上传堆，将图像数据复制到默认堆
+		m_device.Get(),               // D3D?豸
+		m_commandList.Get(),             // ??GPU???????б?
+		bricksTex->Filename.c_str(),    // ??????·?? 
+		bricksTex->Resource,            // ???????????????????
+		bricksTex->UploadHeap));        // ???????????????????????????????????
 
 	{
 		ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
@@ -860,7 +858,7 @@ void SceneEditor::CreateAccelerationStructures() {
 	for (int i = 0; i < SceneObject::Count - 2; ++i) {
 		m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(bottomLevelBuffers[i].pResult, XMMatrixIdentity()));
 	}
-	m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(bottomLevelBuffers[SceneObject::car].pResult, XMMatrixRotationY(-XM_PIDIV2-XM_PIDIV4) * XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(200.f, 165.f, 160.f)));
+	m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(bottomLevelBuffers[SceneObject::car].pResult, XMMatrixRotationY(-XM_PIDIV2 - XM_PIDIV4) * XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(200.f, 165.f, 160.f)));
 	m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(bottomLevelBuffers[SceneObject::nanosuit].pResult, XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f)));
 	/*// Just one instance for now
 	m_instances = {
@@ -1373,24 +1371,24 @@ void SceneEditor::StartImgui()
 	ImGui::NewFrame();
 
 	ImGui::Begin("Parameters");
-	ImGui::Combo("ObjectsName", &m_imguiManager.m_currentObjeectItem, m_ObjectName, SceneObject::Count );
-	
+	ImGui::Combo("ObjectsName", &m_imguiManager.m_currentObjeectItem, m_ObjectName, SceneObject::Count);
+
 	auto valueAddress = &m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].smoothness;
 	if (ImGui::SliderFloat("smoothness", valueAddress, 0.1f, 5.f))
 		OnResetSpp();
 	valueAddress = &m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].index_of_refraction;
-	if (ImGui::SliderFloat("refraction", valueAddress, 0.f, 5.f))
+	if (ImGui::SliderFloat("refraction", valueAddress, 0.f, 15.f))
 		OnResetSpp();
 
 	ImGui::Text("Color:");
-	if(ImGui::ColorEdit4("", reinterpret_cast<float*>(&m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].Kd)))
+	if (ImGui::ColorEdit4("", reinterpret_cast<float*>(&m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].Kd)))
 		OnResetSpp();
 	if (ImGui::SliderFloat("EmitIntensity", &m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].emitIntensity, 0.f, 1000.f))
 		OnResetSpp();
 
 	ImGui::Text("Material:");
 	auto materialAddress = reinterpret_cast<int*>(&m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].type);
-	if(ImGui::Combo("", materialAddress, m_MaterialType, MaterialType::Count))
+	if (ImGui::Combo("", materialAddress, m_MaterialType, MaterialType::Count))
 		OnResetSpp();
 
 	m_imguiManager.isHovered = ImGui::IsWindowHovered() | ImGui::IsAnyItemHovered() | ImGui::IsAnyItemActive();
