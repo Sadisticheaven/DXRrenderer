@@ -326,11 +326,61 @@ void SceneEditor::CreateMaterialBufferAndSetAttributes(PrimitiveMaterialBuffer& 
 
 // Load the sample assets.
 
+std::vector<CD3DX12_STATIC_SAMPLER_DESC> SceneEditor::GetStaticSamplers()
+{
+	//过滤器POINT,寻址模式WRAP的静态采样器
+	CD3DX12_STATIC_SAMPLER_DESC pointWarp(0,	//着色器寄存器
+		D3D12_FILTER_MIN_MAG_MIP_POINT,		//过滤器类型为POINT(常量插值)
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,	//U方向上的寻址模式为WRAP（重复寻址模式）
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,	//V方向上的寻址模式为WRAP（重复寻址模式）
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP);	//W方向上的寻址模式为WRAP（重复寻址模式）
+
+	//过滤器POINT,寻址模式CLAMP的静态采样器
+	CD3DX12_STATIC_SAMPLER_DESC pointClamp(1,	//着色器寄存器
+		D3D12_FILTER_MIN_MAG_MIP_POINT,		//过滤器类型为POINT(常量插值)
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	//U方向上的寻址模式为CLAMP（钳位寻址模式）
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	//V方向上的寻址模式为CLAMP（钳位寻址模式）
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP);	//W方向上的寻址模式为CLAMP（钳位寻址模式）
+
+	//过滤器LINEAR,寻址模式WRAP的静态采样器
+	CD3DX12_STATIC_SAMPLER_DESC linearWarp(2,	//着色器寄存器
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR,		//过滤器类型为LINEAR(线性插值)
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,	//U方向上的寻址模式为WRAP（重复寻址模式）
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,	//V方向上的寻址模式为WRAP（重复寻址模式）
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP);	//W方向上的寻址模式为WRAP（重复寻址模式）
+
+	//过滤器LINEAR,寻址模式CLAMP的静态采样器
+	CD3DX12_STATIC_SAMPLER_DESC linearClamp(3,	//着色器寄存器
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR,		//过滤器类型为LINEAR(线性插值)
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	//U方向上的寻址模式为CLAMP（钳位寻址模式）
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	//V方向上的寻址模式为CLAMP（钳位寻址模式）
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP);	//W方向上的寻址模式为CLAMP（钳位寻址模式）
+
+	//过滤器ANISOTROPIC,寻址模式WRAP的静态采样器
+	CD3DX12_STATIC_SAMPLER_DESC anisotropicWarp(4,	//着色器寄存器
+		D3D12_FILTER_ANISOTROPIC,			//过滤器类型为ANISOTROPIC(各向异性)
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,	//U方向上的寻址模式为WRAP（重复寻址模式）
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,	//V方向上的寻址模式为WRAP（重复寻址模式）
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP);	//W方向上的寻址模式为WRAP（重复寻址模式）
+
+	//过滤器LINEAR,寻址模式CLAMP的静态采样器
+	CD3DX12_STATIC_SAMPLER_DESC anisotropicClamp(5,	//着色器寄存器
+		D3D12_FILTER_ANISOTROPIC,			//过滤器类型为ANISOTROPIC(各向异性)
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	//U方向上的寻址模式为CLAMP（钳位寻址模式）
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	//V方向上的寻址模式为CLAMP（钳位寻址模式）
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP);	//W方向上的寻址模式为CLAMP（钳位寻址模式）
+
+	return{ pointWarp, pointClamp, linearWarp, linearClamp, anisotropicWarp, anisotropicClamp };
+}
+
 void SceneEditor::LoadAssets()
 {
 	// Create an empty root signature.
 	{
 		CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+
+		auto staticSamplers = GetStaticSamplers();
+
 		rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 		ComPtr<ID3DBlob> signature;
@@ -339,10 +389,13 @@ void SceneEditor::LoadAssets()
 		ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
 	}
 
-	needRefreshScreen = false;
 
+	{
+		needRefreshScreen = false;
+	}
 	// Create the command list.
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
+		m_commandList->SetComputeRootSignature(m_rootSignature.Get());
 	{
 		auto Float4Multi = [&](const float& f, const XMFLOAT4 vec3) {
 			return XMFLOAT4(f * vec3.x, f * vec3.y, f * vec3.z, 0.0f);
@@ -424,6 +477,8 @@ void SceneEditor::LoadAssets()
 
 		WaitForPreviousFrame();
 	}
+
+
 }
 
 // Update frame-based values.
@@ -547,6 +602,7 @@ void SceneEditor::PopulateCommandList()
 
 	// Set necessary state for Rasterazation.
 	//m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+	m_commandList->SetComputeRootSignature(m_rootSignature.Get());
 	//m_commandList->RSSetViewports(1, &m_viewport);
 	//m_commandList->RSSetScissorRects(1, &m_scissorRect);
 	// Indicate that the back buffer will be used as a render target.
@@ -919,7 +975,11 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateHitSignature() {
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);//MaterialAttributes
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 3);//light_vertices
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 4);//light_indices
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 5);//texture
+	//rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 5);//texture
+	rsc.AddHeapRangesParameter(
+		{ 
+			{5 /*t5*/, 1 , 0 ,D3D12_DESCRIPTOR_RANGE_TYPE_SRV ,default},//texture
+		});
 	return rsc.Generate(m_device.Get(), true);
 }
 
@@ -995,6 +1055,7 @@ void SceneEditor::CreateRaytracingPipeline()
 	for (int i = 0; i < SceneObject::Count; ++i)
 		pipeline.AddRootSignatureAssociation(m_hitSignature.Get(), { ws_hitGroupNames[i] });
 
+
 	// The payload size defines the maximum size of the data carried by the rays,
 	// ie. the the data
 	// exchanged between shaders, such as the HitInfo structure in the HLSL code.
@@ -1015,10 +1076,9 @@ void SceneEditor::CreateRaytracingPipeline()
 	// kept to a minimum for best performance. Path tracing algorithms can be
 	// easily flattened into a simple loop in the ray generation.
 	pipeline.SetMaxRecursionDepth(31);
-
 	// Compile the pipeline for execution on the GPU
-	m_rtStateObject = pipeline.Generate();
 
+	m_rtStateObject = pipeline.Generate();
 	// Cast the state object into a properties object, allowing to later access
 	// the shader pointers by name
 	ThrowIfFailed(
@@ -1087,10 +1147,8 @@ void SceneEditor::CreateShaderResourceHeap() {
 			m_topLevelASBuffers.pResult->GetGPUVirtualAddress();
 		// Write the acceleration structure view in the heap
 		m_device->CreateShaderResourceView(nullptr, &srvDesc, srvHandle);
-
-		auto ptr = 0;
 	}
-	
+
 
 	// #DXR Extra: Perspective Camera
 	// Add the constant buffer for the camera after the TLAS
@@ -1105,19 +1163,9 @@ void SceneEditor::CreateShaderResourceHeap() {
 		m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
 	}
 
-	// Add the constant buffer for the material after the camera
-	for (int i = 0; i < SceneObject::Count; ++i) {
-		srvHandle.ptr += m_device->GetDescriptorHandleIncrementSize(
-			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-		cbvDesc.BufferLocation = m_MaterialBuffer[i]->GetGPUVirtualAddress();
-		cbvDesc.SizeInBytes = m_MaterialBufferSize;
-		m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
-	}
 
 	// Add textures
-	{
+	for (int i = 0; i < SceneObject::Count; ++i) {
 		srvHandle.ptr += m_device->GetDescriptorHandleIncrementSize(
 			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		//auto texResource = bricksTex->Resource;
@@ -1131,7 +1179,7 @@ void SceneEditor::CreateShaderResourceHeap() {
 		srvDesc.Texture2D.PlaneSlice = 0;
 		// Write the texture view in the heap
 		m_device->CreateShaderResourceView(bricksTex->Resource.Get(), &srvDesc, srvHandle);
-	}	
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -1150,8 +1198,7 @@ void SceneEditor::CreateShaderBindingTable() {
 
 	// The pointer to the beginning of the heap is the only parameter required by
 	// shaders without root parameters
-	D3D12_GPU_DESCRIPTOR_HANDLE srvUavHeapHandle =
-		m_srvUavHeap->GetGPUDescriptorHandleForHeapStart();
+	CD3DX12_GPU_DESCRIPTOR_HANDLE srvUavHeapHandle(m_srvUavHeap->GetGPUDescriptorHandleForHeapStart());
 
 	// The helper treats both root parameter pointers and heap pointers as void*,
 	// while DX12 uses the
@@ -1169,7 +1216,10 @@ void SceneEditor::CreateShaderBindingTable() {
 	// Adding the triangle hit shader
 	//m_sbtHelper.AddHitGroup(L"HitGroup", {});
 	// Access vertexBuffer in hit shader
-	for (int i = 0; i < SceneObject::Count; ++i)
+	INT DescriptorHandleIncrementSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	srvUavHeapHandle.Offset(3, DescriptorHandleIncrementSize);
+	for (int i = 0; i < SceneObject::Count; ++i) {
+		srvUavHeapHandle.Offset(1, DescriptorHandleIncrementSize);
 		m_sbtHelper.AddHitGroup(ws_hitGroupNames[i], {
 			(void*)(m_vertexBuffer[i]->GetGPUVirtualAddress()),
 			(void*)(m_indexBuffer[i]->GetGPUVirtualAddress()),
@@ -1177,10 +1227,9 @@ void SceneEditor::CreateShaderBindingTable() {
 			(void*)(m_MaterialBuffer[i]->GetGPUVirtualAddress()),
 			(void*)(m_vertexBuffer[SceneObject::light]->GetGPUVirtualAddress()),
 			(void*)(m_indexBuffer[SceneObject::light]->GetGPUVirtualAddress()),
-
-			(void*)(bricksTex->Resource->GetGPUVirtualAddress()),
+			(void*)srvUavHeapHandle.ptr,
 			});
-
+	}
 
 	// Compute the size of the SBT given the number of shaders and their
 	// parameters

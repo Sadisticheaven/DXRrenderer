@@ -90,7 +90,7 @@ private:
 	CD3DX12_RECT m_scissorRect;
 	ComPtr<IDXGISwapChain3> m_swapChain;
 	//ComPtr<ID3D12Device> m_device;
-	ComPtr<ID3D12Device5> m_device;
+	ComPtr<ID3D12Device6> m_device;
 	ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
 	ComPtr<ID3D12CommandAllocator> m_commandAllocator;
 	ComPtr<ID3D12CommandQueue> m_commandQueue;
@@ -158,6 +158,7 @@ private:
 	AccelerationStructureBuffers
 		CreateBottomLevelAS(std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vVertexBuffers, std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vIndexBuffers);
 
+	std::vector<CD3DX12_STATIC_SAMPLER_DESC> GetStaticSamplers();
 
 	/// Create the main acceleration structure that holds
 	/// all instances of the scene

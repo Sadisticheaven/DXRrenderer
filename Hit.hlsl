@@ -10,7 +10,13 @@ ConstantBuffer<PrimitiveMaterialBuffer> MaterialAttributes : register(b0);
 StructuredBuffer<Vertex> light_vertices: register(t3);
 StructuredBuffer<Index> light_indices: register(t4);
 Texture2D bricksTex : register(t5);
-
+//6个不同类型的采样器
+SamplerState gSamPointWrap : register(s0);
+SamplerState gSamPointClamp : register(s1);
+SamplerState gSamLinearWarp : register(s2);
+SamplerState gSamLinearClamp : register(s3);
+SamplerState gSamAnisotropicWarp : register(s4);
+SamplerState gSamAnisotropicClamp : register(s5);
 
 
 float3 toWorld(float3 a, float3 N) {
@@ -87,7 +93,7 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 	return rayPayload.radiance * MaterialAttributes.Kd * dot(direction, N) * dot(-direction, light_normal) / disPow2 * pdf;
 }
 
-float3 createSampleRay(float3 wi, float3 N, inout float3 eval, inout float4 seed) {
+float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout float4 seed) {
 
 	wi = normalize(wi);
 
@@ -108,6 +114,7 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, inout float4 seed
 		if (cosalpha > 0.0f) {
 			float3 diffuse = MaterialAttributes.Kd;
 			eval = diffuse;
+			eval = bricksTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz;
 		}
 		else {
 			eval = float3(0.0, 0.0, 0.0);
@@ -257,10 +264,10 @@ float3 CastRay(Ray ray, uint curRecursionDepth, float4 seed) {
 	return rayPayload.radiance;
 }
 
-float3 get_light_indir(float3 worldRayDirection, float3 normal, float3 hitWorldPosition, uint curRecursionDepth, inout float4 random_seed) {
+float3 get_light_indir(float3 worldRayDirection, float3 normal, float3 hitWorldPosition, float2 uv, uint curRecursionDepth, inout float4 random_seed) {
 	float3 L_intdir = float3(0.0, 0.0, 0.0);
 	float3 eval;
-	float3 sp_direction = createSampleRay(worldRayDirection, normal, eval, random_seed);
+	float3 sp_direction = createSampleRay(worldRayDirection, normal, eval, uv, random_seed);
 
 	if (random(float2(random_seed.x + random_seed.y, random_seed.z + random_seed.w)) <= PROBABILITY_RUSSIAN_ROULETTE) {
 		Ray ray;
@@ -290,12 +297,12 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	float3 worldRayDirection = WorldRayDirection();
 	float3 hitWorldPosition = HitWorldPosition();
 	float4 random_seed = payload.seed;
-	 
+
 
 	float emit_rate = dot(normal, -normalize(worldRayDirection));
 
 
-	float3 L_indir = get_light_indir(worldRayDirection, normal, hitWorldPosition, payload.recursionDepth, random_seed);
+	float3 L_indir = get_light_indir(worldRayDirection, normal, hitWorldPosition, barycentrics.yz, payload.recursionDepth, random_seed);
 	float3 L_dir = get_light_dir(worldRayDirection, hitWorldPosition, normal, random_seed, payload.recursionDepth);
 
 	payload.radiance = MaterialAttributes.Kd.xyz * MaterialAttributes.emitIntensity * emit_rate + L_indir + L_dir;
