@@ -158,8 +158,6 @@ private:
 	AccelerationStructureBuffers
 		CreateBottomLevelAS(std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vVertexBuffers, std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vIndexBuffers);
 
-	std::vector<CD3DX12_STATIC_SAMPLER_DESC> GetStaticSamplers();
-
 	/// Create the main acceleration structure that holds
 	/// all instances of the scene
 	/// \param     instances : pair of BLAS and transform

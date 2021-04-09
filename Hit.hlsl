@@ -34,7 +34,7 @@ float3 toWorld(float3 a, float3 N) {
 }
 
 
-float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N, inout float4 seed, in UINT curRecursionDepth)
+float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N, float2 uv , inout float4 seed, in UINT curRecursionDepth)
 {
 	if (curRecursionDepth >= MAX_RAY_RECURSION_DEPTH)
 	{
@@ -90,7 +90,7 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 		rayDesc,
 		rayPayload);
 
-	return rayPayload.radiance * MaterialAttributes.Kd * dot(direction, N) * dot(-direction, light_normal) / disPow2 * pdf;
+	return rayPayload.radiance * bricksTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz * dot(direction, N) * dot(-direction, light_normal) / disPow2 * pdf;
 }
 
 float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout float4 seed) {
@@ -303,7 +303,7 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 
 
 	float3 L_indir = get_light_indir(worldRayDirection, normal, hitWorldPosition, barycentrics.yz, payload.recursionDepth, random_seed);
-	float3 L_dir = get_light_dir(worldRayDirection, hitWorldPosition, normal, random_seed, payload.recursionDepth);
+	float3 L_dir = get_light_dir(worldRayDirection, hitWorldPosition, normal, barycentrics.yz,random_seed, payload.recursionDepth);
 
 	payload.radiance = MaterialAttributes.Kd.xyz * MaterialAttributes.emitIntensity * emit_rate + L_indir + L_dir;
 }
