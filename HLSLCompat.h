@@ -24,6 +24,7 @@ typedef float4 XMVECTOR;
 typedef float4x4 XMMATRIX;
 typedef uint UINT;
 typedef UINT Index;
+typedef int BOOL;
 #else
 using namespace DirectX;
 typedef UINT32 Index;
@@ -95,6 +96,7 @@ struct PrimitiveMaterialBuffer
 	float emitIntensity;
 	float index_of_refraction;
 	float smoothness;
+	BOOL useDiffuseTexture;
 	//BOOL hasDiffuseTexture;
 	//BOOL hasNormalTexture;
 	//BOOL hasPerVertexTangents;

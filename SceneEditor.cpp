@@ -295,7 +295,7 @@ void SceneEditor::AllocateUploadGeometryBuffer(Model& model, int bufferIndex)
 	}
 }
 
-void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, /*XMFLOAT4*/float emitIntensity, float smoothness, float index_of_refraction) {
+void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, /*XMFLOAT4*/float emitIntensity, float smoothness, float index_of_refraction, UINT hasDiffuseTexture) {
 	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
 	//int k = sizeof(PrimitiveMaterialBuffer);
 	m_MaterialBuffer[bufferIndex] = nv_helpers_dx12::CreateBuffer(
@@ -306,6 +306,7 @@ void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, Material
 	m_MaterialAttributes[bufferIndex].emitIntensity = emitIntensity;
 	m_MaterialAttributes[bufferIndex].type = type;
 	m_MaterialAttributes[bufferIndex].smoothness = smoothness;
+	m_MaterialAttributes[bufferIndex].useDiffuseTexture = hasDiffuseTexture;
 	uint8_t* pData;
 	ThrowIfFailed(m_MaterialBuffer[bufferIndex]->Map(0, nullptr, (void**)&pData));
 	memcpy(pData, &(m_MaterialAttributes[bufferIndex]), sizeof(PrimitiveMaterialBuffer));
@@ -334,7 +335,7 @@ void SceneEditor::LoadAssets()
 	}
 	// Create the command list.
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
-		m_commandList->SetComputeRootSignature(m_rootSignature.Get());
+	m_commandList->SetComputeRootSignature(m_rootSignature.Get());
 	{
 		auto Float4Multi = [&](const float& f, const XMFLOAT4 vec3) {
 			return XMFLOAT4(f * vec3.x, f * vec3.y, f * vec3.z, 0.0f);
@@ -350,7 +351,7 @@ void SceneEditor::LoadAssets()
 		XMFLOAT4 le2 = Float4Multi(15.6f, XMFLOAT4(0.740f + 0.287f, 0.740f + 0.160f, 0.740f, 0.0f));
 		XMFLOAT4 le3 = Float4Multi(18.4f, XMFLOAT4(0.737f + 0.642f, 0.737f + 0.159f, 0.737f, 0.0f));
 		//XMFLOAT4 light_emit(le1.x + le2.x + le3.x, le1.y + le2.y + le3.y, le1.z + le2.z + le3.z, 0.0f);
-		float light_emit = 100.f;
+		float light_emit = 10.f;
 		XMFLOAT4 default_Ks(0.14f, 0.14f, 0.14f, 0.0f);
 		CreateMaterialBufferAndSetAttributes(SceneObject::floor, MaterialType::Lambert, white, not_emit);
 		CreateMaterialBufferAndSetAttributes(SceneObject::shortbox, MaterialType::Glass, test, not_emit, 2.0f, 1.2f);
@@ -916,7 +917,7 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateHitSignature() {
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 4);//light_indices
 	//rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 5);//texture
 	rsc.AddHeapRangesParameter(
-		{ 
+		{
 			{5 /*t5*/, 1 , 0 ,D3D12_DESCRIPTOR_RANGE_TYPE_SRV ,default},//texture
 		});
 	return rsc.Generate(m_device.Get(), true);
@@ -1158,7 +1159,6 @@ void SceneEditor::CreateShaderBindingTable() {
 	INT DescriptorHandleIncrementSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	srvUavHeapHandle.Offset(3, DescriptorHandleIncrementSize);
 	for (int i = 0; i < SceneObject::Count; ++i) {
-		srvUavHeapHandle.Offset(1, DescriptorHandleIncrementSize);
 		m_sbtHelper.AddHitGroup(ws_hitGroupNames[i], {
 			(void*)(m_vertexBuffer[i]->GetGPUVirtualAddress()),
 			(void*)(m_indexBuffer[i]->GetGPUVirtualAddress()),
@@ -1168,6 +1168,7 @@ void SceneEditor::CreateShaderBindingTable() {
 			(void*)(m_indexBuffer[SceneObject::light]->GetGPUVirtualAddress()),
 			(void*)srvUavHeapHandle.ptr,
 			});
+		srvUavHeapHandle.Offset(1, DescriptorHandleIncrementSize);
 	}
 
 	// Compute the size of the SBT given the number of shaders and their
@@ -1369,15 +1370,19 @@ void SceneEditor::StartImgui()
 		OnResetSpp();
 
 	ImGui::Text("Color:");
+	auto hasDiffuseTextureTagAddress = reinterpret_cast<bool*>(&m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].useDiffuseTexture);
+	if (ImGui::Checkbox("useDiffuseTexture", hasDiffuseTextureTagAddress))
+		OnResetSpp();
 	if (ImGui::ColorEdit4("", reinterpret_cast<float*>(&m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].Kd)))
 		OnResetSpp();
-	if (ImGui::SliderFloat("EmitIntensity", &m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].emitIntensity, 0.f, 1000.f))
+	if (ImGui::SliderFloat("EmitIntensity", &m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].emitIntensity, 0.f, 10.f))
 		OnResetSpp();
 
 	ImGui::Text("Material:");
 	auto materialAddress = reinterpret_cast<int*>(&m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].type);
 	if (ImGui::Combo("", materialAddress, m_MaterialType, MaterialType::Count))
 		OnResetSpp();
+
 
 	m_imguiManager.isHovered = ImGui::IsWindowHovered() | ImGui::IsAnyItemHovered() | ImGui::IsAnyItemActive();
 
