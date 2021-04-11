@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "ImguiManager.h"
 #include <DXSampleHelper.h>
+#include <iterator>
 
 void ImguiManager::CreateSRVHeap4Imgui()
 {
@@ -28,4 +29,18 @@ void ImguiManager::InitImGui4RayTracing(HWND hwnd)
 		m_imguiOutputFormat, pSrvHeap4Imgui,
 		pSrvHeap4Imgui->GetCPUDescriptorHandleForHeapStart(),
 		pSrvHeap4Imgui->GetGPUDescriptorHandleForHeapStart());
+}
+
+void ImguiManager::ConvertString2Char(const std::vector<std::string> &src)
+{
+	// For gui
+	std::vector<char*> tmp;
+	std::transform(src.begin(), src.end(), std::back_inserter(tmp),
+		[](const std::string& s) {
+		char* pc = new char[s.size() + 1];
+		strcpy_s(pc, s.size() + 1, s.c_str());
+		return pc;
+	});
+	m_texNamesChar = new (char* [tmp.size()])();
+	std::copy(tmp.begin(), tmp.end(), m_texNamesChar);
 }

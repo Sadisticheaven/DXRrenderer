@@ -23,6 +23,8 @@
 #include <Camera.h>
 #include "Model.h"
 #include <memory>
+#include <string.h>
+#include <unordered_map>
 using namespace DirectX;
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
@@ -219,7 +221,10 @@ private:
 	//update value by imgui
 	void UpadteMaterialParameter(int bufferIndex);
 
-	// Texture
-	std::unique_ptr<Texture> bricksTex = nullptr;
-
+	// Texture 
+	std::vector<Texture> m_textures;
+	std::vector<std::string> m_texNames;
+	int m_texOfObjs[SceneObject::Count]; //store texture index of m_texture for each obj
+	D3D12_CPU_DESCRIPTOR_HANDLE m_texSrvHeapStart; // store start point of textures srv 
+	void UpdateTexOfObj(int objIdx);
 };

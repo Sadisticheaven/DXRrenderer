@@ -391,17 +391,40 @@ void SceneEditor::LoadAssets()
 
 
 	}
+	// Load Texture and assign obj's tex
+	{
+		Texture bricksTex;
+		bricksTex.Name = "bricksTex";
+		bricksTex.Filename = L"./Textures/bricks.dds";
+		ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(
+			m_device.Get(),
+			m_commandList.Get(),
+			bricksTex.Filename.c_str(),
+			bricksTex.Resource,
+			bricksTex.UploadHeap));
+		m_textures.push_back(bricksTex);
+		m_texNames.push_back(bricksTex.Name);
 
+		Texture grassTex;
+		grassTex.Name = "grassTex";
+		grassTex.Filename = L"./Textures/grass.dds";
+		ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(
+			m_device.Get(),
+			m_commandList.Get(),
+			grassTex.Filename.c_str(),
+			grassTex.Resource,
+			grassTex.UploadHeap));
+		m_textures.push_back(grassTex);
+		m_texNames.push_back(grassTex.Name);
 
-	bricksTex = std::make_unique<Texture>();
-	bricksTex->Name = "bricksTex";
-	bricksTex->Filename = L"./Textures/bricks.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(
-		m_device.Get(),               // D3D?õô
-		m_commandList.Get(),             // ??GPU???????§Ò?
-		bricksTex->Filename.c_str(),    // ??????¡¤?? 
-		bricksTex->Resource,            // ???????????????????
-		bricksTex->UploadHeap));        // ???????????????????????????????????
+		m_imguiManager.ConvertString2Char(m_texNames);
+
+		for (int i = 0; i < SceneObject::Count; ++i) {
+			m_texOfObjs[i] = 0;
+		}
+		m_texOfObjs[SceneObject::floor] = 1;
+	}
+	
 
 	{
 		ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
@@ -1102,22 +1125,24 @@ void SceneEditor::CreateShaderResourceHeap() {
 		m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
 	}
 
-
+	m_texSrvHeapStart.ptr =	srvHandle.ptr + m_device->GetDescriptorHandleIncrementSize(
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	// Add textures
 	for (int i = 0; i < SceneObject::Count; ++i) {
 		srvHandle.ptr += m_device->GetDescriptorHandleIncrementSize(
 			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		//auto texResource = bricksTex->Resource;
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+		ComPtr<ID3D12Resource> texRes = m_textures[m_texOfObjs[i]].Resource;
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Format = bricksTex->Resource->GetDesc().Format;
+		srvDesc.Format = texRes->GetDesc().Format;
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Texture2D.MostDetailedMip = 0;
-		srvDesc.Texture2D.MipLevels = bricksTex->Resource->GetDesc().MipLevels;
+		srvDesc.Texture2D.MipLevels = texRes->GetDesc().MipLevels;
 		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 		srvDesc.Texture2D.PlaneSlice = 0;
 		// Write the texture view in the heap
-		m_device->CreateShaderResourceView(bricksTex->Resource.Get(), &srvDesc, srvHandle);
+		m_device->CreateShaderResourceView(texRes.Get(), &srvDesc, srvHandle);
 	}
 }
 
@@ -1156,7 +1181,7 @@ void SceneEditor::CreateShaderBindingTable() {
 	//m_sbtHelper.AddHitGroup(L"HitGroup", {});
 	// Access vertexBuffer in hit shader
 	INT DescriptorHandleIncrementSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	srvUavHeapHandle.Offset(3, DescriptorHandleIncrementSize);
+	srvUavHeapHandle.Offset(2, DescriptorHandleIncrementSize);
 	for (int i = 0; i < SceneObject::Count; ++i) {
 		srvUavHeapHandle.Offset(1, DescriptorHandleIncrementSize);
 		m_sbtHelper.AddHitGroup(ws_hitGroupNames[i], {
@@ -1166,7 +1191,7 @@ void SceneEditor::CreateShaderBindingTable() {
 			(void*)(m_MaterialBuffer[i]->GetGPUVirtualAddress()),
 			(void*)(m_vertexBuffer[SceneObject::light]->GetGPUVirtualAddress()),
 			(void*)(m_indexBuffer[SceneObject::light]->GetGPUVirtualAddress()),
-			(void*)srvUavHeapHandle.ptr,
+			(void*) srvUavHeapHandle.ptr,
 			});
 	}
 
@@ -1376,8 +1401,15 @@ void SceneEditor::StartImgui()
 
 	ImGui::Text("Material:");
 	auto materialAddress = reinterpret_cast<int*>(&m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].type);
-	if (ImGui::Combo("", materialAddress, m_MaterialType, MaterialType::Count))
+	if (ImGui::Combo("Mat", materialAddress, m_MaterialType, MaterialType::Count))
 		OnResetSpp();
+
+	ImGui::Text("Texture:");
+	if (ImGui::Combo("Tex", &m_texOfObjs[m_imguiManager.m_currentObjeectItem], m_imguiManager.m_texNamesChar, m_texNames.size()))
+	{
+		UpdateTexOfObj(m_imguiManager.m_currentObjeectItem);
+		OnResetSpp();
+	}
 
 	m_imguiManager.isHovered = ImGui::IsWindowHovered() | ImGui::IsAnyItemHovered() | ImGui::IsAnyItemActive();
 
@@ -1388,3 +1420,21 @@ void SceneEditor::StartImgui()
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList.Get());
 }
 
+void SceneEditor::UpdateTexOfObj(int objIdx) {
+	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle;
+	srvHandle.ptr = m_texSrvHeapStart.ptr + objIdx * m_device->GetDescriptorHandleIncrementSize(
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	ComPtr<ID3D12Resource> texRes = m_textures[m_texOfObjs[objIdx]].Resource;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = texRes->GetDesc().Format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = texRes->GetDesc().MipLevels;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+	srvDesc.Texture2D.PlaneSlice = 0;
+
+	m_device->CreateShaderResourceView(texRes.Get(), &srvDesc, srvHandle);
+
+}
