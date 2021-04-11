@@ -34,7 +34,7 @@ float3 toWorld(float3 a, float3 N) {
 }
 
 
-float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N, float2 uv , inout float4 seed, in UINT curRecursionDepth)
+float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N, float2 uv, inout float4 seed, in UINT curRecursionDepth)
 {
 	if (curRecursionDepth >= MAX_RAY_RECURSION_DEPTH)
 	{
@@ -70,6 +70,11 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 		return float3(0.0, 0.0, 0.0);
 	}
 
+	float3 Kd = MaterialAttributes.Kd;
+	if (MaterialAttributes.useDiffuseTexture) {
+		Kd = bricksTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz;
+	}
+
 	RayDesc rayDesc;
 	rayDesc.Origin = hitWorldPosition;
 	rayDesc.Direction = direction;
@@ -90,13 +95,16 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 		rayDesc,
 		rayPayload);
 
-	return rayPayload.radiance * bricksTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz * dot(direction, N) * dot(-direction, light_normal) / disPow2 * pdf;
+	return rayPayload.radiance * Kd * dot(direction, N) * dot(-direction, light_normal) / disPow2 * pdf;
 }
 
 float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout float4 seed) {
 
 	wi = normalize(wi);
-
+	float3 Kd = MaterialAttributes.Kd;
+	if (MaterialAttributes.useDiffuseTexture) {
+		Kd = bricksTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz;
+	}
 	switch (MaterialAttributes.type) {
 	case MaterialType::Lambert:
 	{
@@ -112,9 +120,7 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 		float3 wo = toWorld(localRay, N);
 		float cosalpha = dot(N, wo);
 		if (cosalpha > 0.0f) {
-			float3 diffuse = MaterialAttributes.Kd;
-			eval = diffuse;
-			eval = bricksTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz;
+			eval = Kd;
 		}
 		else {
 			eval = float3(0.0, 0.0, 0.0);
@@ -137,12 +143,9 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 		float3 wo = toWorld(localRay, reflect_dir);
 		float cosalpha = dot(N, wo);
 		if (cosalpha > 0.0f) {
-			float3 Kd = MaterialAttributes.Kd;
-
 			float s = MaterialAttributes.smoothness;
 			float alpha = pow(1000.0f, s);
-			float3 f_r = Kd;
-			eval = f_r;
+			eval = Kd;
 		}
 		else {
 			eval = float3(0.0, 0.0, 0.0);
@@ -190,7 +193,7 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 			wo = toWorld(localRay, reflected);
 		else
 			wo = toWorld(localRay, refracted);
-		eval = MaterialAttributes.Kd;
+		eval = Kd;
 		return wo;
 	}
 	case MaterialType::Plastic:
@@ -225,7 +228,7 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 			eval = float3(0.0, 0.0, 0.0);
 		}
 		else {
-			eval = MaterialAttributes.Kd;
+			eval = Kd;
 		}
 		return wo;
 	}
@@ -301,9 +304,15 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 
 	float emit_rate = dot(normal, -normalize(worldRayDirection));
 
+	float3 Kd = MaterialAttributes.Kd;
+	float emitIntensity2 = MaterialAttributes.emitIntensity * MaterialAttributes.emitIntensity;
+	float2 uv = barycentrics.yz;
+	if (MaterialAttributes.useDiffuseTexture) {
+		Kd = bricksTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz;
+	}
 
-	float3 L_indir = get_light_indir(worldRayDirection, normal, hitWorldPosition, barycentrics.yz, payload.recursionDepth, random_seed);
-	float3 L_dir = get_light_dir(worldRayDirection, hitWorldPosition, normal, barycentrics.yz,random_seed, payload.recursionDepth);
+	float3 L_indir = get_light_indir(worldRayDirection, normal, hitWorldPosition, uv, payload.recursionDepth, random_seed);
+	float3 L_dir = get_light_dir(worldRayDirection, hitWorldPosition, normal, uv, random_seed, payload.recursionDepth);
 
-	payload.radiance = MaterialAttributes.Kd.xyz * MaterialAttributes.emitIntensity * emit_rate + L_indir + L_dir;
+	payload.radiance = Kd * emitIntensity2 * emit_rate + L_indir + L_dir;
 }
