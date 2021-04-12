@@ -13,7 +13,6 @@ public:
 	void CreateSRVHeap4Imgui();
 	void InitImGui4RayTracing(HWND hwnd);
 	ComPtr<ID3D12DescriptorHeap> GetSrvHeap4Imgui() { return m_srvHeap4Imgui; }
-	//int m_currentObjeectItem = 0;
 	
 	bool isHovered = 0;
 	char** m_texNamesChar; // display Tex Names need char*[]

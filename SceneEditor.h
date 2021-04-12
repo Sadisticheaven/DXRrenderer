@@ -34,33 +34,6 @@ using namespace DirectX;
 // An example of this can be found in the class method: OnDestroy().
 using Microsoft::WRL::ComPtr;
 
-#define FOREACH_ENUM(Enum) \
-        Enum(floor)   \
-        Enum(shortbox)  \
-        Enum(tallbox)   \
-        Enum(left)  \
-        Enum(right)  \
-        Enum(light)  \
-        Enum(car)  \
-        Enum(nanosuit)  \
-        Enum(Count)  \
-
-namespace SceneObject {
-	/*enum Enum {
-		floor = 0,
-		shortbox,
-		tallbox,
-		left,
-		right,
-		light,
-		nanosuit,
-		Count
-	};*/
-	enum Enum {
-		FOREACH_ENUM(GENERATE_ENUM)
-	};
-
-}
 
 class SceneEditor : public DXSample
 {
@@ -78,14 +51,11 @@ public:
 	virtual void OnKeyDown(UINT8 key);
 	virtual void OnResetSpp() { needRefreshScreen = true; }
 	virtual void StartImgui();
-	//ComPtr<ID3D12Device5> GetDevice() { return m_device; }
-	//ComPtr<ID3D12GraphicsCommandList4> GetCommandList() { return m_commandList; }
 
 private:
 	static const UINT FrameCount = 2;
 	//DXGI_FORMAT m_outPutFormat = DXGI_FORMAT_R8G8B8A8_UNORM ;
 	DXGI_FORMAT m_outPutFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
-	char* m_ObjectName[SceneObject::Count + 1] = { FOREACH_ENUM(GENERATE_STRING) };
 	char* m_MaterialType[MaterialType::Count + 1] = { FOREACH_MATERIAL(GENERATE_STRING) };
 	// Pipeline objects.
 	CD3DX12_VIEWPORT m_viewport;
@@ -120,15 +90,6 @@ private:
 	std::vector<ObjResource> m_objects;
 	std::unordered_map<std::string, int> m_idxOfObj;
 
-
-	ComPtr<ID3D12Resource> m_vertexBuffer[SceneObject::Count];
-	int m_vertexCount[SceneObject::Count];
-
-	ComPtr<ID3D12Resource> m_indexBuffer[SceneObject::Count];
-	int m_indexCount[SceneObject::Count];
-
-	PrimitiveMaterialBuffer m_MaterialAttributes[SceneObject::Count];
-	ComPtr<ID3D12Resource> m_MaterialBuffer[SceneObject::Count];
 	int m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
 	void CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, float emitIntensity = 0.f,
 		float smoothness = 0.0f, float index_of_refraction = 1.0f, UINT hasDiffuseTexture = false);
@@ -150,8 +111,6 @@ private:
 	void PopulateCommandList();
 	void PopulateRaytracingCmdList();
 	void WaitForPreviousFrame();
-	void AllocateUploadGeometryBuffer(std::vector<Vertex> vertices, std::vector<Index> indices, int bufferIndex);
-	void AllocateUploadGeometryBuffer(Model& model, int bufferIndex);
 	void AllocateUploadGeometryBuffer(Model& model, std::string objname);
 	void CheckRaytracingSupport();
 
@@ -165,7 +124,6 @@ private:
 	};
 	AccelerationStructureBuffers m_topLevelASBuffers;
 
-	std::vector<ComPtr<ID3D12Resource>> m_bottomLevelAS; // Storage for the bottom Level AS
 	nv_helpers_dx12::TopLevelASGenerator m_topLevelASGenerator;
 	std::vector<std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>> m_instances;
 
@@ -242,7 +200,6 @@ private:
 	// Texture 
 	std::vector<Texture> m_textures;
 	std::vector<std::string> m_texNames;
-	int m_texOfObjs[SceneObject::Count]; //store texture's index in m_texture for each obj
 	D3D12_CPU_DESCRIPTOR_HANDLE m_texSrvHeapStart; // store start point of textures srv 
 	void UpdateTexOfObj(int objIdx);
 	
