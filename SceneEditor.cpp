@@ -23,16 +23,17 @@ const std::wstring ws_raygenShaderName = L"RayGen";
 const std::vector<std::wstring> ws_missShaderNames = { L"Miss" };
 const std::vector<std::wstring> ws_closestHitShaderNames = { L"ClosestHit" };
 
-const std::vector<std::wstring> ws_hitGroupNames = {
-		L"Hit_floor",
-		L"Hit_shortbox",
-		L"Hit_tallbox",
-		L"Hit_left",
-		L"Hit_right",
-		L"Hit_light",
-		L"Hit_car",
-		L"Hit_nanosuit"
-};
+//const std::vector<std::wstring> ws_hitGroupNames = {
+//		L"Hit_floor",
+//		L"Hit_shortbox",
+//		L"Hit_tallbox",
+//		L"Hit_left",
+//		L"Hit_right",
+//		L"Hit_light",
+//		L"Hit_car",
+//		L"Hit_nanosuit"
+//};
+
 
 
 
@@ -86,7 +87,6 @@ void SceneEditor::OnInit()
 	m_imguiManager.CreateSRVHeap4Imgui();
 
 }
-
 
 // Load the rendering pipeline dependencies.
 void SceneEditor::LoadPipeline()
@@ -295,23 +295,77 @@ void SceneEditor::AllocateUploadGeometryBuffer(Model& model, int bufferIndex)
 	}
 }
 
-void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, /*XMFLOAT4*/float emitIntensity, float smoothness, float index_of_refraction, UINT hasDiffuseTexture) {
-	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
-	//int k = sizeof(PrimitiveMaterialBuffer);
-	m_MaterialBuffer[bufferIndex] = nv_helpers_dx12::CreateBuffer(
-		m_device.Get(), m_MaterialBufferSize, D3D12_RESOURCE_FLAG_NONE,
-		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
-	m_MaterialAttributes[bufferIndex].Kd = Kd;
-	m_MaterialAttributes[bufferIndex].index_of_refraction = index_of_refraction;
-	m_MaterialAttributes[bufferIndex].emitIntensity = emitIntensity;
-	m_MaterialAttributes[bufferIndex].type = type;
-	m_MaterialAttributes[bufferIndex].smoothness = smoothness;
-	m_MaterialAttributes[bufferIndex].useDiffuseTexture = hasDiffuseTexture;
-	uint8_t* pData;
-	ThrowIfFailed(m_MaterialBuffer[bufferIndex]->Map(0, nullptr, (void**)&pData));
-	memcpy(pData, &(m_MaterialAttributes[bufferIndex]), sizeof(PrimitiveMaterialBuffer));
-	m_MaterialBuffer[bufferIndex]->Unmap(0, nullptr);
+void SceneEditor::AllocateUploadGeometryBuffer(Model& model, std::string objname)
+{
+	std::vector<Vertex> vertices;
+	std::vector<Index> indices;
+	// store all meshes of model into one vertices nad indices
+	for (int i = 0, offset = 0; i < model.meshes.size(); ++i) {
+		vertices.insert(vertices.end(), model.meshes[i].vertices.begin(), model.meshes[i].vertices.end());
+		// each indices of meshes are started from 0, so offset the subsequent indices
+		for (int j = 0; j < model.meshes[i].indices.size(); ++j)
+			model.meshes[i].indices[j] += offset;
+		indices.insert(indices.end(), model.meshes[i].indices.begin(), model.meshes[i].indices.end());
+		offset += model.meshes[i].vertices.size();
+	}
+
+	ObjResource objDesc;
+	objDesc.vertexCount = static_cast<UINT>(vertices.size());
+	objDesc.indexCount = static_cast<UINT>(indices.size());
+	objDesc.str_objName = objname;
+
+	const UINT VertexBufferSize = static_cast<UINT>(vertices.size()) * sizeof(Vertex);
+	{
+		CD3DX12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		CD3DX12_RESOURCE_DESC bufferResource = CD3DX12_RESOURCE_DESC::Buffer(VertexBufferSize);
+		ThrowIfFailed(m_device->CreateCommittedResource(
+			&heapProperty, D3D12_HEAP_FLAG_NONE, &bufferResource, //
+			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&objDesc.vertexBuffer)));
+
+		// Copy the triangle data to the vertex buffer.
+		UINT8* pVertexDataBegin;
+		CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(objDesc.vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
+		memcpy(pVertexDataBegin, vertices.data(), VertexBufferSize);
+		objDesc.vertexBuffer->Unmap(0, nullptr);
+	}
+
+	const UINT IndexBufferSize = static_cast<UINT>(indices.size()) * sizeof(UINT);
+	{
+		CD3DX12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		CD3DX12_RESOURCE_DESC bufferResource = CD3DX12_RESOURCE_DESC::Buffer(IndexBufferSize);
+		ThrowIfFailed(m_device->CreateCommittedResource(
+			&heapProperty, D3D12_HEAP_FLAG_NONE, &bufferResource, //
+			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&objDesc.indexBuffer)));
+
+		// Copy the triangle data to the index buffer.
+		UINT8* pIndexDataBegin;
+		CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(objDesc.indexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pIndexDataBegin)));
+		memcpy(pIndexDataBegin, indices.data(), IndexBufferSize);
+		objDesc.indexBuffer->Unmap(0, nullptr);
+	}
+
+	m_objects.emplace_back(objDesc);
 }
+
+//void SceneEditor::CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, /*XMFLOAT4*/float emitIntensity, float smoothness, float index_of_refraction, UINT hasDiffuseTexture) {
+//	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
+//	//int k = sizeof(PrimitiveMaterialBuffer);
+//	m_MaterialBuffer[bufferIndex] = nv_helpers_dx12::CreateBuffer(
+//		m_device.Get(), m_MaterialBufferSize, D3D12_RESOURCE_FLAG_NONE,
+//		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
+//	m_MaterialAttributes[bufferIndex].Kd = Kd;
+//	m_MaterialAttributes[bufferIndex].index_of_refraction = index_of_refraction;
+//	m_MaterialAttributes[bufferIndex].emitIntensity = emitIntensity;
+//	m_MaterialAttributes[bufferIndex].type = type;
+//	m_MaterialAttributes[bufferIndex].smoothness = smoothness;
+//	m_MaterialAttributes[bufferIndex].useDiffuseTexture = hasDiffuseTexture;
+//	uint8_t* pData;
+//	ThrowIfFailed(m_MaterialBuffer[bufferIndex]->Map(0, nullptr, (void**)&pData));
+//	memcpy(pData, &(m_MaterialAttributes[bufferIndex]), sizeof(PrimitiveMaterialBuffer));
+//	m_MaterialBuffer[bufferIndex]->Unmap(0, nullptr);
+//}
 
 void SceneEditor::CreateMaterialBufferAndSetAttributes(PrimitiveMaterialBuffer& desc, int bufferIndex)
 {
@@ -325,6 +379,24 @@ void SceneEditor::CreateMaterialBufferAndSetAttributes(PrimitiveMaterialBuffer& 
 	m_MaterialBuffer[bufferIndex]->Unmap(0, nullptr);
 }
 
+void SceneEditor::CreateMaterialBufferAndSetAttributes(int objIndex, MaterialType::Type type, XMFLOAT4 Kd, float emitIntensity, float smoothness, float index_of_refraction, UINT hasDiffuseTexture) {
+	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
+	m_objects[objIndex].MaterialBuffer = nv_helpers_dx12::CreateBuffer(
+		m_device.Get(), m_MaterialBufferSize, D3D12_RESOURCE_FLAG_NONE,
+		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
+
+	m_objects[objIndex].materialAttributes.Kd = Kd;
+	m_objects[objIndex].materialAttributes.index_of_refraction = index_of_refraction;
+	m_objects[objIndex].materialAttributes.emitIntensity = emitIntensity;
+	m_objects[objIndex].materialAttributes.type = type;
+	m_objects[objIndex].materialAttributes.smoothness = smoothness;
+	m_objects[objIndex].materialAttributes.useDiffuseTexture = hasDiffuseTexture;
+	uint8_t* pData;
+	ThrowIfFailed(m_objects[objIndex].MaterialBuffer->Map(0, nullptr, (void**)&pData));
+	memcpy(pData, &(m_objects[objIndex].materialAttributes), sizeof(PrimitiveMaterialBuffer));
+	m_objects[objIndex].MaterialBuffer->Unmap(0, nullptr);
+}
+
 // Load the sample assets.
 
 void SceneEditor::LoadAssets()
@@ -336,65 +408,96 @@ void SceneEditor::LoadAssets()
 	// Create the command list.
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
 	m_commandList->SetComputeRootSignature(m_rootSignature.Get());
-	{
-		auto Float4Multi = [&](const float& f, const XMFLOAT4 vec3) {
-			return XMFLOAT4(f * vec3.x, f * vec3.y, f * vec3.z, 0.0f);
-		};
-		float not_emit = 0.f;
-		//XMFLOAT4 not_emit(0.0f, 0.0f, 0.0f, 0.0f);
-		XMFLOAT4 red(0.63f, 0.065f, 0.05f, 0.0f);
-		XMFLOAT4 green(0.14f, 0.45f, 0.091f, 0.0f);
-		XMFLOAT4 white(0.725f, 0.71f, 0.68f, 0.0f);
-		XMFLOAT4 light_kd(0.65f, 0.65f, 0.65f, 0.0f);
-		XMFLOAT4 test(0.95, 1.0, 1.0, 1.0);
-		XMFLOAT4 le1 = Float4Multi(8.0f, XMFLOAT4(0.747f + 0.058f, 0.747f + 0.258f, 0.747f, 0.0f));
-		XMFLOAT4 le2 = Float4Multi(15.6f, XMFLOAT4(0.740f + 0.287f, 0.740f + 0.160f, 0.740f, 0.0f));
-		XMFLOAT4 le3 = Float4Multi(18.4f, XMFLOAT4(0.737f + 0.642f, 0.737f + 0.159f, 0.737f, 0.0f));
-		//XMFLOAT4 light_emit(le1.x + le2.x + le3.x, le1.y + le2.y + le3.y, le1.z + le2.z + le3.z, 0.0f);
-		float light_emit = 10.f;
-		XMFLOAT4 default_Ks(0.14f, 0.14f, 0.14f, 0.0f);
-		CreateMaterialBufferAndSetAttributes(SceneObject::floor, MaterialType::Lambert, white, not_emit);
-		CreateMaterialBufferAndSetAttributes(SceneObject::shortbox, MaterialType::Glass, test, not_emit, 2.0f, 1.2f);
-		CreateMaterialBufferAndSetAttributes(SceneObject::tallbox, MaterialType::Mirror, white, not_emit, 2.0);
-		CreateMaterialBufferAndSetAttributes(SceneObject::left, MaterialType::Lambert, red, not_emit);
-		CreateMaterialBufferAndSetAttributes(SceneObject::right, MaterialType::Lambert, green, not_emit);
-		CreateMaterialBufferAndSetAttributes(SceneObject::light, MaterialType::Lambert, light_kd, light_emit);
-		CreateMaterialBufferAndSetAttributes(SceneObject::car, MaterialType::Glass, test, not_emit, 2.0f, 5.f);
-		CreateMaterialBufferAndSetAttributes(SceneObject::nanosuit, MaterialType::Glass, test, not_emit, 2.0f, 5.f);
-	}
+	
 	// Create the vertex and index buffer.
 	{
 		// Define the geometry for a triangle.
 		Model model;
-		LoadModelFile("./cornellbox/floor.obj", model);
-		AllocateUploadGeometryBuffer(model, SceneObject::floor);
+		std::vector<std::string> fileNames;
+		std::string path = "./cornellbox/";
+		std::string ext = "obj";
+		getFiles(path, ext, fileNames);
+		int i = 0;
+		for (; i < fileNames.size(); ++i) {
+			std::string fullPath = path + fileNames[i] + "." + ext;
+			LoadModelFile(fullPath, model);
+			AllocateUploadGeometryBuffer(model, fileNames[i]);
+			m_idxOfObj.insert({ fileNames[i], i });
+		}
 
-		LoadModelFile("./cornellbox/shortbox.obj", model);
-		AllocateUploadGeometryBuffer(model, SceneObject::shortbox);
+		ext = "fbx";
+		getFiles(path, ext, fileNames);
+		for (; i < fileNames.size(); ++i) {
+			std::string fullPath = path + fileNames[i] + "." + ext;
+			LoadModelFile(fullPath, model);
+			AllocateUploadGeometryBuffer(model, fileNames[i]);
+			m_idxOfObj.insert({ fileNames[i], i });
+		}
 
-		LoadModelFile("./cornellbox/tallbox.obj", model);
-		AllocateUploadGeometryBuffer(model, SceneObject::tallbox);
+		//LoadModelFile("./cornellbox/floor.obj", model);
+		////AllocateUploadGeometryBuffer(model, SceneObject::floor);
+		//AllocateUploadGeometryBuffer(model, "floor");
+		//m_idxOfObj.insert({ "floor", 0 });
 
-		LoadModelFile("./cornellbox/left.obj", model);
-		AllocateUploadGeometryBuffer(model, SceneObject::left);
+		//LoadModelFile("./cornellbox/shortbox.obj", model);
+		////AllocateUploadGeometryBuffer(model, SceneObject::shortbox);
+		//AllocateUploadGeometryBuffer(model, "shortbox");
+		//m_idxOfObj.insert({ "shortbox", 1 });
 
-		LoadModelFile("./cornellbox/right.obj", model);
-		AllocateUploadGeometryBuffer(model, SceneObject::right);
+		//LoadModelFile("./cornellbox/tallbox.obj", model);
+		////AllocateUploadGeometryBuffer(model, SceneObject::tallbox);
+		//AllocateUploadGeometryBuffer(model, "tallbox");
+		//m_idxOfObj.insert({ "tallbox", 2 });
 
-		LoadModelFile("./cornellbox/light.obj", model);
-		AllocateUploadGeometryBuffer(model, SceneObject::light);
+		//LoadModelFile("./cornellbox/left.obj", model);
+		////AllocateUploadGeometryBuffer(model, SceneObject::left);
+		//AllocateUploadGeometryBuffer(model, "left");
+		//m_idxOfObj.insert({ "left", 3 });
 
-		LoadModelFile("./cornellbox/car.fbx", model);
-		AllocateUploadGeometryBuffer(model, SceneObject::car);
+		//LoadModelFile("./cornellbox/right.obj", model);
+		////AllocateUploadGeometryBuffer(model, SceneObject::right);
+		//AllocateUploadGeometryBuffer(model, "right");
+		//m_idxOfObj.insert({ "right", 4 });
 
-		LoadModelFile("./cornellbox/nanosuit.obj", model);
-		AllocateUploadGeometryBuffer(model, SceneObject::nanosuit);
+		//LoadModelFile("./cornellbox/light.obj", model);
+		////AllocateUploadGeometryBuffer(model, SceneObject::light);
+		//AllocateUploadGeometryBuffer(model, "light");
+		//m_idxOfObj.insert({ "light", 5 });
 
+		//LoadModelFile("./cornellbox/car.fbx", model);
+		////AllocateUploadGeometryBuffer(model, SceneObject::car);
+		//AllocateUploadGeometryBuffer(model, "car");
+		//m_idxOfObj.insert({ "car", 6 });
 
+		//LoadModelFile("./cornellbox/nanosuit.obj", model);
+		////AllocateUploadGeometryBuffer(model, SceneObject::nanosuit);
+		//AllocateUploadGeometryBuffer(model, "nanosuit");
+		//m_idxOfObj.insert({ "nanosuit", 7 });
 	}
 	// Load Texture and assign obj's tex
 	{
-		Texture bricksTex;
+		std::vector<std::string> fileNames;
+		std::string path = "./Textures/";
+		std::string ext = "dds";
+		getFiles(path, ext, fileNames);
+		int i = 0;
+		for (; i < fileNames.size(); ++i) {
+			Texture tex;
+			tex.Name = fileNames[i];
+			std::string tmp = path + fileNames[i] + "." + ext;
+			std::wstring fullPath(tmp.begin(), tmp.end());
+			tex.Filename =  fullPath;
+			ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(
+				m_device.Get(),
+				m_commandList.Get(),
+				tex.Filename.c_str(),
+				tex.Resource,
+				tex.UploadHeap));
+			m_textures.push_back(tex);
+			m_texNames.push_back(tex.Name);
+		}
+
+		/*Texture bricksTex;
 		bricksTex.Name = "bricksTex";
 		bricksTex.Filename = L"./Textures/bricks.dds";
 		ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(
@@ -416,16 +519,60 @@ void SceneEditor::LoadAssets()
 			grassTex.Resource,
 			grassTex.UploadHeap));
 		m_textures.push_back(grassTex);
-		m_texNames.push_back(grassTex.Name);
+		m_texNames.push_back(grassTex.Name);*/
 
-		m_imguiManager.ConvertString2Char(m_texNames);
-
-		for (int i = 0; i < SceneObject::Count; ++i) {
+		m_imguiManager.ConvertString2Char(m_imguiManager.m_texNamesChar, m_texNames);
+		std::vector<std::string> tmp;
+		for (auto it : m_objects) {
+			tmp.push_back(it.str_objName);
+		}
+		m_imguiManager.ConvertString2Char(m_imguiManager.m_objectsName, tmp);
+		/*for (int i = 0; i < SceneObject::Count; ++i) {
 			m_texOfObjs[i] = 0;
 		}
-		m_texOfObjs[SceneObject::floor] = 1;
+		m_texOfObjs[SceneObject::floor] = 1;*/
+
+		for (int i = 0; i < m_objects.size(); ++i) {
+			m_objects[i].texOfObj = 0;
+			std::string str_objName = "Hit_" + m_objects[i].str_objName;
+			std::wstring ws_objName(str_objName.begin(), str_objName.end());
+			m_objects[i].ws_hitGroupName = ws_objName;
+		}
+
 	}
-	
+
+	{
+		auto Float4Multi = [&](const float& f, const XMFLOAT4 vec3) {
+			return XMFLOAT4(f * vec3.x, f * vec3.y, f * vec3.z, 0.0f);
+		};
+		float not_emit = 0.f;
+		XMFLOAT4 red(0.63f, 0.065f, 0.05f, 0.0f);
+		XMFLOAT4 green(0.14f, 0.45f, 0.091f, 0.0f);
+		XMFLOAT4 white(0.725f, 0.71f, 0.68f, 0.0f);
+		XMFLOAT4 light_kd(0.65f, 0.65f, 0.65f, 0.0f);
+		XMFLOAT4 test(0.95, 1.0, 1.0, 1.0);
+		XMFLOAT4 le1 = Float4Multi(8.0f, XMFLOAT4(0.747f + 0.058f, 0.747f + 0.258f, 0.747f, 0.0f));
+		XMFLOAT4 le2 = Float4Multi(15.6f, XMFLOAT4(0.740f + 0.287f, 0.740f + 0.160f, 0.740f, 0.0f));
+		XMFLOAT4 le3 = Float4Multi(18.4f, XMFLOAT4(0.737f + 0.642f, 0.737f + 0.159f, 0.737f, 0.0f));
+		float light_emit = 10.f;
+		XMFLOAT4 default_Ks(0.14f, 0.14f, 0.14f, 0.0f);
+		/*CreateMaterialBufferAndSetAttributes(SceneObject::floor, MaterialType::Lambert, white, not_emit);
+		CreateMaterialBufferAndSetAttributes(SceneObject::shortbox, MaterialType::Glass, test, not_emit, 2.0f, 1.2f);
+		CreateMaterialBufferAndSetAttributes(SceneObject::tallbox, MaterialType::Mirror, white, not_emit, 2.0);
+		CreateMaterialBufferAndSetAttributes(SceneObject::left, MaterialType::Lambert, red, not_emit);
+		CreateMaterialBufferAndSetAttributes(SceneObject::right, MaterialType::Lambert, green, not_emit);
+		CreateMaterialBufferAndSetAttributes(SceneObject::light, MaterialType::Lambert, light_kd, light_emit);
+		CreateMaterialBufferAndSetAttributes(SceneObject::car, MaterialType::Glass, test, not_emit, 2.0f, 5.f);
+		CreateMaterialBufferAndSetAttributes(SceneObject::nanosuit, MaterialType::Glass, test, not_emit, 2.0f, 5.f);*/
+		CreateMaterialBufferAndSetAttributes(m_idxOfObj["floor"], MaterialType::Lambert, white, not_emit);
+		CreateMaterialBufferAndSetAttributes(m_idxOfObj["shortbox"], MaterialType::Glass, test, not_emit, 2.0f, 1.2f);
+		CreateMaterialBufferAndSetAttributes(m_idxOfObj["tallbox"], MaterialType::Mirror, white, not_emit, 2.0);
+		CreateMaterialBufferAndSetAttributes(m_idxOfObj["left"], MaterialType::Lambert, red, not_emit);
+		CreateMaterialBufferAndSetAttributes(m_idxOfObj["right"], MaterialType::Lambert, green, not_emit);
+		CreateMaterialBufferAndSetAttributes(m_idxOfObj["light"], MaterialType::Lambert, light_kd, light_emit);
+		CreateMaterialBufferAndSetAttributes(m_idxOfObj["car"], MaterialType::Glass, test, not_emit, 2.0f, 5.f);
+		CreateMaterialBufferAndSetAttributes(m_idxOfObj["nanosuit"], MaterialType::Glass, test, not_emit, 2.0f, 5.f);
+	}
 
 	{
 		ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
@@ -449,7 +596,8 @@ void SceneEditor::OnUpdate()
 {
 	// #DXR Extra: Perspective Camera
 	UpdateSceneParameterBuffer();
-	UpadteMaterialParameter(m_imguiManager.m_currentObjeectItem);
+	//UpadteMaterialParameter(m_imguiManager.m_currentObjeectItem);
+	UpadteMaterialParameter(m_idxOfObj[m_imguiManager.m_selObjName]);
 }
 
 // Render the scene.
@@ -861,24 +1009,39 @@ void SceneEditor::CreateTopLevelAS(
 //
 void SceneEditor::CreateAccelerationStructures() {
 	// Build the bottom AS from the Triangle vertex buffer
-	m_bottomLevelAS.resize(SceneObject::Count);
+	//m_bottomLevelAS.resize(SceneObject::Count);
 	std::vector<AccelerationStructureBuffers> bottomLevelBuffers;
-	for (int i = 0; i < SceneObject::Count; ++i) {
-		bottomLevelBuffers.emplace_back(
-			CreateBottomLevelAS(
-				{ {m_vertexBuffer[i].Get(), m_vertexCount[i]} },// VertexBuffers vector
-				{ {m_indexBuffer[i].Get(), m_indexCount[i]} })// IndexBuffers vector
-		);
-		// Store the AS buffers. The rest of the buffers will be released once we exit
-		// the function
-		m_bottomLevelAS[i] = bottomLevelBuffers[i].pResult;
+	//for (int i = 0; i < SceneObject::Count; ++i) {
+	//	bottomLevelBuffers.emplace_back(
+	//		CreateBottomLevelAS(
+	//			{ {m_vertexBuffer[i].Get(), m_vertexCount[i]} },// VertexBuffers vector
+	//			{ {m_indexBuffer[i].Get(), m_indexCount[i]} })// IndexBuffers vector
+	//	);
+	//	// Store the AS buffers. The rest of the buffers will be released once we exit
+	//	// the function
+	//	m_bottomLevelAS[i] = bottomLevelBuffers[i].pResult;
+	//}
+
+	for (int i = 0; i < m_objects.size(); ++i) {
+		bottomLevelBuffers.emplace_back(CreateBottomLevelAS(
+				{ {m_objects[i].vertexBuffer.Get(), m_objects[i].vertexCount} },// VertexBuffers vector
+				{ {m_objects[i].indexBuffer.Get(), m_objects[i].indexCount} }// IndexBuffers vector
+		));
+		m_objects[i].bottomLevelAS = bottomLevelBuffers[i].pResult;
 	}
 
-	for (int i = 0; i < SceneObject::Count - 2; ++i) {
+	/*for (int i = 0; i < SceneObject::Count - 2; ++i) {
 		m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(bottomLevelBuffers[i].pResult, XMMatrixIdentity()));
 	}
 	m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(bottomLevelBuffers[SceneObject::car].pResult, XMMatrixRotationY(-XM_PIDIV2 - XM_PIDIV4) * XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(200.f, 165.f, 160.f)));
-	m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(bottomLevelBuffers[SceneObject::nanosuit].pResult, XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f)));
+	m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(bottomLevelBuffers[SceneObject::nanosuit].pResult, XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f)));*/
+	for (int i = 0; i < m_objects.size(); ++i) {
+		m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(m_objects[i].bottomLevelAS, XMMatrixIdentity()));
+	}
+	m_instances[m_idxOfObj["car"]].second = XMMatrixRotationY(-XM_PIDIV2 - XM_PIDIV4) * XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(200.f, 165.f, 160.f);
+	m_instances[m_idxOfObj["nanosuit"]].second = XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f);
+	//m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(m_objects[m_idxOfObj["car"]].bottomLevelAS, XMMatrixRotationY(-XM_PIDIV2 - XM_PIDIV4) * XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(200.f, 165.f, 160.f)));
+	//m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(m_objects[m_idxOfObj["nanosuit"]].bottomLevelAS, XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f)));
 	/*// Just one instance for now
 	m_instances = {
 		{bottomLevelBuffers.pResult, XMMatrixIdentity()},
@@ -1005,8 +1168,12 @@ void SceneEditor::CreateRaytracingPipeline()
 	// name.
 
 	// Hit group for the triangles, with a shader simply interpolating vertex colors
-	for (int i = 0; i < SceneObject::Count; ++i)
-		pipeline.AddHitGroup(ws_hitGroupNames[i], ws_closestHitShaderNames[0]);
+	/*for (int i = 0; i < SceneObject::Count; ++i)
+		pipeline.AddHitGroup(ws_hitGroupNames[i], ws_closestHitShaderNames[0]);*/
+	/*for (int i = 0; i < m_objects.size(); ++i)
+		pipeline.AddHitGroup(ws_hitGroupNames[i], ws_closestHitShaderNames[0]);*/
+	for (int i = 0; i < m_objects.size(); ++i)
+		pipeline.AddHitGroup(m_objects[i].ws_hitGroupName, ws_closestHitShaderNames[0]);
 
 	// The following section associates the root signature to each shader. Note
 	// that we can explicitly show that some shaders share the same root signature
@@ -1015,8 +1182,10 @@ void SceneEditor::CreateRaytracingPipeline()
 	// closest-hit shaders share the same root signature.
 	pipeline.AddRootSignatureAssociation(m_rayGenSignature.Get(), { ws_raygenShaderName });
 	pipeline.AddRootSignatureAssociation(m_missSignature.Get(), { ws_missShaderNames });
-	for (int i = 0; i < SceneObject::Count; ++i)
-		pipeline.AddRootSignatureAssociation(m_hitSignature.Get(), { ws_hitGroupNames[i] });
+	/*for (int i = 0; i < SceneObject::Count; ++i)
+		pipeline.AddRootSignatureAssociation(m_hitSignature.Get(), { ws_hitGroupNames[i] });*/
+	for (int i = 0; i < m_objects.size(); ++i)
+		pipeline.AddRootSignatureAssociation(m_hitSignature.Get(), { m_objects[i].ws_hitGroupName });
 
 
 	// The payload size defines the maximum size of the data carried by the rays,
@@ -1129,12 +1298,28 @@ void SceneEditor::CreateShaderResourceHeap() {
 	m_texSrvHeapStart.ptr =	srvHandle.ptr + m_device->GetDescriptorHandleIncrementSize(
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	// Add textures
-	for (int i = 0; i < SceneObject::Count; ++i) {
+	//for (int i = 0; i < SceneObject::Count; ++i) {
+	//	srvHandle.ptr += m_device->GetDescriptorHandleIncrementSize(
+	//		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	//	//auto texResource = bricksTex->Resource;
+	//	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	//	ComPtr<ID3D12Resource> texRes = m_textures[m_texOfObjs[i]].Resource;
+	//	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	//	srvDesc.Format = texRes->GetDesc().Format;
+	//	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	//	srvDesc.Texture2D.MostDetailedMip = 0;
+	//	srvDesc.Texture2D.MipLevels = texRes->GetDesc().MipLevels;
+	//	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+	//	srvDesc.Texture2D.PlaneSlice = 0;
+	//	// Write the texture view in the heap
+	//	m_device->CreateShaderResourceView(texRes.Get(), &srvDesc, srvHandle);
+	//}
+	for (int i = 0; i < m_objects.size(); ++i) {
 		srvHandle.ptr += m_device->GetDescriptorHandleIncrementSize(
 			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		//auto texResource = bricksTex->Resource;
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-		ComPtr<ID3D12Resource> texRes = m_textures[m_texOfObjs[i]].Resource;
+		ComPtr<ID3D12Resource> texRes = m_textures[m_objects[i].texOfObj].Resource;
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		srvDesc.Format = texRes->GetDesc().Format;
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -1183,7 +1368,7 @@ void SceneEditor::CreateShaderBindingTable() {
 	// Access vertexBuffer in hit shader
 	INT DescriptorHandleIncrementSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	srvUavHeapHandle.Offset(2, DescriptorHandleIncrementSize);
-	for (int i = 0; i < SceneObject::Count; ++i) {
+	/*for (int i = 0; i < SceneObject::Count; ++i) {
 		srvUavHeapHandle.Offset(1, DescriptorHandleIncrementSize);
 		m_sbtHelper.AddHitGroup(ws_hitGroupNames[i], {
 			(void*)(m_vertexBuffer[i]->GetGPUVirtualAddress()),
@@ -1193,6 +1378,19 @@ void SceneEditor::CreateShaderBindingTable() {
 			(void*)(m_vertexBuffer[SceneObject::light]->GetGPUVirtualAddress()),
 			(void*)(m_indexBuffer[SceneObject::light]->GetGPUVirtualAddress()),
 			(void*) srvUavHeapHandle.ptr,
+			});
+	}*/
+	for (int i = 0; i < m_objects.size(); ++i) {
+		srvUavHeapHandle.Offset(1, DescriptorHandleIncrementSize);
+		//m_sbtHelper.AddHitGroup(ws_hitGroupNames[i], {
+		m_sbtHelper.AddHitGroup(m_objects[i].ws_hitGroupName, {
+			(void*)(m_objects[i].vertexBuffer->GetGPUVirtualAddress()),
+			(void*)(m_objects[i].indexBuffer->GetGPUVirtualAddress()),
+			(void*)(m_topLevelASBuffers.pResult->GetGPUVirtualAddress()),
+			(void*)(m_objects[i].MaterialBuffer->GetGPUVirtualAddress()),
+			(void*)(m_objects[m_idxOfObj["light"]].vertexBuffer->GetGPUVirtualAddress()),
+			(void*)(m_objects[m_idxOfObj["light"]].indexBuffer->GetGPUVirtualAddress()),
+			(void*)srvUavHeapHandle.ptr,
 			});
 	}
 
@@ -1252,11 +1450,18 @@ void SceneEditor::CreateCameraBuffer()
 	m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
 }
 
+//void SceneEditor::UpadteMaterialParameter(int bufferIndex) {
+//	uint8_t* pData;
+//	ThrowIfFailed(m_MaterialBuffer[bufferIndex]->Map(0, nullptr, (void**)&pData));
+//	memcpy(pData, &(m_MaterialAttributes[bufferIndex]), sizeof(PrimitiveMaterialBuffer));
+//	m_MaterialBuffer[bufferIndex]->Unmap(0, nullptr);
+//}
+
 void SceneEditor::UpadteMaterialParameter(int bufferIndex) {
 	uint8_t* pData;
-	ThrowIfFailed(m_MaterialBuffer[bufferIndex]->Map(0, nullptr, (void**)&pData));
-	memcpy(pData, &(m_MaterialAttributes[bufferIndex]), sizeof(PrimitiveMaterialBuffer));
-	m_MaterialBuffer[bufferIndex]->Unmap(0, nullptr);
+	ThrowIfFailed(m_objects[bufferIndex].MaterialBuffer->Map(0, nullptr, (void**)&pData));
+	memcpy(pData, &(m_objects[bufferIndex].materialAttributes), sizeof(PrimitiveMaterialBuffer));
+	m_objects[bufferIndex].MaterialBuffer->Unmap(0, nullptr);
 }
 
 // #DXR Extra: Perspective Camera
@@ -1377,6 +1582,54 @@ void SceneEditor::OnKeyDown(UINT8 key)
 	}
 }
 
+//void SceneEditor::StartImgui()
+//{
+//	// Start the Dear ImGui frame
+//	ImGui_ImplDX12_NewFrame();
+//	ImGui_ImplWin32_NewFrame();
+//	ImGui::NewFrame();
+//
+//	ImGui::Begin("Parameters");
+//	ImGui::Combo("ObjectsName", &m_imguiManager.m_currentObjeectItem, m_ObjectName, SceneObject::Count);
+//
+//	auto valueAddress = &m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].smoothness;
+//	if (ImGui::SliderFloat("smoothness", valueAddress, 0.1f, 5.f))
+//		OnResetSpp();
+//	valueAddress = &m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].index_of_refraction;
+//	if (ImGui::SliderFloat("refraction", valueAddress, 0.f, 15.f))
+//		OnResetSpp();
+//
+//	ImGui::Text("Color:");
+//	auto hasDiffuseTextureTagAddress = reinterpret_cast<bool*>(&m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].useDiffuseTexture);
+//	if (ImGui::Checkbox("useDiffuseTexture", hasDiffuseTextureTagAddress))
+//		OnResetSpp();
+//	if (ImGui::ColorEdit4("", reinterpret_cast<float*>(&m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].Kd)))
+//		OnResetSpp();
+//	if (ImGui::SliderFloat("EmitIntensity", &m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].emitIntensity, 0.f, 10.f))
+//		OnResetSpp();
+//
+//	ImGui::Text("Material:");
+//	auto materialAddress = reinterpret_cast<int*>(&m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].type);
+//	if (ImGui::Combo("Mat", materialAddress, m_MaterialType, MaterialType::Count))
+//		OnResetSpp();
+//
+//	ImGui::Text("Texture:");
+//	if (ImGui::Combo("Tex", &m_texOfObjs[m_imguiManager.m_currentObjeectItem], m_imguiManager.m_texNamesChar, m_texNames.size()))
+//	{
+//		UpdateTexOfObj(m_imguiManager.m_currentObjeectItem);
+//		OnResetSpp();
+//	}
+//
+//
+//	m_imguiManager.isHovered = ImGui::IsWindowHovered() | ImGui::IsAnyItemHovered() | ImGui::IsAnyItemActive();
+//
+//	ImGui::End();
+//	// set a srvheap for imgui to seperate it from raytracing
+//	m_commandList->SetDescriptorHeaps(1, m_imguiManager.GetSrvHeap4Imgui().GetAddressOf());
+//	ImGui::Render();
+//	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList.Get());
+//}
+
 void SceneEditor::StartImgui()
 {
 	// Start the Dear ImGui frame
@@ -1385,33 +1638,35 @@ void SceneEditor::StartImgui()
 	ImGui::NewFrame();
 
 	ImGui::Begin("Parameters");
-	ImGui::Combo("ObjectsName", &m_imguiManager.m_currentObjeectItem, m_ObjectName, SceneObject::Count);
-
-	auto valueAddress = &m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].smoothness;
+	if (ImGui::Combo("ObjectsName", &m_imguiManager.m_selectObjIdx, m_imguiManager.m_objectsName, m_objects.size())) {
+		m_imguiManager.m_selObjName = m_imguiManager.m_objectsName[m_imguiManager.m_selectObjIdx];
+	}
+	
+	auto valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.smoothness;
 	if (ImGui::SliderFloat("smoothness", valueAddress, 0.1f, 5.f))
 		OnResetSpp();
-	valueAddress = &m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].index_of_refraction;
+	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.index_of_refraction;
 	if (ImGui::SliderFloat("refraction", valueAddress, 0.f, 15.f))
 		OnResetSpp();
 
 	ImGui::Text("Color:");
-	auto hasDiffuseTextureTagAddress = reinterpret_cast<bool*>(&m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].useDiffuseTexture);
+	auto hasDiffuseTextureTagAddress = reinterpret_cast<bool*>(&m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.useDiffuseTexture);
 	if (ImGui::Checkbox("useDiffuseTexture", hasDiffuseTextureTagAddress))
 		OnResetSpp();
-	if (ImGui::ColorEdit4("", reinterpret_cast<float*>(&m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].Kd)))
+	if (ImGui::ColorEdit4("", reinterpret_cast<float*>(&m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.Kd)))
 		OnResetSpp();
-	if (ImGui::SliderFloat("EmitIntensity", &m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].emitIntensity, 0.f, 10.f))
+	if (ImGui::SliderFloat("EmitIntensity", &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.emitIntensity, 0.f, 10.f))
 		OnResetSpp();
 
 	ImGui::Text("Material:");
-	auto materialAddress = reinterpret_cast<int*>(&m_MaterialAttributes[m_imguiManager.m_currentObjeectItem].type);
+	auto materialAddress = reinterpret_cast<int*>(&m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.type);
 	if (ImGui::Combo("Mat", materialAddress, m_MaterialType, MaterialType::Count))
 		OnResetSpp();
 
 	ImGui::Text("Texture:");
-	if (ImGui::Combo("Tex", &m_texOfObjs[m_imguiManager.m_currentObjeectItem], m_imguiManager.m_texNamesChar, m_texNames.size()))
+	if (ImGui::Combo("Tex", &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].texOfObj, m_imguiManager.m_texNamesChar, m_texNames.size()))
 	{
-		UpdateTexOfObj(m_imguiManager.m_currentObjeectItem);
+		UpdateTexOfObj(m_idxOfObj[m_imguiManager.m_selObjName]);
 		OnResetSpp();
 	}
 
@@ -1425,13 +1680,32 @@ void SceneEditor::StartImgui()
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList.Get());
 }
 
+//void SceneEditor::UpdateTexOfObj(int objIdx) {
+//	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle;
+//	srvHandle.ptr = m_texSrvHeapStart.ptr + objIdx * m_device->GetDescriptorHandleIncrementSize(
+//		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+//
+//	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+//	ComPtr<ID3D12Resource> texRes = m_textures[m_texOfObjs[objIdx]].Resource;
+//	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+//	srvDesc.Format = texRes->GetDesc().Format;
+//	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+//	srvDesc.Texture2D.MostDetailedMip = 0;
+//	srvDesc.Texture2D.MipLevels = texRes->GetDesc().MipLevels;
+//	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+//	srvDesc.Texture2D.PlaneSlice = 0;
+//
+//	m_device->CreateShaderResourceView(texRes.Get(), &srvDesc, srvHandle);
+//
+//}
+
 void SceneEditor::UpdateTexOfObj(int objIdx) {
 	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle;
 	srvHandle.ptr = m_texSrvHeapStart.ptr + objIdx * m_device->GetDescriptorHandleIncrementSize(
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-	ComPtr<ID3D12Resource> texRes = m_textures[m_texOfObjs[objIdx]].Resource;
+	ComPtr<ID3D12Resource> texRes = m_textures[m_objects[objIdx].texOfObj].Resource;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.Format = texRes->GetDesc().Format;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;

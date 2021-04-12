@@ -10,6 +10,7 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include "Model.h"
+#include <io.h>
 using namespace DirectX;
 typedef UINT32 Index;
 
@@ -409,17 +410,17 @@ Mesh processMesh(aiMesh* mesh, const aiScene* scene)
 			vertex.normal.x = mesh->mNormals[i].x;
 			vertex.normal.y = mesh->mNormals[i].y;
 			vertex.normal.z = mesh->mNormals[i].z;
-			//// 纹理坐标
-			//if (mesh->mTextureCoords[0]) // 网格是否包含纹理坐标？
-			//{
-			//	XMFLOAT2 vec;
-			//	// 顶点最多可包含8个不同的纹理坐标。 因此，我们假设我们不会使用顶点可以具有多个纹理坐标的模型，因此我们总是采用第一个集合（0）。
-			//	vec.x = mesh->mTextureCoords[0][i].x;
-			//	vec.y = mesh->mTextureCoords[0][i].y;
-			//	vertex.TexCoords = vec;
-			//}
-			//else
-			//	vertex.TexCoords = XMFLOAT2(0.0f, 0.0f);
+			// 纹理坐标
+			if (mesh->mTextureCoords[0]) // 网格是否包含纹理坐标？
+			{
+				XMFLOAT2 vec;
+				// 顶点最多可包含8个不同的纹理坐标。 因此，我们假设我们不会使用顶点可以具有多个纹理坐标的模型，因此我们总是采用第一个集合（0）。
+				vec.x = mesh->mTextureCoords[0][i].x;
+				vec.y = mesh->mTextureCoords[0][i].y;
+				vertex.TexCoords = vec;
+			}
+			else
+				vertex.TexCoords = XMFLOAT2(0.0f, 0.0f);
 			//// u向量
 			//XMFLOAT3 vector;
 			//vector.x = mesh->mTangents[i].x;
@@ -452,6 +453,19 @@ Mesh processMesh(aiMesh* mesh, const aiScene* scene)
 			vertex.position.y = mesh->mVertices[i].y;
 			vertex.position.z = mesh->mVertices[i].z;
 			vertex.normal = XMFLOAT3(0.f, 0.f, 0.f);
+			
+			// 纹理坐标
+			if (mesh->mTextureCoords[0]) // 网格是否包含纹理坐标？
+			{
+				XMFLOAT2 vec;
+				// 顶点最多可包含8个不同的纹理坐标。 因此，我们假设我们不会使用顶点可以具有多个纹理坐标的模型，因此我们总是采用第一个集合（0）。
+				vec.x = mesh->mTextureCoords[0][i].x;
+				vec.y = mesh->mTextureCoords[0][i].y;
+				vertex.TexCoords = vec;
+			}
+			else
+				vertex.TexCoords = XMFLOAT2(0.0f, 0.0f);
+
 			vertices.push_back(vertex);
 		}
 		//遍历每个网格面（一个面是一个三角形的网格）并检索相应的顶点索引。
@@ -543,3 +557,61 @@ bool LoadModelFile(std::string Path, Model &model) {
 }
 
 
+/************************************************************************/
+/*  获取文件夹下所有文件名
+	输入：
+		path    :   文件夹路径
+		exd     :   所要获取的文件名后缀，如jpg、png等；如果希望获取所有
+					文件名, exd = ""
+	输出：
+		files   :   获取的文件名列表
+	HolaMirai 2016/11/24 添加保存文件名到.txt文件中
+	shao, 20140707
+*/
+/************************************************************************/
+void getFiles(std::string path, std::string exd, std::vector<std::string>& files)
+{
+	//文件句柄
+	intptr_t   hFile = 0;
+	//文件信息
+	struct _finddata_t fileinfo;
+	std::string pathName, exdName;
+
+	if (0 != strcmp(exd.c_str(), ""))
+	{
+		exdName = "\\*." + exd;
+	}
+	else
+	{
+		exdName = "\\*";
+	}
+
+	if ((hFile = _findfirst(pathName.assign(path).append(exdName).c_str(), &fileinfo)) != -1)
+	{
+		do
+		{
+			//如果是文件夹中仍有文件夹,迭代之
+			//如果不是,加入列表
+			// 不推荐使用，硬要使用的话，需要修改else 里面的语句
+			/*if((fileinfo.attrib &  _A_SUBDIR))
+			{
+				if(strcmp(fileinfo.name,".") != 0  &&  strcmp(fileinfo.name,"..") != 0)
+					getFiles( pathName.assign(path).append("\\").append(fileinfo.name), exd, files );
+			}
+			else */
+			{
+				if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0) {
+					char* tmp = fileinfo.name;
+					//char* strc = new char[strlen(tmp.c_str()) + 1];
+					//strcpy(strc, tmp.c_str());
+					char* buf;
+					char* tmpStr = strtok_s(tmp, ".", &buf);
+					files.push_back(tmpStr); // 只要得到文件名字使用该语句
+					//files.push_back(fileinfo.name); // 只要得到文件名字使用该语句
+				}
+
+			}
+		} while (_findnext(hFile, &fileinfo) == 0);
+		_findclose(hFile);
+	}
+}

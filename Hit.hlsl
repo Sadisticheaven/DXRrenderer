@@ -306,7 +306,9 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 
 	float3 Kd = MaterialAttributes.Kd;
 	float emitIntensity2 = MaterialAttributes.emitIntensity * MaterialAttributes.emitIntensity;
-	float2 uv = barycentrics.yz;
+	float2 uv = barycentrics.x * Vertices[Indices[vertId + 0]].TexCoords +
+		barycentrics.y * Vertices[Indices[vertId + 1]].TexCoords +
+		barycentrics.z * Vertices[Indices[vertId + 2]].TexCoords;
 	if (MaterialAttributes.useDiffuseTexture) {
 		Kd = bricksTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz;
 	}

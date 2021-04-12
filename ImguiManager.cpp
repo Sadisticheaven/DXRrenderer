@@ -31,7 +31,7 @@ void ImguiManager::InitImGui4RayTracing(HWND hwnd)
 		pSrvHeap4Imgui->GetGPUDescriptorHandleForHeapStart());
 }
 
-void ImguiManager::ConvertString2Char(const std::vector<std::string> &src)
+void ImguiManager::ConvertString2Char(char** &dest, const std::vector<std::string> &src)
 {
 	// For gui
 	std::vector<char*> tmp;
@@ -40,7 +40,7 @@ void ImguiManager::ConvertString2Char(const std::vector<std::string> &src)
 		char* pc = new char[s.size() + 1];
 		strcpy_s(pc, s.size() + 1, s.c_str());
 		return pc;
-	});
-	m_texNamesChar = new (char* [tmp.size()])();
-	std::copy(tmp.begin(), tmp.end(), m_texNamesChar);
+		});
+	dest = new (char* [tmp.size()])();
+	std::copy(tmp.begin(), tmp.end(), dest);
 }

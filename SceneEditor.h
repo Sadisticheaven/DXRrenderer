@@ -104,6 +104,23 @@ private:
 	UINT m_rtvDescriptorSize;
 
 	// App resources.
+	struct ObjResource {
+		ComPtr<ID3D12Resource> vertexBuffer;
+		int vertexCount;
+		ComPtr<ID3D12Resource> indexBuffer;
+		int indexCount;
+		PrimitiveMaterialBuffer materialAttributes;
+		ComPtr<ID3D12Resource> MaterialBuffer;
+		int texOfObj;
+		std::string str_objName;
+		std::wstring ws_hitGroupName;
+		ComPtr<ID3D12Resource> bottomLevelAS;
+		
+	};
+	std::vector<ObjResource> m_objects;
+	std::unordered_map<std::string, int> m_idxOfObj;
+
+
 	ComPtr<ID3D12Resource> m_vertexBuffer[SceneObject::Count];
 	int m_vertexCount[SceneObject::Count];
 
@@ -113,7 +130,7 @@ private:
 	PrimitiveMaterialBuffer m_MaterialAttributes[SceneObject::Count];
 	ComPtr<ID3D12Resource> m_MaterialBuffer[SceneObject::Count];
 	int m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
-	void CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, /*XMFLOAT4 emit = { 0.0f,0.0f,0.0f,0.0f }*/float emitIntensity = 0.f,
+	void CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, float emitIntensity = 0.f,
 		float smoothness = 0.0f, float index_of_refraction = 1.0f, UINT hasDiffuseTexture = false);
 	void CreateMaterialBufferAndSetAttributes(PrimitiveMaterialBuffer& desc, int bufferIndex = 0);
 
@@ -133,8 +150,9 @@ private:
 	void PopulateCommandList();
 	void PopulateRaytracingCmdList();
 	void WaitForPreviousFrame();
-	void SceneEditor::AllocateUploadGeometryBuffer(std::vector<Vertex> vertices, std::vector<Index> indices, int bufferIndex);
-	void SceneEditor::AllocateUploadGeometryBuffer(Model& model, int bufferIndex);
+	void AllocateUploadGeometryBuffer(std::vector<Vertex> vertices, std::vector<Index> indices, int bufferIndex);
+	void AllocateUploadGeometryBuffer(Model& model, int bufferIndex);
+	void AllocateUploadGeometryBuffer(Model& model, std::string objname);
 	void CheckRaytracingSupport();
 
 	// #DXR-AccelerationStructure
@@ -224,7 +242,8 @@ private:
 	// Texture 
 	std::vector<Texture> m_textures;
 	std::vector<std::string> m_texNames;
-	int m_texOfObjs[SceneObject::Count]; //store texture index of m_texture for each obj
+	int m_texOfObjs[SceneObject::Count]; //store texture's index in m_texture for each obj
 	D3D12_CPU_DESCRIPTOR_HANDLE m_texSrvHeapStart; // store start point of textures srv 
 	void UpdateTexOfObj(int objIdx);
+	
 };

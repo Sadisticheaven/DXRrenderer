@@ -13,10 +13,15 @@ public:
 	void CreateSRVHeap4Imgui();
 	void InitImGui4RayTracing(HWND hwnd);
 	ComPtr<ID3D12DescriptorHeap> GetSrvHeap4Imgui() { return m_srvHeap4Imgui; }
-	int m_currentObjeectItem = 0;
+	//int m_currentObjeectItem = 0;
+	
 	bool isHovered = 0;
 	char** m_texNamesChar; // display Tex Names need char*[]
-	void ConvertString2Char(const std::vector<std::string>& src);// convert vector<string> to char*[]
+	void ConvertString2Char(char** &dest, const std::vector<std::string>& src);// convert vector<string> to char*[]
+
+	char** m_objectsName;
+	int m_selectObjIdx = 0;
+	std::string m_selObjName;
 private:
 	ComPtr<ID3D12Device5> m_device;	
 	ComPtr<ID3D12DescriptorHeap> m_srvHeap4Imgui;
