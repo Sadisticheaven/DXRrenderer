@@ -19,6 +19,7 @@ typedef struct Mesh
 {
 	std::vector<Vertex> vertices;
 	std::vector<Index> indices;
+	XMFLOAT3 center;
 };
 
 typedef struct Model

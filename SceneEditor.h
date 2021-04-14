@@ -85,7 +85,8 @@ private:
 		std::string str_objName;
 		std::wstring ws_hitGroupName;
 		ComPtr<ID3D12Resource> bottomLevelAS;
-
+		XMMATRIX originTransform;
+		XMFLOAT3 center;
 	};
 	std::vector<ObjResource> m_objects;
 	std::unordered_map<std::string, int> m_idxOfObj;
@@ -147,7 +148,7 @@ private:
 
 	//***************************************************--------->
 
-	// #DXR--RootSignature¡¢Pipeline
+	// #DXR--RootSignature??Pipeline
 	//<----------***************************************************
 	ComPtr<ID3D12RootSignature> CreateRayGenSignature();
 	ComPtr<ID3D12RootSignature> CreateMissSignature();
@@ -170,7 +171,7 @@ private:
 	ComPtr<ID3D12StateObjectProperties> m_rtStateObjectProps;
 	//***************************************************--------->
 
-	// #DXR--output¡¢Shader resource
+	// #DXR--output??Shader resource
 	//<----------***************************************************
 	void CreateRaytracingOutputBuffer();
 	void CreateShaderResourceHeap();
@@ -202,5 +203,6 @@ private:
 	std::vector<std::string> m_texNames;
 	D3D12_CPU_DESCRIPTOR_HANDLE m_texSrvHeapStart; // store start point of textures srv 
 	void UpdateTexOfObj(int objIdx);
-
+	
+	void UpdateInstances();
 };
