@@ -261,7 +261,7 @@ void SceneEditor::CreateMaterialBufferAndSetAttributes(PrimitiveMaterialBuffer& 
 	m_objects[objIndex].MaterialBuffer->Unmap(0, nullptr);
 }
 
-void SceneEditor::CreateMaterialBufferAndSetAttributes(int objIndex, MaterialType::Type type, XMFLOAT4 Kd, float emitIntensity, float smoothness, float index_of_refraction,float  reflectivity,UINT hasDiffuseTexture) {
+void SceneEditor::CreateMaterialBufferAndSetAttributes(int objIndex, MaterialType::Type type, XMFLOAT4 Kd, float emitIntensity, float smoothness, float index_of_refraction, float  reflectivity, UINT hasDiffuseTexture) {
 	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
 	m_objects[objIndex].MaterialBuffer = nv_helpers_dx12::CreateBuffer(
 		m_device.Get(), m_MaterialBufferSize, D3D12_RESOURCE_FLAG_NONE,
@@ -274,6 +274,16 @@ void SceneEditor::CreateMaterialBufferAndSetAttributes(int objIndex, MaterialTyp
 	m_objects[objIndex].materialAttributes.smoothness = smoothness;
 	m_objects[objIndex].materialAttributes.useDiffuseTexture = hasDiffuseTexture;
 	m_objects[objIndex].materialAttributes.reflectivity = reflectivity;
+	m_objects[objIndex].materialAttributes.metallic = 0.1;
+	m_objects[objIndex].materialAttributes.subsurface = 0.1;
+	m_objects[objIndex].materialAttributes.specular = 0.1;
+	m_objects[objIndex].materialAttributes.roughness = 0.1;
+	m_objects[objIndex].materialAttributes.specularTint = 0.1;
+	m_objects[objIndex].materialAttributes.anisotropic = 0.1;
+	m_objects[objIndex].materialAttributes.sheen = 0.1;
+	m_objects[objIndex].materialAttributes.sheenTint = 0.1;
+	m_objects[objIndex].materialAttributes.clearcoat = 0.1;
+	m_objects[objIndex].materialAttributes.clearcoatGloss = 0.1;
 	uint8_t* pData;
 	ThrowIfFailed(m_objects[objIndex].MaterialBuffer->Map(0, nullptr, (void**)&pData));
 	memcpy(pData, &(m_objects[objIndex].materialAttributes), sizeof(PrimitiveMaterialBuffer));
@@ -291,7 +301,7 @@ void SceneEditor::LoadAssets()
 	// Create the command list.
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
 	m_commandList->SetComputeRootSignature(m_rootSignature.Get());
-	
+
 	// Create the vertex and index buffer.
 	{
 		// Define the geometry for a triangle.
@@ -335,7 +345,7 @@ void SceneEditor::LoadAssets()
 			tex.Name = fileNames[i];
 			std::string tmp = path + fileNames[i] + "." + ext;
 			std::wstring fullPath(tmp.begin(), tmp.end());
-			tex.Filename =  fullPath;
+			tex.Filename = fullPath;
 			ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(
 				m_device.Get(),
 				m_commandList.Get(),
@@ -346,7 +356,7 @@ void SceneEditor::LoadAssets()
 			m_texNames.push_back(tex.Name);
 		}
 
-		m_imguiManager.ConvertString2Char(m_imguiManager.m_texNamesChar, m_texNames);	
+		m_imguiManager.ConvertString2Char(m_imguiManager.m_texNamesChar, m_texNames);
 	}
 
 	// assign tex and hitgroup Name
@@ -373,7 +383,7 @@ void SceneEditor::LoadAssets()
 		XMFLOAT4 le1 = Float4Multi(8.0f, XMFLOAT4(0.747f + 0.058f, 0.747f + 0.258f, 0.747f, 0.0f));
 		XMFLOAT4 le2 = Float4Multi(15.6f, XMFLOAT4(0.740f + 0.287f, 0.740f + 0.160f, 0.740f, 0.0f));
 		XMFLOAT4 le3 = Float4Multi(18.4f, XMFLOAT4(0.737f + 0.642f, 0.737f + 0.159f, 0.737f, 0.0f));
-		float light_emit = 10.f;
+		float light_emit = 15.f;
 		XMFLOAT4 default_Ks(0.14f, 0.14f, 0.14f, 0.0f);
 		CreateMaterialBufferAndSetAttributes(m_idxOfObj["floor"], MaterialType::Lambert, white, not_emit);
 		CreateMaterialBufferAndSetAttributes(m_idxOfObj["shortbox"], MaterialType::Glass, test, not_emit, 2.0f, 1.2f);
@@ -823,8 +833,8 @@ void SceneEditor::CreateAccelerationStructures() {
 
 	for (int i = 0; i < m_objects.size(); ++i) {
 		bottomLevelBuffers.emplace_back(CreateBottomLevelAS(
-				{ {m_objects[i].vertexBuffer.Get(), m_objects[i].vertexCount} },// VertexBuffers vector
-				{ {m_objects[i].indexBuffer.Get(), m_objects[i].indexCount} }// IndexBuffers vector
+			{ {m_objects[i].vertexBuffer.Get(), m_objects[i].vertexCount} },// VertexBuffers vector
+			{ {m_objects[i].indexBuffer.Get(), m_objects[i].indexCount} }// IndexBuffers vector
 		));
 		m_objects[i].bottomLevelAS = bottomLevelBuffers[i].pResult;
 	}
@@ -834,7 +844,7 @@ void SceneEditor::CreateAccelerationStructures() {
 	}
 	m_instances[m_idxOfObj["car"]].second = XMMatrixRotationY(-XM_PIDIV2 - XM_PIDIV4) * XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(200.f, 165.f, 160.f);
 	m_instances[m_idxOfObj["nanosuit"]].second = XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f);
-	
+
 	CreateTopLevelAS(m_instances);
 
 	// Flush the command list and wait for it to finish
@@ -1073,7 +1083,7 @@ void SceneEditor::CreateShaderResourceHeap() {
 		m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
 	}
 
-	m_texSrvHeapStart.ptr =	srvHandle.ptr + m_device->GetDescriptorHandleIncrementSize(
+	m_texSrvHeapStart.ptr = srvHandle.ptr + m_device->GetDescriptorHandleIncrementSize(
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	// Add textures
 	for (int i = 0; i < m_objects.size(); ++i) {
@@ -1334,7 +1344,7 @@ void SceneEditor::StartImgui()
 	if (ImGui::Combo("ObjectsName", &m_imguiManager.m_selectObjIdx, m_imguiManager.m_objectsName, m_objects.size())) {
 		m_imguiManager.m_selObjName = m_imguiManager.m_objectsName[m_imguiManager.m_selectObjIdx];
 	}
-	
+
 	auto valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.smoothness;
 	if (ImGui::SliderFloat("smoothness", valueAddress, 0.1f, 5.f))
 		OnResetSpp();
@@ -1352,7 +1362,7 @@ void SceneEditor::StartImgui()
 		OnResetSpp();
 	if (ImGui::ColorEdit4("", reinterpret_cast<float*>(&m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.Kd)))
 		OnResetSpp();
-	if (ImGui::SliderFloat("EmitIntensity", &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.emitIntensity, 0.f, 10.f))
+	if (ImGui::SliderFloat("EmitIntensity", &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.emitIntensity, 0.f, 30.f))
 		OnResetSpp();
 
 	ImGui::Text("Material:");
@@ -1366,6 +1376,37 @@ void SceneEditor::StartImgui()
 		UpdateTexOfObj(m_idxOfObj[m_imguiManager.m_selObjName]);
 		OnResetSpp();
 	}
+	ImGui::Text("The following parameters are used for Disney_BRDF:");
+	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.subsurface;
+	if (ImGui::SliderFloat("subsurface", valueAddress, 0.f, 1.f))
+		OnResetSpp();
+	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.metallic;
+	if (ImGui::SliderFloat("metallic", valueAddress, 0.f, 1.f))
+		OnResetSpp();
+	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.specular;
+	if (ImGui::SliderFloat("specular", valueAddress, 0.f, 1.f))
+		OnResetSpp();
+	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.roughness;
+	if (ImGui::SliderFloat("roughness", valueAddress, 0.f, 1.f))
+		OnResetSpp();
+	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.specularTint;
+	if (ImGui::SliderFloat("specularTint", valueAddress, 0.f, 1.f))
+		OnResetSpp();
+	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.anisotropic;
+	if (ImGui::SliderFloat("anisotropic", valueAddress, 0.f, 1.f))
+		OnResetSpp();
+	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.sheen;
+	if (ImGui::SliderFloat("sheen", valueAddress, 0.f, 1.f))
+		OnResetSpp();
+	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.sheenTint;
+	if (ImGui::SliderFloat("sheenTint", valueAddress, 0.f, 1.f))
+		OnResetSpp();
+	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.clearcoat;
+	if (ImGui::SliderFloat("clearcoat", valueAddress, 0.f, 1.f))
+		OnResetSpp();
+	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.clearcoatGloss;
+	if (ImGui::SliderFloat("clearcoatGloss", valueAddress, 0.f, 1.f))
+		OnResetSpp();
 
 
 	m_imguiManager.isHovered = ImGui::IsWindowHovered() | ImGui::IsAnyItemHovered() | ImGui::IsAnyItemActive();

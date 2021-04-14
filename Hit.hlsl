@@ -235,6 +235,30 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 		}
 		return wo;
 	}
+	case MaterialType::Disney_BRDF:
+	{
+		//common
+		seed = createRandomFloat4(seed);
+		float4 random_float = seed;
+		float x_1 = random_float.x, x_2 = random_float.z;
+		float z = x_1;
+		float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
+		float3 localRay = float3(r * cos(phi), r * sin(phi), z);
+		//end_common
+
+		float metallic = MaterialAttributes.metallic;
+		float3 wo = toWorld(localRay, N);
+		if (seed.w < metallic) {
+			float3 reflect_dir = reflect(wi, N);
+			wo = reflect_dir;
+			eval = Kd;
+		}
+		else {
+			eval = Disney_BRDF(wo, -wi, N, Kd, MaterialAttributes);
+		}
+		return wo;
+
+	}
 	default: return float3(0.0, 0.0, 0.0);
 	}
 	return float3(0.0, 0.0, 0.0);
@@ -317,7 +341,7 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	}
 
 	float3 L_indir = get_light_indir(worldRayDirection, normal, hitWorldPosition, uv, payload.recursionDepth, random_seed);
-	float3 L_dir = get_light_dir(worldRayDirection, hitWorldPosition, normal, uv, random_seed, payload.recursionDepth);
+	//float3 L_dir = get_light_dir(worldRayDirection, hitWorldPosition, normal, uv, random_seed, payload.recursionDepth);
 
-	payload.radiance = Kd * emitIntensity2 * emit_rate + L_indir + L_dir;
+	payload.radiance = Kd * emitIntensity2 * emit_rate + L_indir;
 }

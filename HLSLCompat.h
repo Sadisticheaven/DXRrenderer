@@ -38,7 +38,8 @@ typedef UINT32 Index;
         Type(Mirror)  \
         Type(Glass)   \
         Type(Plastic)  \
-        Type(Count)  \
+        Type(Disney_BRDF)  \
+		Type(Count)  \
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -97,6 +98,18 @@ struct PrimitiveMaterialBuffer
 	float index_of_refraction;
 	float smoothness;
 	float reflectivity;
+	//disney_brdf
+	float metallic;
+	float subsurface;
+	float specular;
+	float roughness;
+	float specularTint;
+	float anisotropic;
+	float sheen;
+	float sheenTint;
+	float clearcoat;
+	float clearcoatGloss;
+	//disney_brdf
 	BOOL useDiffuseTexture;
 	//BOOL hasDiffuseTexture;
 	//BOOL hasNormalTexture;
