@@ -261,7 +261,7 @@ void SceneEditor::CreateMaterialBufferAndSetAttributes(PrimitiveMaterialBuffer& 
 	m_objects[objIndex].MaterialBuffer->Unmap(0, nullptr);
 }
 
-void SceneEditor::CreateMaterialBufferAndSetAttributes(int objIndex, MaterialType::Type type, XMFLOAT4 Kd, float emitIntensity, float smoothness, float index_of_refraction, UINT hasDiffuseTexture) {
+void SceneEditor::CreateMaterialBufferAndSetAttributes(int objIndex, MaterialType::Type type, XMFLOAT4 Kd, float emitIntensity, float smoothness, float index_of_refraction,float  reflectivity,UINT hasDiffuseTexture) {
 	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
 	m_objects[objIndex].MaterialBuffer = nv_helpers_dx12::CreateBuffer(
 		m_device.Get(), m_MaterialBufferSize, D3D12_RESOURCE_FLAG_NONE,
@@ -273,6 +273,7 @@ void SceneEditor::CreateMaterialBufferAndSetAttributes(int objIndex, MaterialTyp
 	m_objects[objIndex].materialAttributes.type = type;
 	m_objects[objIndex].materialAttributes.smoothness = smoothness;
 	m_objects[objIndex].materialAttributes.useDiffuseTexture = hasDiffuseTexture;
+	m_objects[objIndex].materialAttributes.reflectivity = reflectivity;
 	uint8_t* pData;
 	ThrowIfFailed(m_objects[objIndex].MaterialBuffer->Map(0, nullptr, (void**)&pData));
 	memcpy(pData, &(m_objects[objIndex].materialAttributes), sizeof(PrimitiveMaterialBuffer));
@@ -1339,6 +1340,10 @@ void SceneEditor::StartImgui()
 		OnResetSpp();
 	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.index_of_refraction;
 	if (ImGui::SliderFloat("refraction", valueAddress, 0.f, 15.f))
+		OnResetSpp();
+
+	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.reflectivity;
+	if (ImGui::SliderFloat("reflectivity", valueAddress, 0.f, 1.f))
 		OnResetSpp();
 
 	ImGui::Text("Color:");

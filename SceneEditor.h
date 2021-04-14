@@ -85,14 +85,14 @@ private:
 		std::string str_objName;
 		std::wstring ws_hitGroupName;
 		ComPtr<ID3D12Resource> bottomLevelAS;
-		
+
 	};
 	std::vector<ObjResource> m_objects;
 	std::unordered_map<std::string, int> m_idxOfObj;
 
 	int m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
 	void CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, float emitIntensity = 0.f,
-		float smoothness = 0.0f, float index_of_refraction = 1.0f, UINT hasDiffuseTexture = false);
+		float smoothness = 0.0f, float index_of_refraction = 1.0f, float  reflectivity = 0.3f, UINT hasDiffuseTexture = false);
 	void CreateMaterialBufferAndSetAttributes(PrimitiveMaterialBuffer& desc, int bufferIndex = 0);
 
 
@@ -202,5 +202,5 @@ private:
 	std::vector<std::string> m_texNames;
 	D3D12_CPU_DESCRIPTOR_HANDLE m_texSrvHeapStart; // store start point of textures srv 
 	void UpdateTexOfObj(int objIdx);
-	
+
 };
