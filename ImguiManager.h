@@ -21,6 +21,11 @@ public:
 	char** m_objectsName;
 	int m_selectObjIdx = 0;
 	std::string m_selObjName;
+
+	float m_translation[3] = { 0.f , 0.f, 0.f};
+	float m_rotation[3] = { 0.f , 0.f, 0.f};
+	float m_scale[3] = { 1.f , 1.f, 1.f};
+
 private:
 	ComPtr<ID3D12Device5> m_device;	
 	ComPtr<ID3D12DescriptorHeap> m_srvHeap4Imgui;

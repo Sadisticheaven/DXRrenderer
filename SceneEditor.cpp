@@ -348,17 +348,27 @@ void SceneEditor::LoadAssets()
 		m_imguiManager.ConvertString2Char(m_imguiManager.m_texNamesChar, m_texNames);	
 	}
 
-	// assign tex and hitgroup Name
+	// assign tex ¡¢ hitgroup Name¡¢ Material
 	{
 		for (int i = 0; i < m_objects.size(); ++i) {
 			m_objects[i].texOfObj = 0;
 			std::string str_objName = "Hit_" + m_objects[i].str_objName;
 			std::wstring ws_objName(str_objName.begin(), str_objName.end());
 			m_objects[i].ws_hitGroupName = ws_objName;
+			CreateMaterialBufferAndSetAttributes(i, MaterialType::Lambert, XMFLOAT4(0.725f, 0.71f, 0.68f, 0.0f));
 		}
 	}
 
-	// assign Material
+	// set origin transform
+	{
+		for (int i = 0; i < m_objects.size(); ++i) {
+			m_objects[i].originTransform = XMMatrixIdentity();
+		}
+		m_objects[m_idxOfObj["car"]].originTransform = XMMatrixRotationY(-XM_PIDIV2 - XM_PIDIV4) * XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(200.f, 165.f, 160.f);
+		m_objects[m_idxOfObj["nanosuit"]].originTransform = XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f);		
+	}
+
+	//  Modify  material of obj specified
 	{
 		auto Float4Multi = [&](const float& f, const XMFLOAT4 vec3) {
 			return XMFLOAT4(f * vec3.x, f * vec3.y, f * vec3.z, 0.0f);
@@ -374,15 +384,38 @@ void SceneEditor::LoadAssets()
 		XMFLOAT4 le3 = Float4Multi(18.4f, XMFLOAT4(0.737f + 0.642f, 0.737f + 0.159f, 0.737f, 0.0f));
 		float light_emit = 10.f;
 		XMFLOAT4 default_Ks(0.14f, 0.14f, 0.14f, 0.0f);
-		CreateMaterialBufferAndSetAttributes(m_idxOfObj["floor"], MaterialType::Lambert, white, not_emit);
-		CreateMaterialBufferAndSetAttributes(m_idxOfObj["shortbox"], MaterialType::Glass, test, not_emit, 2.0f, 1.2f);
-		CreateMaterialBufferAndSetAttributes(m_idxOfObj["tallbox"], MaterialType::Mirror, white, not_emit, 2.0);
-		CreateMaterialBufferAndSetAttributes(m_idxOfObj["left"], MaterialType::Lambert, red, not_emit);
-		CreateMaterialBufferAndSetAttributes(m_idxOfObj["right"], MaterialType::Lambert, green, not_emit);
-		CreateMaterialBufferAndSetAttributes(m_idxOfObj["light"], MaterialType::Lambert, light_kd, light_emit);
-		CreateMaterialBufferAndSetAttributes(m_idxOfObj["car"], MaterialType::Glass, test, not_emit, 2.0f, 5.f);
-		CreateMaterialBufferAndSetAttributes(m_idxOfObj["nanosuit"], MaterialType::Glass, test, not_emit, 2.0f, 5.f);
+		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["floor"], MaterialType::Lambert, white, not_emit);
+		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["shortbox"], MaterialType::Glass, test, not_emit, 2.0f, 1.2f);
+		m_objects[m_idxOfObj["shortbox"]].materialAttributes.type = MaterialType::Glass;
+		m_objects[m_idxOfObj["shortbox"]].materialAttributes.Kd = test;
+		m_objects[m_idxOfObj["shortbox"]].materialAttributes.smoothness = 2.0f;
+		m_objects[m_idxOfObj["shortbox"]].materialAttributes.index_of_refraction = 1.2f;
+		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["tallbox"], MaterialType::Mirror, white, not_emit, 2.0);
+		m_objects[m_idxOfObj["tallbox"]].materialAttributes.type = MaterialType::Mirror;
+		m_objects[m_idxOfObj["tallbox"]].materialAttributes.smoothness = 2.0f;
+		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["left"], MaterialType::Lambert, red, not_emit);
+		m_objects[m_idxOfObj["left"]].materialAttributes.Kd = red;
+		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["right"], MaterialType::Lambert, green, not_emit);
+		m_objects[m_idxOfObj["right"]].materialAttributes.Kd = green;
+		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["light"], MaterialType::Lambert, light_kd, light_emit);
+		m_objects[m_idxOfObj["light"]].materialAttributes.Kd = light_kd;
+		m_objects[m_idxOfObj["light"]].materialAttributes.emitIntensity = light_emit;
+		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["car"], MaterialType::Glass, test, not_emit, 2.0f, 5.f);
+		m_objects[m_idxOfObj["car"]].materialAttributes.type = MaterialType::Glass;
+		m_objects[m_idxOfObj["car"]].materialAttributes.Kd = test;
+		m_objects[m_idxOfObj["car"]].materialAttributes.smoothness = 2.0f;
+		m_objects[m_idxOfObj["car"]].materialAttributes.index_of_refraction = 5.f;
+		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["nanosuit"], MaterialType::Glass, test, not_emit, 2.0f, 5.f);
+		m_objects[m_idxOfObj["nanosuit"]].materialAttributes.type = MaterialType::Glass;
+		m_objects[m_idxOfObj["nanosuit"]].materialAttributes.Kd = test;
+		m_objects[m_idxOfObj["nanosuit"]].materialAttributes.smoothness = 2.0f;
+		m_objects[m_idxOfObj["nanosuit"]].materialAttributes.index_of_refraction = 5.f;
+
+		for (int i = 0; i < m_objects.size(); ++i) {
+			UpadteMaterialParameter(i);
+		}
 	}
+	
 
 	{
 		ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
@@ -405,7 +438,6 @@ void SceneEditor::OnUpdate()
 {
 	// #DXR Extra: Perspective Camera
 	UpdateSceneParameterBuffer();
-	//UpadteMaterialParameter(m_imguiManager.m_currentObjeectItem);
 	UpadteMaterialParameter(m_idxOfObj[m_imguiManager.m_selObjName]);
 }
 
@@ -542,6 +574,9 @@ void SceneEditor::PopulateCommandList()
 		m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 		m_commandList->DrawInstanced(6, 1, 0, 0);
 	}*/
+	// update matrix of instances
+	UpdateInstances();
+
 	// #DXR
 	PopulateRaytracingCmdList();
 
@@ -829,10 +864,8 @@ void SceneEditor::CreateAccelerationStructures() {
 	}
 
 	for (int i = 0; i < m_objects.size(); ++i) {
-		m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(m_objects[i].bottomLevelAS, XMMatrixIdentity()));
+		m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(m_objects[i].bottomLevelAS, m_objects[i].originTransform));
 	}
-	m_instances[m_idxOfObj["car"]].second = XMMatrixRotationY(-XM_PIDIV2 - XM_PIDIV4) * XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(200.f, 165.f, 160.f);
-	m_instances[m_idxOfObj["nanosuit"]].second = XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f);
 	
 	CreateTopLevelAS(m_instances);
 
@@ -993,6 +1026,7 @@ void SceneEditor::CreateRaytracingPipeline()
 	ThrowIfFailed(
 		m_rtStateObject->QueryInterface(IID_PPV_ARGS(&m_rtStateObjectProps)));
 }
+
 
 //-----------------------------------------------------------------------------
 //
@@ -1362,6 +1396,36 @@ void SceneEditor::StartImgui()
 		OnResetSpp();
 	}
 
+	ImGui::Text("Transform:");
+	if (ImGui::DragFloat3("Translation", m_imguiManager.m_translation)) {
+		int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
+		m_instances[objIdx].second = m_objects[objIdx].originTransform * 
+			XMMatrixTranslation(m_imguiManager.m_translation[0], m_imguiManager.m_translation[1], m_imguiManager.m_translation[2]);
+		OnResetSpp();
+	}
+
+	if (ImGui::DragFloat3("Rotation", m_imguiManager.m_rotation, 0.001f, -1.f, 1.f)) {
+		int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
+		XMMATRIX originMat = m_objects[objIdx].originTransform;
+		m_instances[objIdx].second = originMat * XMMatrixInverse(nullptr, originMat) *
+			XMMatrixRotationX(m_imguiManager.m_rotation[0] * XM_PI * 2) *
+			XMMatrixRotationY(m_imguiManager.m_rotation[1] * XM_PI * 2) *
+			XMMatrixRotationZ(m_imguiManager.m_rotation[2] * XM_PI * 2) * originMat;
+		OnResetSpp();
+	}
+
+	if (ImGui::DragFloat3("Scale", m_imguiManager.m_scale, 0.1f)) {
+		int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
+		XMMATRIX originMat = m_objects[objIdx].originTransform;
+		m_instances[objIdx].second = originMat * XMMatrixInverse(nullptr, originMat) *
+			XMMatrixScaling(m_imguiManager.m_scale[0], m_imguiManager.m_scale[1], m_imguiManager.m_scale[2]) * originMat;
+		OnResetSpp();
+	}
+
+	if (ImGui::Button("Save transform")) {
+		int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
+		m_objects[objIdx].originTransform = m_instances[objIdx].second;
+	}
 
 	m_imguiManager.isHovered = ImGui::IsWindowHovered() | ImGui::IsAnyItemHovered() | ImGui::IsAnyItemActive();
 
@@ -1390,4 +1454,64 @@ void SceneEditor::UpdateTexOfObj(int objIdx) {
 
 	m_device->CreateShaderResourceView(texRes.Get(), &srvDesc, srvHandle);
 
+}
+
+void SceneEditor::UpdateInstances()
+{
+	D3D12_RAYTRACING_INSTANCE_DESC* instanceDescs;
+	ID3D12Resource* descriptorsBuffer = m_topLevelASBuffers.pInstanceDesc.Get();
+	descriptorsBuffer->Map(0, nullptr, reinterpret_cast<void**>(&instanceDescs));
+	if (!instanceDescs)
+	{
+		throw std::logic_error("Cannot map the instance descriptor buffer - is it "
+			"in the upload heap?");
+	}
+
+	auto instanceCount = static_cast<UINT>(m_instances.size());
+
+	// Create the description for each instance
+	for (uint32_t i = 0; i < instanceCount; i++)
+	{
+		// Instance ID visible in the shader in InstanceID()
+		instanceDescs[i].InstanceID = static_cast<UINT>(i);
+		// Index of the hit group invoked upon intersection
+		instanceDescs[i].InstanceContributionToHitGroupIndex = static_cast<UINT>(i);
+		// Instance flags, including backface culling, winding, etc - TODO: should
+		// be accessible from outside
+		instanceDescs[i].Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+		// Instance transform matrix
+		DirectX::XMMATRIX m = XMMatrixTranspose(
+			m_instances[i].second); // GLM is column major, the INSTANCE_DESC is row major
+		memcpy(instanceDescs[i].Transform, &m, sizeof(instanceDescs[i].Transform));
+		// Get access to the bottom level
+		instanceDescs[i].AccelerationStructure = m_instances[i].first->GetGPUVirtualAddress();
+		// Visibility mask, always visible here - TODO: should be accessible from
+		// outside
+		instanceDescs[i].InstanceMask = 0xFF;
+	}
+
+	descriptorsBuffer->Unmap(0, nullptr);
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
+	ID3D12Resource* resultBuffer = m_topLevelASBuffers.pResult.Get();
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
+	buildDesc.Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+	buildDesc.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	buildDesc.Inputs.InstanceDescs = descriptorsBuffer->GetGPUVirtualAddress();
+	buildDesc.Inputs.NumDescs = instanceCount;
+	buildDesc.DestAccelerationStructureData = { resultBuffer->GetGPUVirtualAddress() };
+	buildDesc.ScratchAccelerationStructureData = { m_topLevelASBuffers.pScratch->GetGPUVirtualAddress() };
+	buildDesc.SourceAccelerationStructureData = resultBuffer->GetGPUVirtualAddress();
+	buildDesc.Inputs.Flags = flags;
+
+	// Build the top-level AS
+	m_commandList->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
+
+	// Wait for the builder to complete by setting a barrier on the resulting
+	// buffer. This can be important in case the rendering is triggered
+	// immediately afterwards, without executing the command list
+	D3D12_RESOURCE_BARRIER uavBarrier;
+	uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+	uavBarrier.UAV.pResource = resultBuffer;
+	uavBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	m_commandList->ResourceBarrier(1, &uavBarrier);
 }

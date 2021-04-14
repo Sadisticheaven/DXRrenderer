@@ -85,7 +85,7 @@ private:
 		std::string str_objName;
 		std::wstring ws_hitGroupName;
 		ComPtr<ID3D12Resource> bottomLevelAS;
-		
+		XMMATRIX originTransform;
 	};
 	std::vector<ObjResource> m_objects;
 	std::unordered_map<std::string, int> m_idxOfObj;
@@ -203,4 +203,5 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE m_texSrvHeapStart; // store start point of textures srv 
 	void UpdateTexOfObj(int objIdx);
 	
+	void UpdateInstances();
 };
