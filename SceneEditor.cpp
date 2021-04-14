@@ -199,6 +199,7 @@ void SceneEditor::AllocateUploadGeometryBuffer(Model& model, std::string objname
 {
 	std::vector<Vertex> vertices;
 	std::vector<Index> indices;
+	XMFLOAT3 center(0.f, 0.f, 0.f);
 	// store all meshes of model into one vertices nad indices
 	for (int i = 0, offset = 0; i < model.meshes.size(); ++i) {
 		vertices.insert(vertices.end(), model.meshes[i].vertices.begin(), model.meshes[i].vertices.end());
@@ -207,12 +208,16 @@ void SceneEditor::AllocateUploadGeometryBuffer(Model& model, std::string objname
 			model.meshes[i].indices[j] += offset;
 		indices.insert(indices.end(), model.meshes[i].indices.begin(), model.meshes[i].indices.end());
 		offset += model.meshes[i].vertices.size();
+		center += model.meshes[i].center;
 	}
+
+
 
 	ObjResource objDesc;
 	objDesc.vertexCount = static_cast<UINT>(vertices.size());
 	objDesc.indexCount = static_cast<UINT>(indices.size());
 	objDesc.str_objName = objname;
+	objDesc.center = XMFLOAT3(center.x / objDesc.vertexCount, center.y / objDesc.vertexCount, center.z / objDesc.vertexCount);
 
 	const UINT VertexBufferSize = static_cast<UINT>(vertices.size()) * sizeof(Vertex);
 	{
@@ -1408,9 +1413,11 @@ void SceneEditor::StartImgui()
 		int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
 		XMMATRIX originMat = m_objects[objIdx].originTransform;
 		m_instances[objIdx].second = originMat * XMMatrixInverse(nullptr, originMat) *
+			XMMatrixTranslation(-m_objects[objIdx].center.x, -m_objects[objIdx].center.y, -m_objects[objIdx].center.z) *
 			XMMatrixRotationX(m_imguiManager.m_rotation[0] * XM_PI * 2) *
 			XMMatrixRotationY(m_imguiManager.m_rotation[1] * XM_PI * 2) *
-			XMMatrixRotationZ(m_imguiManager.m_rotation[2] * XM_PI * 2) * originMat;
+			XMMatrixRotationZ(m_imguiManager.m_rotation[2] * XM_PI * 2) * 
+			XMMatrixTranslation(m_objects[objIdx].center.x, m_objects[objIdx].center.y, m_objects[objIdx].center.z) * originMat;
 		OnResetSpp();
 	}
 
@@ -1418,7 +1425,9 @@ void SceneEditor::StartImgui()
 		int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
 		XMMATRIX originMat = m_objects[objIdx].originTransform;
 		m_instances[objIdx].second = originMat * XMMatrixInverse(nullptr, originMat) *
-			XMMatrixScaling(m_imguiManager.m_scale[0], m_imguiManager.m_scale[1], m_imguiManager.m_scale[2]) * originMat;
+			XMMatrixTranslation(-m_objects[objIdx].center.x, -m_objects[objIdx].center.y, -m_objects[objIdx].center.z) *
+			XMMatrixScaling(m_imguiManager.m_scale[0], m_imguiManager.m_scale[1], m_imguiManager.m_scale[2]) * 
+			XMMatrixTranslation(m_objects[objIdx].center.x, m_objects[objIdx].center.y, m_objects[objIdx].center.z) * originMat;
 		OnResetSpp();
 	}
 

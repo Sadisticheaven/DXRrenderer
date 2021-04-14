@@ -395,7 +395,7 @@ Mesh processMesh(aiMesh* mesh, const aiScene* scene)
 	std::vector<Vertex> vertices;
 	std::vector<Index> indices;
 	//std::vector<Texture> textures;
-
+	XMFLOAT3  center(0.f, 0.f, 0.f);
 	//如果文件包含法线
 	if (mesh->mNormals != nullptr) {
 		// 遍历每个网格的顶点
@@ -406,6 +406,8 @@ Mesh processMesh(aiMesh* mesh, const aiScene* scene)
 			vertex.position.x = mesh->mVertices[i].x;
 			vertex.position.y = mesh->mVertices[i].y;
 			vertex.position.z = mesh->mVertices[i].z;
+
+			center += vertex.position;
 			// 法线
 			vertex.normal.x = mesh->mNormals[i].x;
 			vertex.normal.y = mesh->mNormals[i].y;
@@ -453,7 +455,7 @@ Mesh processMesh(aiMesh* mesh, const aiScene* scene)
 			vertex.position.y = mesh->mVertices[i].y;
 			vertex.position.z = mesh->mVertices[i].z;
 			vertex.normal = XMFLOAT3(0.f, 0.f, 0.f);
-			
+			center += vertex.position;
 			// 纹理坐标
 			if (mesh->mTextureCoords[0]) // 网格是否包含纹理坐标？
 			{
@@ -512,8 +514,11 @@ Mesh processMesh(aiMesh* mesh, const aiScene* scene)
 	//// 返回从提取的网格数据创建的网格对象
 	//return Mesh(vertices, indices, textures);
 	Mesh tmpMesh;
+	//int num = vertices.size();
+	//tmpMesh.center = XMFLOAT3(center.x / num, center.y / num, center.z / num);
 	tmpMesh.vertices = vertices;
 	tmpMesh.indices = indices;
+	tmpMesh.center = center;
 	return tmpMesh;
 }
 // 以递归方式处理节点。 处理位于节点处的每个单独网格，并在其子节点（如果有）上重复此过程。

@@ -86,6 +86,7 @@ private:
 		std::wstring ws_hitGroupName;
 		ComPtr<ID3D12Resource> bottomLevelAS;
 		XMMATRIX originTransform;
+		XMFLOAT3 center;
 	};
 	std::vector<ObjResource> m_objects;
 	std::unordered_map<std::string, int> m_idxOfObj;
