@@ -96,6 +96,7 @@ struct PrimitiveMaterialBuffer
 	float emitIntensity;
 	float index_of_refraction;
 	float smoothness;
+	float reflectivity;
 	BOOL useDiffuseTexture;
 	//BOOL hasDiffuseTexture;
 	//BOOL hasNormalTexture;

@@ -266,7 +266,7 @@ void SceneEditor::CreateMaterialBufferAndSetAttributes(PrimitiveMaterialBuffer& 
 	m_objects[objIndex].MaterialBuffer->Unmap(0, nullptr);
 }
 
-void SceneEditor::CreateMaterialBufferAndSetAttributes(int objIndex, MaterialType::Type type, XMFLOAT4 Kd, float emitIntensity, float smoothness, float index_of_refraction, UINT hasDiffuseTexture) {
+void SceneEditor::CreateMaterialBufferAndSetAttributes(int objIndex, MaterialType::Type type, XMFLOAT4 Kd, float emitIntensity, float smoothness, float index_of_refraction,float  reflectivity,UINT hasDiffuseTexture) {
 	m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
 	m_objects[objIndex].MaterialBuffer = nv_helpers_dx12::CreateBuffer(
 		m_device.Get(), m_MaterialBufferSize, D3D12_RESOURCE_FLAG_NONE,
@@ -278,6 +278,7 @@ void SceneEditor::CreateMaterialBufferAndSetAttributes(int objIndex, MaterialTyp
 	m_objects[objIndex].materialAttributes.type = type;
 	m_objects[objIndex].materialAttributes.smoothness = smoothness;
 	m_objects[objIndex].materialAttributes.useDiffuseTexture = hasDiffuseTexture;
+	m_objects[objIndex].materialAttributes.reflectivity = reflectivity;
 	uint8_t* pData;
 	ThrowIfFailed(m_objects[objIndex].MaterialBuffer->Map(0, nullptr, (void**)&pData));
 	memcpy(pData, &(m_objects[objIndex].materialAttributes), sizeof(PrimitiveMaterialBuffer));
@@ -1380,6 +1381,10 @@ void SceneEditor::StartImgui()
 	if (ImGui::SliderFloat("refraction", valueAddress, 0.f, 15.f))
 		OnResetSpp();
 
+	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.reflectivity;
+	if (ImGui::SliderFloat("reflectivity", valueAddress, 0.f, 1.f))
+		OnResetSpp();
+
 	ImGui::Text("Color:");
 	auto hasDiffuseTextureTagAddress = reinterpret_cast<bool*>(&m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.useDiffuseTexture);
 	if (ImGui::Checkbox("useDiffuseTexture", hasDiffuseTextureTagAddress))
@@ -1427,6 +1432,16 @@ void SceneEditor::StartImgui()
 		m_instances[objIdx].second = originMat * XMMatrixInverse(nullptr, originMat) *
 			XMMatrixTranslation(-m_objects[objIdx].center.x, -m_objects[objIdx].center.y, -m_objects[objIdx].center.z) *
 			XMMatrixScaling(m_imguiManager.m_scale[0], m_imguiManager.m_scale[1], m_imguiManager.m_scale[2]) * 
+			XMMatrixTranslation(m_objects[objIdx].center.x, m_objects[objIdx].center.y, m_objects[objIdx].center.z) * originMat;
+		OnResetSpp();
+	}
+
+	if (ImGui::DragFloat("Uniform Scale", &m_imguiManager.m_scale[3], 0.1f)) {
+		int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
+		XMMATRIX originMat = m_objects[objIdx].originTransform;
+		m_instances[objIdx].second = originMat * XMMatrixInverse(nullptr, originMat) *
+			XMMatrixTranslation(-m_objects[objIdx].center.x, -m_objects[objIdx].center.y, -m_objects[objIdx].center.z) *
+			XMMatrixScaling(m_imguiManager.m_scale[3], m_imguiManager.m_scale[3], m_imguiManager.m_scale[3]) *
 			XMMatrixTranslation(m_objects[objIdx].center.x, m_objects[objIdx].center.y, m_objects[objIdx].center.z) * originMat;
 		OnResetSpp();
 	}

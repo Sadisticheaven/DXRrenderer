@@ -93,7 +93,7 @@ private:
 
 	int m_MaterialBufferSize = SizeOfIn256(PrimitiveMaterialBuffer);
 	void CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, float emitIntensity = 0.f,
-		float smoothness = 0.0f, float index_of_refraction = 1.0f, UINT hasDiffuseTexture = false);
+		float smoothness = 0.0f, float index_of_refraction = 1.0f, float  reflectivity = 0.3f, UINT hasDiffuseTexture = false);
 	void CreateMaterialBufferAndSetAttributes(PrimitiveMaterialBuffer& desc, int bufferIndex = 0);
 
 
@@ -148,7 +148,7 @@ private:
 
 	//***************************************************--------->
 
-	// #DXR--RootSignature¡¢Pipeline
+	// #DXR--RootSignature??Pipeline
 	//<----------***************************************************
 	ComPtr<ID3D12RootSignature> CreateRayGenSignature();
 	ComPtr<ID3D12RootSignature> CreateMissSignature();
@@ -171,7 +171,7 @@ private:
 	ComPtr<ID3D12StateObjectProperties> m_rtStateObjectProps;
 	//***************************************************--------->
 
-	// #DXR--output¡¢Shader resource
+	// #DXR--output??Shader resource
 	//<----------***************************************************
 	void CreateRaytracingOutputBuffer();
 	void CreateShaderResourceHeap();

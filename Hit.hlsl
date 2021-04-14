@@ -74,6 +74,9 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 	if (MaterialAttributes.useDiffuseTexture) {
 		Kd = bricksTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz;
 	}
+	if (MaterialAttributes.type == MaterialType::Plastic) {
+		Kd *= MaterialAttributes.reflectivity;
+	}
 
 	RayDesc rayDesc;
 	rayDesc.Origin = hitWorldPosition;
@@ -207,7 +210,7 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 		float3 localRay, wo = float3(0.0, 0.0, 0.0), H;
 		//end_common
 
-		float reflectivity = MaterialAttributes.smoothness;
+		float reflectivity = MaterialAttributes.reflectivity;
 		if (seed.w < reflectivity) {
 			x_1 = pow(random_float.x, 1.0 / alpha), x_2 = random_float.z;
 			z = x_1;
