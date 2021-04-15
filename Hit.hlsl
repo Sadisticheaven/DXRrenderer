@@ -249,13 +249,9 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 		float metallic = MaterialAttributes.metallic;
 		float3 wo = toWorld(localRay, N);
 		if (seed.w < metallic) {
-			float3 reflect_dir = reflect(wi, N);
-			wo = reflect_dir;
-			eval = Kd;
+			wo = reflect(wi, N);
 		}
-		else {
-			eval = Disney_BRDF(wo, -wi, N, Kd, MaterialAttributes);
-		}
+		eval = Disney_BRDF(wo, -wi, N, Kd, MaterialAttributes);
 		return wo;
 
 	}

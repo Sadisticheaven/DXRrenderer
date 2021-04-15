@@ -398,7 +398,7 @@ void SceneEditor::LoadAssets()
 		XMFLOAT4 le1 = Float4Multi(8.0f, XMFLOAT4(0.747f + 0.058f, 0.747f + 0.258f, 0.747f, 0.0f));
 		XMFLOAT4 le2 = Float4Multi(15.6f, XMFLOAT4(0.740f + 0.287f, 0.740f + 0.160f, 0.740f, 0.0f));
 		XMFLOAT4 le3 = Float4Multi(18.4f, XMFLOAT4(0.737f + 0.642f, 0.737f + 0.159f, 0.737f, 0.0f));
-		float light_emit = 15.f;
+		float light_emit = 12.f;
 		XMFLOAT4 default_Ks(0.14f, 0.14f, 0.14f, 0.0f);
 		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["floor"], MaterialType::Lambert, white, not_emit);
 		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["shortbox"], MaterialType::Glass, test, not_emit, 2.0f, 1.2f);
@@ -431,7 +431,6 @@ void SceneEditor::LoadAssets()
 			UpadteMaterialParameter(i);
 		}
 	}
-	
 
 	{
 		ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));

@@ -318,7 +318,6 @@ float3 Disney_BRDF(float3 L, float3 V, float3 N, float3 Kd, PrimitiveMaterialBuf
 	float Gr = smithG_GGX(NdotL, 0.25) * smithG_GGX(NdotV, 0.25);
 
 	return ((1 / M_PI) * lerp(Fd, ss, subsurface) * Cdlin + Fsheen)
-		* (1 - metallic)
 		+ Gs * Fs * Ds + 0.25 * clearcoat * Gr * Fr * Dr;
 }
 
