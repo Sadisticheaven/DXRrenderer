@@ -259,6 +259,7 @@ float3 lin2mon(float3 x)
 	return float3(pow(x.x, 1 / 2.2), pow(x.y, 1 / 2.2), pow(x.z, 1 / 2.2));
 }
 
+//目前使用该版本
 float3 Disney_BRDF_diffuse(float3 L, float3 V, float3 N, float3 Kd, PrimitiveMaterialBuffer Mat)
 {
 	float metallic = Mat.metallic;
@@ -266,11 +267,8 @@ float3 Disney_BRDF_diffuse(float3 L, float3 V, float3 N, float3 Kd, PrimitiveMat
 	float specular = Mat.specular;
 	float roughness = Mat.roughness;
 	float specularTint = Mat.specularTint;
-	float anisotropic = Mat.anisotropic;
 	float sheen = Mat.sheen;
 	float sheenTint = Mat.sheenTint;
-	float clearcoat = Mat.clearcoat;
-	float clearcoatGloss = Mat.clearcoatGloss;
 	float NdotL = dot(normalize(N), normalize(L));
 	float NdotV = dot(normalize(N), normalize(V));
 
@@ -295,35 +293,19 @@ float3 Disney_BRDF_diffuse(float3 L, float3 V, float3 N, float3 Kd, PrimitiveMat
 	float Fss = lerp(1.0, Fss90, FL) * lerp(1.0, Fss90, FV);
 	float ss = 1.25 * (Fss * (1 / (NdotL + NdotV) - 0.5) + 0.5);
 
-	float Ds = GTR2(NdotH,  roughness);
 	float FH = SchlickFresnel(LdotH);
-	float3 Fs = lerp(Cspec0, float3(1, 1, 1), FH);
-	float Gs;
-	Gs = smithG_GGX(NdotL, roughness);
-	Gs *= smithG_GGX(NdotV, roughness);
-
 	float3 Fsheen = FH * sheen * Csheen;
 
-	float Dr = GTR1(NdotH, lerp(0.1, 0.001, clearcoatGloss));
-	float Fr = lerp(0.04, 1.0, FH);
-	float Gr = smithG_GGX(NdotL, 0.25) * smithG_GGX(NdotV, 0.25);
 
-	return ((1 / M_PI) * lerp(Fd, ss, subsurface) * Cdlin + Fsheen) * (1 - metallic);
-	//+ Gs * Fs * Ds + 0.25 * clearcoat * Gr * Fr * Dr;
+	return ((1 / M_PI) * lerp(Fd, ss, subsurface) * Cdlin + Fsheen) ;
 }
 
 float3 Disney_BRDF_specular(float3 L, float3 V, float3 N, float3 Kd, PrimitiveMaterialBuffer Mat)
 {
 	float metallic = Mat.metallic;
-	float subsurface = Mat.subsurface;
 	float specular = Mat.specular;
 	float roughness = Mat.roughness;
 	float specularTint = Mat.specularTint;
-	float anisotropic = Mat.anisotropic;
-	float sheen = Mat.sheen;
-	float sheenTint = Mat.sheenTint;
-	float clearcoat = Mat.clearcoat;
-	float clearcoatGloss = Mat.clearcoatGloss;
 	float NdotL = dot(normalize(N), normalize(L));
 	float NdotV = dot(normalize(N), normalize(V));
 
@@ -338,42 +320,17 @@ float3 Disney_BRDF_specular(float3 L, float3 V, float3 N, float3 Kd, PrimitiveMa
 
 	float3 Ctint = Cdlum > 0 ? Cdlin / Cdlum : float3(1, 1, 1); // normalize lum. to isolate hue+sat
 	float3 Cspec0 = lerp(specular * 0.08 * lerp(float3(1, 1, 1), Ctint, specularTint), Cdlin, metallic);
-	float3 Csheen = lerp(float3(1, 1, 1), Ctint, sheenTint);
 
-	float FL = SchlickFresnel(NdotL), FV = SchlickFresnel(NdotV);
-	float Fd90 = 0.5 + 2 * LdotH * LdotH * roughness;
-	float Fd = lerp(1.0, Fd90, FL) * lerp(1.0, Fd90, FV);
-
-	float Fss90 = LdotH * LdotH * roughness;
-	float Fss = lerp(1.0, Fss90, FL) * lerp(1.0, Fss90, FV);
-	float ss = 1.25 * (Fss * (1 / (NdotL + NdotV) - 0.5) + 0.5);
-
-	float Ds = GTR2(NdotH, roughness);
+	float Ds = GTR2(NdotH, max(roughness, 0.002));
 	float FH = SchlickFresnel(LdotH);
 	float3 Fs = lerp(Cspec0, float3(1, 1, 1), FH);
-	float Gs;
-	Gs = smithG_GGX(NdotL, roughness);
-	Gs *= smithG_GGX(NdotV, roughness);
-
-	float3 Fsheen = FH * sheen * Csheen;
-
-	float Dr = GTR1(NdotH, lerp(0.1, 0.001, clearcoatGloss));
-	float Fr = lerp(0.04, 1.0, FH);
-	float Gr = smithG_GGX(NdotL, 0.25) * smithG_GGX(NdotV, 0.25);
+	float Gs = smithG_GGX(NdotL, roughness)* smithG_GGX(NdotV, roughness);
 
 	return Gs * Fs * Ds;
 }
 
 float3 Disney_BRDF_clearcoat(float3 L, float3 V, float3 N, float3 Kd, PrimitiveMaterialBuffer Mat)
 {
-	float metallic = Mat.metallic;
-	float subsurface = Mat.subsurface;
-	float specular = Mat.specular;
-	float roughness = Mat.roughness;
-	float specularTint = Mat.specularTint;
-	float anisotropic = Mat.anisotropic;
-	float sheen = Mat.sheen;
-	float sheenTint = Mat.sheenTint;
 	float clearcoat = Mat.clearcoat;
 	float clearcoatGloss = Mat.clearcoatGloss;
 	float NdotL = dot(normalize(N), normalize(L));
@@ -385,29 +342,7 @@ float3 Disney_BRDF_clearcoat(float3 L, float3 V, float3 N, float3 Kd, PrimitiveM
 	float NdotH = dot(N, H);
 	float LdotH = dot(L, H);
 
-	float3 Cdlin = mon2lin(Kd);
-	float Cdlum = 0.3 * Cdlin.x + 0.6 * Cdlin.y + 0.1 * Cdlin.z; // luminance approx.
-
-	float3 Ctint = Cdlum > 0 ? Cdlin / Cdlum : float3(1, 1, 1); // normalize lum. to isolate hue+sat
-	float3 Cspec0 = lerp(specular * 0.08 * lerp(float3(1, 1, 1), Ctint, specularTint), Cdlin, metallic);
-	float3 Csheen = lerp(float3(1, 1, 1), Ctint, sheenTint);
-
-	float FL = SchlickFresnel(NdotL), FV = SchlickFresnel(NdotV);
-	float Fd90 = 0.5 + 2 * LdotH * LdotH * roughness;
-	float Fd = lerp(1.0, Fd90, FL) * lerp(1.0, Fd90, FV);
-
-	float Fss90 = LdotH * LdotH * roughness;
-	float Fss = lerp(1.0, Fss90, FL) * lerp(1.0, Fss90, FV);
-	float ss = 1.25 * (Fss * (1 / (NdotL + NdotV) - 0.5) + 0.5);
-
-	float Ds = GTR2(NdotH, roughness);
 	float FH = SchlickFresnel(LdotH);
-	float3 Fs = lerp(Cspec0, float3(1, 1, 1), FH);
-	float Gs;
-	Gs = smithG_GGX(NdotL, roughness);
-	Gs *= smithG_GGX(NdotV, roughness);
-
-	float3 Fsheen = FH * sheen * Csheen;
 
 	float Dr = GTR1(NdotH, lerp(0.1, 0.001, clearcoatGloss));
 	float Fr = lerp(0.04, 1.0, FH);
@@ -415,5 +350,57 @@ float3 Disney_BRDF_clearcoat(float3 L, float3 V, float3 N, float3 Kd, PrimitiveM
 
 	return  0.25 * clearcoat * Gr * Fr * Dr;
 }
+
+//以下版本保留，暂不使用
+float3 Disney_BRDF(float3 L, float3 V, float3 N, float3 Kd, PrimitiveMaterialBuffer Mat)
+{
+	float metallic = Mat.metallic;
+	float subsurface = Mat.subsurface;
+	float specular = Mat.specular;
+	float roughness = Mat.roughness;
+	float specularTint = Mat.specularTint;
+	float sheen = Mat.sheen;
+	float sheenTint = Mat.sheenTint;
+	float clearcoat = Mat.clearcoat;
+	float clearcoatGloss = Mat.clearcoatGloss;
+	float NdotL = dot(normalize(N), normalize(L));
+	float NdotV = dot(normalize(N), normalize(V));
+
+	if (NdotL < 0 || NdotV < 0) return float3(0, 0, 0);
+
+	float3 H = normalize(L + V);
+	float NdotH = dot(N, H);
+	float LdotH = dot(L, H);
+
+	float3 Cdlin = mon2lin(Kd);
+	float Cdlum = 0.3 * Cdlin.x + 0.6 * Cdlin.y + 0.1 * Cdlin.z; // luminance approx.
+
+	float3 Ctint = Cdlum > 0 ? Cdlin / Cdlum : float3(1, 1, 1); // normalize lum. to isolate hue+sat
+	float3 Cspec0 = lerp(specular * 0.08 * lerp(float3(1, 1, 1), Ctint, specularTint), Cdlin, metallic);
+	float3 Csheen = lerp(float3(1, 1, 1), Ctint, sheenTint);
+
+	float FL = SchlickFresnel(NdotL), FV = SchlickFresnel(NdotV);
+	float Fd90 = 0.5 + 2 * LdotH * LdotH * roughness;
+	float Fd = lerp(1.0, Fd90, FL) * lerp(1.0, Fd90, FV);
+
+	float Fss90 = LdotH * LdotH * roughness;
+	float Fss = lerp(1.0, Fss90, FL) * lerp(1.0, Fss90, FV);
+	float ss = 1.25 * (Fss * (1 / (NdotL + NdotV) - 0.5) + 0.5);
+
+	float Ds = GTR2(NdotH, max(roughness,0.0002));
+	float FH = SchlickFresnel(LdotH);
+	float3 Fs = lerp(Cspec0, float3(1, 1, 1), FH);
+	float Gs = smithG_GGX(NdotL, max(roughness, 0.0002)) * smithG_GGX(NdotV, max(roughness, 0.0002));
+
+	float3 Fsheen = FH * sheen * Csheen;
+
+	float Dr = GTR1(NdotH, lerp(0.1, 0.001, clearcoatGloss));
+	float Fr = lerp(0.04, 1.0, FH);
+	float Gr = smithG_GGX(NdotL, 0.25) * smithG_GGX(NdotV, 0.25);
+
+	return ((1 / M_PI) * lerp(Fd, ss, subsurface) * Cdlin + Fsheen) * (1 - metallic)
+	+ Gs * Fs * Ds + 0.25 * clearcoat * Gr * Fr * Dr;
+}
+
 
 #endif // RAYTRACINGSHADERHELPER_H
