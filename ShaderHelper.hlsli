@@ -57,19 +57,19 @@ float TrowbridgeReitz(in float cos2, in float alpha2)
 	return alpha2 / (M_PI * cos2 * cos2 * x * x);
 }
 
-float Smith_TrowbridgeReitz(in float3 wi, in float3 wo, in float3 wm, in float3 wn, in float alpha2)
-{
-	if (dot(wo, wm) < 0 || dot(wi, wm) < 0)
-		return 0.0f;
-
-	float cos2 = dot(wn, wo);
-	cos2 *= cos2;
-	float lambda1 = 0.5 * (-1 + sqrt(1 + alpha2 * (1 - cos2) / cos2));
-	cos2 = dot(wn, wi);
-	cos2 *= cos2;
-	float lambda2 = 0.5 * (-1 + sqrt(1 + alpha2 * (1 - cos2) / cos2));
-	return 1 / (1 + lambda1 + lambda2);
-}
+//float Smith_TrowbridgeReitz(in float3 wi, in float3 wo, in float3 wm, in float3 wn, in float alpha2)
+//{
+//	if (dot(wo, wm) < 0 || dot(wi, wm) < 0)
+//		return 0.0f;
+//
+//	float cos2 = dot(wn, wo);
+//	cos2 *= cos2;
+//	float lambda1 = 0.5 * (-1 + sqrt(1 + alpha2 * (1 - cos2) / cos2));
+//	cos2 = dot(wn, wi);
+//	cos2 *= cos2;
+//	float lambda2 = 0.5 * (-1 + sqrt(1 + alpha2 * (1 - cos2) / cos2));
+//	return 1 / (1 + lambda1 + lambda2);
+//}
 
 float length_toPow2(float2 p)
 {
@@ -244,6 +244,20 @@ float smithG_GGX(float NdotV, float alphaG)
 	return 1 / (NdotV + sqrt(a + b - a * b));
 }
 
+float Smith_TrowbridgeReitz(in float3 wi, in float3 wo, in float3 wm, in float3 wn, in float alpha2)
+{
+	if (dot(wo, wm) < 0 || dot(wi, wm) < 0)
+		return 0.0f;
+
+	float cos2 = dot(wn, wo);
+	cos2 *= cos2;
+	float lambda1 = 0.5 * (-1 + sqrt(1 + alpha2 * (1 - cos2) / cos2));
+	cos2 = dot(wn, wi);
+	cos2 *= cos2;
+	float lambda2 = 0.5 * (-1 + sqrt(1 + alpha2 * (1 - cos2) / cos2));
+	return 1 / (1 + lambda1 + lambda2);
+}
+
 float smithG_GGX_aniso(float NdotV, float VdotX, float VdotY, float ax, float ay)
 {
 	return 1 / (NdotV + sqrt(sqr(VdotX * ax) + sqr(VdotY * ay) + sqr(NdotV)));
@@ -297,7 +311,7 @@ float3 Disney_BRDF_diffuse(float3 L, float3 V, float3 N, float3 Kd, PrimitiveMat
 	float3 Fsheen = FH * sheen * Csheen;
 
 
-	return ((1 / M_PI) * lerp(Fd, ss, subsurface) * Cdlin + Fsheen) ;
+	return ((1 / M_PI) * lerp(Fd, ss, subsurface) * Cdlin + Fsheen);
 }
 
 float3 Disney_BRDF_specular(float3 L, float3 V, float3 N, float3 Kd, PrimitiveMaterialBuffer Mat)
@@ -314,6 +328,7 @@ float3 Disney_BRDF_specular(float3 L, float3 V, float3 N, float3 Kd, PrimitiveMa
 	float3 H = normalize(L + V);
 	float NdotH = dot(N, H);
 	float LdotH = dot(L, H);
+	float VdotH = dot(V, H);
 
 	float3 Cdlin = mon2lin(Kd);
 	float Cdlum = 0.3 * Cdlin.x + 0.6 * Cdlin.y + 0.1 * Cdlin.z; // luminance approx.
@@ -321,12 +336,12 @@ float3 Disney_BRDF_specular(float3 L, float3 V, float3 N, float3 Kd, PrimitiveMa
 	float3 Ctint = Cdlum > 0 ? Cdlin / Cdlum : float3(1, 1, 1); // normalize lum. to isolate hue+sat
 	float3 Cspec0 = lerp(specular * 0.08 * lerp(float3(1, 1, 1), Ctint, specularTint), Cdlin, metallic);
 
-	float Ds = GTR2(NdotH, max(roughness, 0.002));
+	//float Ds = Smith_TrowbridgeReitz(L, V, H, N, roughness * roughness);
 	float FH = SchlickFresnel(LdotH);
 	float3 Fs = lerp(Cspec0, float3(1, 1, 1), FH);
-	float Gs = smithG_GGX(NdotL, roughness)* smithG_GGX(NdotV, roughness);
+	float Gs = Smith_TrowbridgeReitz(L, V, H, N, roughness * roughness);
 
-	return Gs * Fs * Ds;
+	return Gs * Fs / NdotL / NdotV / NdotH * VdotH;
 }
 
 float3 Disney_BRDF_clearcoat(float3 L, float3 V, float3 N, float3 Kd, PrimitiveMaterialBuffer Mat)
@@ -341,14 +356,15 @@ float3 Disney_BRDF_clearcoat(float3 L, float3 V, float3 N, float3 Kd, PrimitiveM
 	float3 H = normalize(L + V);
 	float NdotH = dot(N, H);
 	float LdotH = dot(L, H);
+	float VdotH = dot(V, H);
 
 	float FH = SchlickFresnel(LdotH);
 
-	float Dr = GTR1(NdotH, lerp(0.1, 0.001, clearcoatGloss));
+	//float Dr = GTR1(NdotH, lerp(0.1, 0.001, clearcoatGloss));
 	float Fr = lerp(0.04, 1.0, FH);
 	float Gr = smithG_GGX(NdotL, 0.25) * smithG_GGX(NdotV, 0.25);
 
-	return  0.25 * clearcoat * Gr * Fr * Dr;
+	return  0.25 * clearcoat * Gr * Fr / NdotL / NdotV / NdotH * VdotH;
 }
 
 //以下版本保留，暂不使用
@@ -387,7 +403,7 @@ float3 Disney_BRDF(float3 L, float3 V, float3 N, float3 Kd, PrimitiveMaterialBuf
 	float Fss = lerp(1.0, Fss90, FL) * lerp(1.0, Fss90, FV);
 	float ss = 1.25 * (Fss * (1 / (NdotL + NdotV) - 0.5) + 0.5);
 
-	float Ds = GTR2(NdotH, max(roughness,0.0002));
+	float Ds = GTR2(NdotH, max(roughness, 0.0002));
 	float FH = SchlickFresnel(LdotH);
 	float3 Fs = lerp(Cspec0, float3(1, 1, 1), FH);
 	float Gs = smithG_GGX(NdotL, max(roughness, 0.0002)) * smithG_GGX(NdotV, max(roughness, 0.0002));
@@ -399,7 +415,7 @@ float3 Disney_BRDF(float3 L, float3 V, float3 N, float3 Kd, PrimitiveMaterialBuf
 	float Gr = smithG_GGX(NdotL, 0.25) * smithG_GGX(NdotV, 0.25);
 
 	return ((1 / M_PI) * lerp(Fd, ss, subsurface) * Cdlin + Fsheen) * (1 - metallic)
-	+ Gs * Fs * Ds + 0.25 * clearcoat * Gr * Fr * Dr;
+		+ Gs * Fs * Ds + 0.25 * clearcoat * Gr * Fr * Dr;
 }
 
 
