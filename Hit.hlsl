@@ -264,7 +264,7 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 			localRay = float3(sinTheta * cos(phi), sinTheta * sin(phi), sqrt(cos2theta));
 			wo = toWorld(localRay, N);
 			wo = 2 * dot(-wi, wo) * wo + wi;
-			eval = Disney_BRDF_specular(wo, -wi, N, Kd, MaterialAttributes) * max(0.000001, 1.0 / (1+1e-9 + tan((1 - roughness) * M_PI / 2)));
+			eval = Disney_BRDF_specular(wo, -wi, N, Kd, MaterialAttributes) * max(1e-4, 1.0 / (1 + tan((1+1e-9 - roughness) * M_PI / 2)));
 		}
 		else {
 			float u = random_float.x;
