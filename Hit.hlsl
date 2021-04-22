@@ -315,18 +315,45 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 		//common
 		seed = createRandomFloat4(seed);
 		float4 random_float = seed;
-		float x_1 = random_float.x, x_2 = random_float.z;
+		float x_1 = random_float.x, x_2 = random_float.y;
 		float z = x_1;
 		float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
 		float3 localRay = float3(r * cos(phi), r * sin(phi), z);
 		//end_common
 
 		float metallic = MaterialAttributes.metallic;
+		float clearcoat = MaterialAttributes.clearcoat;
+		float roughness = MaterialAttributes.roughness;
+
 		float3 wo = toWorld(localRay, N);
-		if (seed.w < metallic) {
-			wo = reflect(wi, N);
+		if (seed.z < min(0.8, 1 - metallic)) {
+			eval = Disney_BRDF_diffuse(wo, -wi, N, Kd, MaterialAttributes);
 		}
-		eval = Disney_BRDF(wo, -wi, N, Kd, MaterialAttributes);
+		else if (seed.w < 1 / (1 + clearcoat / 2)) {
+			float u = random_float.x;
+			float v = random_float.y;
+			float tan2theta = roughness * roughness * (u / (1 - u));
+			float cos2theta = 1 / (1 + tan2theta);
+			float sinTheta = sqrt(1 - cos2theta);
+			float phi = 2 * M_PI * v;
+			localRay = float3(sinTheta * cos(phi), sinTheta * sin(phi), sqrt(cos2theta));
+			wo = toWorld(localRay, N);
+			wo = 2 * dot(-wi, wo) * wo + wi;
+			eval = Disney_BRDF_specular(wo, -wi, N, Kd, MaterialAttributes);// *max(1e-4, (sin((roughness* roughness)* M_PI / 2)));
+		}
+		else {
+			float u = random_float.x;
+			float v = random_float.y;
+			float tan2theta = 0.25 * 0.25 * u / (1 - u);
+			float cos2theta = 1 / (1 + tan2theta);
+			float sinTheta = sqrt(1 - cos2theta);
+			float phi = 2 * M_PI * v;
+			localRay = float3(sinTheta * cos(phi), sinTheta * sin(phi), sqrt(cos2theta));
+			wo = toWorld(localRay, N);
+			wo = 2 * dot(-wi, wo) * wo + wi;
+			eval = Disney_BRDF_clearcoat(wo, -wi, N, Kd, MaterialAttributes);
+		}
+		//eval = Disney_BRDF(wo, -wi, N, Kd, MaterialAttributes);
 		return wo;
 
 	}
