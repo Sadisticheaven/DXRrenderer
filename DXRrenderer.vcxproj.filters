@@ -164,6 +164,7 @@
       <Filter>Source Files\SceneEditor</Filter>
     </ClCompile>
     <ClCompile Include="DDSTextureLoader.cpp" />
+    <ClCompile Include="Model.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cornellbox\floor.obj">

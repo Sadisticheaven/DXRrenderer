@@ -16,6 +16,9 @@
 // A header with shared definitions for C++ and HLSL source files. 
 //
 //**********************************************************************************************
+
+
+
 #ifdef HLSL
 typedef float2 XMFLOAT2;
 typedef float3 XMFLOAT3;
@@ -31,6 +34,7 @@ typedef UINT32 Index;
 
 #endif //HLSL
 
+#define HitDistanceOnMiss 0
 #define MAX_RAY_RECURSION_DEPTH 5
 #define PROBABILITY_RUSSIAN_ROULETTE 0.8
 #define FOREACH_MATERIAL(Type) \
@@ -54,6 +58,18 @@ struct PayLoad
 struct Ray {
 	XMFLOAT3 origin;
 	XMFLOAT3 direction;
+};
+
+struct ShadowRayPayload {
+	float tHit;         // Hit time <0,..> on Hit. -1 on miss.
+};
+
+struct Light {
+	XMFLOAT3 position;
+	float emitIntensity;//constant need be aligned with 4,so XMFLOAT3 need after float
+	XMFLOAT3 direction;
+	float theta;
+	float phi;
 };
 
 typedef struct Vertex
@@ -121,8 +137,8 @@ struct PrimitiveMaterialBuffer
 	//}
 #endif
 };
-// Attributes output by the raytracing when hitting a surface,
-// here the barycentric coordinates
+
+
 
 
 #endif //RAYTRACINGHLSLCOMPAT_H

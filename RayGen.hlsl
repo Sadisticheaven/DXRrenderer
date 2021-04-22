@@ -1,4 +1,4 @@
-#define HLSL
+ #define HLSL
 #include "HLSLCompat.h"
 #include "ShaderHelper.hlsli"
 
@@ -27,7 +27,7 @@ void RayGen() {
 
 	TraceRay(
 		SceneBVH,
-		RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
+		/*RAY_FLAG_CULL_BACK_FACING_TRIANGLES*/RAY_FLAG_NONE,
 		0xFF,
 		0,
 		0,

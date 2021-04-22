@@ -20,22 +20,8 @@
 #include <DDSTextureLoader.h>
 
 const std::wstring ws_raygenShaderName = L"RayGen";
-const std::vector<std::wstring> ws_missShaderNames = { L"Miss" };
-const std::vector<std::wstring> ws_closestHitShaderNames = { L"ClosestHit" };
-
-//const std::vector<std::wstring> ws_hitGroupNames = {
-//		L"Hit_floor",
-//		L"Hit_shortbox",
-//		L"Hit_tallbox",
-//		L"Hit_left",
-//		L"Hit_right",
-//		L"Hit_light",
-//		L"Hit_car",
-//		L"Hit_nanosuit"
-//};
-
-
-
+const std::vector<std::wstring> ws_missShaderNames = { L"Miss" , L"Miss_ShadowRay" };
+const std::vector<std::wstring> ws_closestHitShaderNames = { L"ClosestHit" , L"ClosestHit_ShadowRay" };
 
 SceneEditor::SceneEditor(UINT width, UINT height, std::wstring name) :
 	DXSample(width, height, name),
@@ -211,8 +197,6 @@ void SceneEditor::AllocateUploadGeometryBuffer(Model& model, std::string objname
 		center += model.meshes[i].center;
 	}
 
-
-
 	ObjResource objDesc;
 	objDesc.vertexCount = static_cast<UINT>(vertices.size());
 	objDesc.indexCount = static_cast<UINT>(indices.size());
@@ -295,6 +279,21 @@ void SceneEditor::CreateMaterialBufferAndSetAttributes(int objIndex, MaterialTyp
 	m_objects[objIndex].MaterialBuffer->Unmap(0, nullptr);
 }
 
+void SceneEditor::CreateLightBuffer(Light& desc)
+{
+	int lightBufferSize = SizeOfIn256(Light);
+	LightSource lightSource;
+	lightSource.lightBuffer = nv_helpers_dx12::CreateBuffer(
+		m_device.Get(), lightBufferSize, D3D12_RESOURCE_FLAG_NONE,
+		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
+	lightSource.lightDesc = desc;
+	
+	uint8_t* pData;
+	ThrowIfFailed(lightSource.lightBuffer->Map(0, nullptr, (void**)&pData));
+	memcpy(pData, &(lightSource.lightDesc), sizeof(Light));
+	lightSource.lightBuffer->Unmap(0, nullptr);
+	m_lights.emplace_back(lightSource);
+}
 // Load the sample assets.
 
 void SceneEditor::LoadAssets()
@@ -332,13 +331,20 @@ void SceneEditor::LoadAssets()
 			m_idxOfObj.insert({ fileNames[i], i });
 		}
 
+		// use sphere to simulate point light
+		model.meshes.clear();
+		model.meshes.push_back(CreateGeosphere(5.f, 5));
+		AllocateUploadGeometryBuffer(model, "point light");
+		m_idxOfObj.insert({ "point light", i++ });
+
+
 		std::vector<std::string> tmp;
 		for (auto it : m_objects) {
 			tmp.push_back(it.str_objName);
 		}
 		m_imguiManager.ConvertString2Char(m_imguiManager.m_objectsName, tmp);
 	}
-	// Load Texture and assign obj's tex
+	// Load Texture 
 	{
 		std::vector<std::string> fileNames;
 		std::string path = "./Textures/";
@@ -363,7 +369,7 @@ void SceneEditor::LoadAssets()
 
 		m_imguiManager.ConvertString2Char(m_imguiManager.m_texNamesChar, m_texNames);
 	}
-
+	
 	// assign tex ¡¢ hitgroup Name¡¢ Material
 	{
 		for (int i = 0; i < m_objects.size(); ++i) {
@@ -371,8 +377,21 @@ void SceneEditor::LoadAssets()
 			std::string str_objName = "Hit_" + m_objects[i].str_objName;
 			std::wstring ws_objName(str_objName.begin(), str_objName.end());
 			m_objects[i].ws_hitGroupName = ws_objName;
+			str_objName = "ShadowHit_" + m_objects[i].str_objName;
+			std::wstring ws_shadowName(str_objName.begin(), str_objName.end());
+			m_objects[i].ws_shadowHitGroupName = ws_shadowName;
 			CreateMaterialBufferAndSetAttributes(i, MaterialType::Lambert, XMFLOAT4(0.725f, 0.71f, 0.68f, 0.0f));
 		}
+	}
+	// global light
+	{
+		Light lightDesc;
+		lightDesc.position = XMFLOAT3(200.f, 200.f, -10.f);
+		lightDesc.direction = XMFLOAT3(1.f, 0.f, 0.f);
+		lightDesc.emitIntensity = 12.f;
+		lightDesc.theta = XM_2PI;
+		lightDesc.phi = XM_2PI;
+		CreateLightBuffer(lightDesc);
 	}
 
 	// set origin transform
@@ -382,6 +401,7 @@ void SceneEditor::LoadAssets()
 		}
 		m_objects[m_idxOfObj["car"]].originTransform = XMMatrixRotationY(-XM_PIDIV2 - XM_PIDIV4) * XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(200.f, 165.f, 160.f);
 		m_objects[m_idxOfObj["nanosuit"]].originTransform = XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f);		
+		m_objects[m_idxOfObj["point light"]].originTransform = XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(-300.f, 200.f, -1000.f);		
 	}
 
 	//  Modify  material of obj specified
@@ -415,7 +435,8 @@ void SceneEditor::LoadAssets()
 		m_objects[m_idxOfObj["right"]].materialAttributes.Kd = green;
 		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["light"], MaterialType::Lambert, light_kd, light_emit);
 		m_objects[m_idxOfObj["light"]].materialAttributes.Kd = light_kd;
-		m_objects[m_idxOfObj["light"]].materialAttributes.emitIntensity = light_emit;
+		//m_objects[m_idxOfObj["light"]].materialAttributes.emitIntensity = light_emit;
+		m_objects[m_idxOfObj["light"]].materialAttributes.emitIntensity = 0.f;
 		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["car"], MaterialType::Glass, test, not_emit, 2.0f, 5.f);
 		m_objects[m_idxOfObj["car"]].materialAttributes.type = MaterialType::Glass;
 		m_objects[m_idxOfObj["car"]].materialAttributes.Kd = test;
@@ -427,10 +448,13 @@ void SceneEditor::LoadAssets()
 		m_objects[m_idxOfObj["nanosuit"]].materialAttributes.smoothness = 2.0f;
 		m_objects[m_idxOfObj["nanosuit"]].materialAttributes.index_of_refraction = 5.f;
 
+		m_objects[m_idxOfObj["point light"]].materialAttributes.emitIntensity = 0.f;
+
 		for (int i = 0; i < m_objects.size(); ++i) {
 			UpadteMaterialParameter(i);
 		}
 	}
+	
 
 	{
 		ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
@@ -454,6 +478,7 @@ void SceneEditor::OnUpdate()
 	// #DXR Extra: Perspective Camera
 	UpdateSceneParameterBuffer();
 	UpadteMaterialParameter(m_idxOfObj[m_imguiManager.m_selObjName]);
+	UpdateLight();
 }
 
 // Render the scene.
@@ -614,10 +639,10 @@ void SceneEditor::PopulateRaytracingCmdList()
 	// On the last frame, the raytracing output was used as a copy source, to
 	// copy its contents into the render target. Now we need to transition it to
 	// a UAV so that the shaders can write in it.
-	CD3DX12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(
+	/*CD3DX12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(
 		m_outputResource.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE,
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	m_commandList->ResourceBarrier(1, &transition);
+	m_commandList->ResourceBarrier(1, &transition);*/
 
 	// Setup the raytracing task
 	D3D12_DISPATCH_RAYS_DESC desc = {};
@@ -665,6 +690,7 @@ void SceneEditor::PopulateRaytracingCmdList()
 	// and the render target buffer to a copy destination.
 	// We can then do the actual copy, before transitioning the render target
 	// buffer into a render target, that will be then used to display the image
+	CD3DX12_RESOURCE_BARRIER transition;
 	transition = CD3DX12_RESOURCE_BARRIER::Transition(m_outputResource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
 	m_commandList->ResourceBarrier(1, &transition);
 	transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_DEST);
@@ -672,8 +698,8 @@ void SceneEditor::PopulateRaytracingCmdList()
 
 	m_commandList->CopyResource(m_renderTargets[m_frameIndex].Get(), m_outputResource.Get());
 
-	//transition = CD3DX12_RESOURCE_BARRIER::Transition(m_outputResource.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	//m_commandList->ResourceBarrier(1, &transition);
+	transition = CD3DX12_RESOURCE_BARRIER::Transition(m_outputResource.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	m_commandList->ResourceBarrier(1, &transition);
 	transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	m_commandList->ResourceBarrier(1, &transition);
 }
@@ -819,7 +845,7 @@ void SceneEditor::CreateTopLevelAS(
 		//AddInstance(instances1, matrix1, instanceId1, hitGroupIndex1);
 		m_topLevelASGenerator.AddInstance(instances[i].first.Get(),
 			instances[i].second, static_cast<UINT>(i),
-			static_cast<UINT>(i));
+			static_cast<UINT>(2*i));//because of shadowHitGroup, mult 2
 	}
 
 	// As for the bottom-level AS, the building the AS requires some scratch space
@@ -932,7 +958,8 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateHitSignature() {
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);//MaterialAttributes
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 3);//light_vertices
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 4);//light_indices
-	//rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 5);//texture
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 1);//light
+
 	rsc.AddHeapRangesParameter(
 		{
 			{5 /*t5*/, 1 , 0 ,D3D12_DESCRIPTOR_RANGE_TYPE_SRV ,default},//texture
@@ -999,8 +1026,10 @@ void SceneEditor::CreateRaytracingPipeline()
 	// name.
 
 	// Hit group for the triangles, with a shader simply interpolating vertex colors
-	for (int i = 0; i < m_objects.size(); ++i)
+	for (int i = 0; i < m_objects.size(); ++i) {
 		pipeline.AddHitGroup(m_objects[i].ws_hitGroupName, ws_closestHitShaderNames[0]);
+		pipeline.AddHitGroup(m_objects[i].ws_shadowHitGroupName, ws_closestHitShaderNames[1]);
+	}
 
 	// The following section associates the root signature to each shader. Note
 	// that we can explicitly show that some shaders share the same root signature
@@ -1010,7 +1039,7 @@ void SceneEditor::CreateRaytracingPipeline()
 	pipeline.AddRootSignatureAssociation(m_rayGenSignature.Get(), { ws_raygenShaderName });
 	pipeline.AddRootSignatureAssociation(m_missSignature.Get(), { ws_missShaderNames });
 	for (int i = 0; i < m_objects.size(); ++i)
-		pipeline.AddRootSignatureAssociation(m_hitSignature.Get(), { m_objects[i].ws_hitGroupName });
+		pipeline.AddRootSignatureAssociation(m_hitSignature.Get(), { m_objects[i].ws_hitGroupName, m_objects[i].ws_shadowHitGroupName });
 
 
 	// The payload size defines the maximum size of the data carried by the rays,
@@ -1071,6 +1100,7 @@ void SceneEditor::CreateRaytracingOutputBuffer() {
 	// #DXR Extra: Perspective Camera
 	// Create a buffer to store the modelview and perspective camera matrices
 	CreateCameraBuffer();
+
 }
 
 void SceneEditor::CreateShaderResourceHeap() {
@@ -1138,6 +1168,8 @@ void SceneEditor::CreateShaderResourceHeap() {
 		srvDesc.Texture2D.PlaneSlice = 0;
 		m_device->CreateShaderResourceView(texRes.Get(), &srvDesc, srvHandle);
 	}
+
+
 }
 
 //-----------------------------------------------------------------------------
@@ -1169,7 +1201,8 @@ void SceneEditor::CreateShaderBindingTable() {
 
 	// The miss and hit shaders do not access any external resources: instead they
 	// communicate their results through the ray payload
-	m_sbtHelper.AddMissProgram(L"Miss", {});
+	m_sbtHelper.AddMissProgram(ws_missShaderNames[0], {});//miss
+	m_sbtHelper.AddMissProgram(ws_missShaderNames[1], {});//shadow miss
 
 	// Adding the triangle hit shader
 	//m_sbtHelper.AddHitGroup(L"HitGroup", {});
@@ -1186,8 +1219,12 @@ void SceneEditor::CreateShaderBindingTable() {
 			(void*)(m_objects[i].MaterialBuffer->GetGPUVirtualAddress()),
 			(void*)(m_objects[m_idxOfObj["light"]].vertexBuffer->GetGPUVirtualAddress()),
 			(void*)(m_objects[m_idxOfObj["light"]].indexBuffer->GetGPUVirtualAddress()),
+			//(void*)(m_cameraBuffer->GetGPUVirtualAddress()),
+			(void*)(m_lights[0].lightBuffer->GetGPUVirtualAddress()),
 			(void*)srvUavHeapHandle.ptr,
 			});
+
+		m_sbtHelper.AddHitGroup(m_objects[i].ws_shadowHitGroupName, {});
 	}
 
 	// Compute the size of the SBT given the number of shaders and their
@@ -1293,12 +1330,13 @@ void SceneEditor::UpdateSceneParameterBuffer() {
 	}
 	// Copy the matrix contents
 	matrices.seed = XMFLOAT4(rand() / double(0xfff), rand() / double(0xfff), rand() / double(0xfff), rand() / double(0xfff));
+
 	uint8_t* pData;
 	ThrowIfFailed(m_cameraBuffer->Map(0, nullptr, (void**)&pData));
 	memcpy(pData, &matrices, m_cameraBufferSize);
 	m_cameraBuffer->Unmap(0, nullptr);
 
-
+	
 }
 
 void SceneEditor::OnMouseDown(WPARAM btnState, int x, int y)
@@ -1383,113 +1421,140 @@ void SceneEditor::StartImgui()
 		m_imguiManager.m_selObjName = m_imguiManager.m_objectsName[m_imguiManager.m_selectObjIdx];
 	}
 
-	auto valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.smoothness;
-	if (ImGui::SliderFloat("smoothness", valueAddress, 0.1f, 5.f))
-		OnResetSpp();
-	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.index_of_refraction;
-	if (ImGui::SliderFloat("refraction", valueAddress, 0.f, 15.f))
-		OnResetSpp();
-
-	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.reflectivity;
-	if (ImGui::SliderFloat("reflectivity", valueAddress, 0.f, 1.f))
-		OnResetSpp();
-
 	ImGui::Text("Color:");
-	auto hasDiffuseTextureTagAddress = reinterpret_cast<bool*>(&m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.useDiffuseTexture);
-	if (ImGui::Checkbox("useDiffuseTexture", hasDiffuseTextureTagAddress))
+	if (ImGui::ColorEdit4("Kd", reinterpret_cast<float*>(&m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.Kd)))
 		OnResetSpp();
-	if (ImGui::ColorEdit4("", reinterpret_cast<float*>(&m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.Kd)))
-		OnResetSpp();
-	if (ImGui::SliderFloat("EmitIntensity", &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.emitIntensity, 0.f, 30.f))
-		OnResetSpp();
+	
 
 	ImGui::Text("Material:");
-	auto materialAddress = reinterpret_cast<int*>(&m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.type);
-	if (ImGui::Combo("Mat", materialAddress, m_MaterialType, MaterialType::Count))
-		OnResetSpp();
+	{
+		auto materialAddress = reinterpret_cast<int*>(&m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.type);
+		if (ImGui::Combo("Mat", materialAddress, m_MaterialType, MaterialType::Count))
+			OnResetSpp();
+
+		auto valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.smoothness;
+		if (ImGui::SliderFloat("smoothness", valueAddress, 0.1f, 5.f))
+			OnResetSpp();
+		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.index_of_refraction;
+		if (ImGui::SliderFloat("refraction", valueAddress, 0.f, 15.f))
+			OnResetSpp();
+
+		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.reflectivity;
+		if (ImGui::SliderFloat("reflectivity", valueAddress, 0.f, 1.f))
+			OnResetSpp();
+
+		if (ImGui::DragFloat("EmitIntensity", &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.emitIntensity, 0.1f, 0.f, 30.f))
+			OnResetSpp();
+	}
+	
 
 	ImGui::Text("Texture:");
-	if (ImGui::Combo("Tex", &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].texOfObj, m_imguiManager.m_texNamesChar, m_texNames.size()))
 	{
-		UpdateTexOfObj(m_idxOfObj[m_imguiManager.m_selObjName]);
-		OnResetSpp();
+		auto hasDiffuseTextureTagAddress = reinterpret_cast<bool*>(&m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.useDiffuseTexture);
+		if (ImGui::Checkbox("useDiffuseTexture", hasDiffuseTextureTagAddress))
+			OnResetSpp();
+		if (ImGui::Combo("Tex", &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].texOfObj, m_imguiManager.m_texNamesChar, m_texNames.size()))
+		{
+			UpdateTexOfObj(m_idxOfObj[m_imguiManager.m_selObjName]);
+			OnResetSpp();
+		}
 	}
+	
 	ImGui::Text("The following parameters are used for Disney_BRDF:");
-	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.subsurface;
-	if (ImGui::SliderFloat("subsurface", valueAddress, 0.f, 1.f))
-		OnResetSpp();
-	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.metallic;
-	if (ImGui::SliderFloat("metallic", valueAddress, 0.f, 1.f))
-		OnResetSpp();
-	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.specular;
-	if (ImGui::SliderFloat("specular", valueAddress, 0.f, 1.f))
-		OnResetSpp();
-	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.roughness;
-	if (ImGui::SliderFloat("roughness", valueAddress, 0.f, 1.f))
-		OnResetSpp();
-	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.specularTint;
-	if (ImGui::SliderFloat("specularTint", valueAddress, 0.f, 1.f))
-		OnResetSpp();
-	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.anisotropic;
-	if (ImGui::SliderFloat("anisotropic", valueAddress, 0.f, 1.f))
-		OnResetSpp();
-	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.sheen;
-	if (ImGui::SliderFloat("sheen", valueAddress, 0.f, 1.f))
-		OnResetSpp();
-	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.sheenTint;
-	if (ImGui::SliderFloat("sheenTint", valueAddress, 0.f, 1.f))
-		OnResetSpp();
-	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.clearcoat;
-	if (ImGui::SliderFloat("clearcoat", valueAddress, 0.f, 1.f))
-		OnResetSpp();
-	valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.clearcoatGloss;
-	if (ImGui::SliderFloat("clearcoatGloss", valueAddress, 0.f, 1.f))
-		OnResetSpp();
+	{
+		auto valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.subsurface;
+		if (ImGui::SliderFloat("subsurface", valueAddress, 0.f, 1.f))
+			OnResetSpp();
+		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.metallic;
+		if (ImGui::SliderFloat("metallic", valueAddress, 0.f, 1.f))
+			OnResetSpp();
+		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.specular;
+		if (ImGui::SliderFloat("specular", valueAddress, 0.f, 1.f))
+			OnResetSpp();
+		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.roughness;
+		if (ImGui::SliderFloat("roughness", valueAddress, 0.f, 1.f))
+			OnResetSpp();
+		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.specularTint;
+		if (ImGui::SliderFloat("specularTint", valueAddress, 0.f, 1.f))
+			OnResetSpp();
+		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.anisotropic;
+		if (ImGui::SliderFloat("anisotropic", valueAddress, 0.f, 1.f))
+			OnResetSpp();
+		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.sheen;
+		if (ImGui::SliderFloat("sheen", valueAddress, 0.f, 1.f))
+			OnResetSpp();
+		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.sheenTint;
+		if (ImGui::SliderFloat("sheenTint", valueAddress, 0.f, 1.f))
+			OnResetSpp();
+		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.clearcoat;
+		if (ImGui::SliderFloat("clearcoat", valueAddress, 0.f, 1.f))
+			OnResetSpp();
+		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.clearcoatGloss;
+		if (ImGui::SliderFloat("clearcoatGloss", valueAddress, 0.f, 1.f))
+			OnResetSpp();
+	}
 
 	ImGui::Text("Transform:");
-	if (ImGui::DragFloat3("Translation", m_imguiManager.m_translation)) {
-		int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
-		m_instances[objIdx].second = m_objects[objIdx].originTransform * 
-			XMMatrixTranslation(m_imguiManager.m_translation[0], m_imguiManager.m_translation[1], m_imguiManager.m_translation[2]);
-		OnResetSpp();
-	}
+	{
+		if (ImGui::DragFloat3("Translation", m_imguiManager.m_translation)) {
+			int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
+			m_instances[objIdx].second = m_objects[objIdx].originTransform *
+				XMMatrixTranslation(m_imguiManager.m_translation[0], m_imguiManager.m_translation[1], m_imguiManager.m_translation[2]);
+			OnResetSpp();
+		}
 
-	if (ImGui::DragFloat3("Rotation", m_imguiManager.m_rotation, 0.001f, -1.f, 1.f)) {
-		int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
-		XMMATRIX originMat = m_objects[objIdx].originTransform;
-		m_instances[objIdx].second = originMat * XMMatrixInverse(nullptr, originMat) *
-			XMMatrixTranslation(-m_objects[objIdx].center.x, -m_objects[objIdx].center.y, -m_objects[objIdx].center.z) *
-			XMMatrixRotationX(m_imguiManager.m_rotation[0] * XM_PI * 2) *
-			XMMatrixRotationY(m_imguiManager.m_rotation[1] * XM_PI * 2) *
-			XMMatrixRotationZ(m_imguiManager.m_rotation[2] * XM_PI * 2) * 
-			XMMatrixTranslation(m_objects[objIdx].center.x, m_objects[objIdx].center.y, m_objects[objIdx].center.z) * originMat;
-		OnResetSpp();
-	}
+		if (ImGui::DragFloat3("Rotation", m_imguiManager.m_rotation, 0.001f, -1.f, 1.f)) {
+			int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
+			XMMATRIX originMat = m_objects[objIdx].originTransform;
+			m_instances[objIdx].second = originMat * XMMatrixInverse(nullptr, originMat) *
+				XMMatrixTranslation(-m_objects[objIdx].center.x, -m_objects[objIdx].center.y, -m_objects[objIdx].center.z) *
+				XMMatrixRotationX(m_imguiManager.m_rotation[0] * XM_PI * 2) *
+				XMMatrixRotationY(m_imguiManager.m_rotation[1] * XM_PI * 2) *
+				XMMatrixRotationZ(m_imguiManager.m_rotation[2] * XM_PI * 2) *
+				XMMatrixTranslation(m_objects[objIdx].center.x, m_objects[objIdx].center.y, m_objects[objIdx].center.z) * originMat;
+			OnResetSpp();
+		}
 
-	if (ImGui::DragFloat3("Scale", m_imguiManager.m_scale, 0.1f)) {
-		int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
-		XMMATRIX originMat = m_objects[objIdx].originTransform;
-		m_instances[objIdx].second = originMat * XMMatrixInverse(nullptr, originMat) *
-			XMMatrixTranslation(-m_objects[objIdx].center.x, -m_objects[objIdx].center.y, -m_objects[objIdx].center.z) *
-			XMMatrixScaling(m_imguiManager.m_scale[0], m_imguiManager.m_scale[1], m_imguiManager.m_scale[2]) * 
-			XMMatrixTranslation(m_objects[objIdx].center.x, m_objects[objIdx].center.y, m_objects[objIdx].center.z) * originMat;
-		OnResetSpp();
-	}
+		if (ImGui::DragFloat3("Scale", m_imguiManager.m_scale, 0.1f)) {
+			int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
+			XMMATRIX originMat = m_objects[objIdx].originTransform;
+			m_instances[objIdx].second = originMat * XMMatrixInverse(nullptr, originMat) *
+				XMMatrixTranslation(-m_objects[objIdx].center.x, -m_objects[objIdx].center.y, -m_objects[objIdx].center.z) *
+				XMMatrixScaling(m_imguiManager.m_scale[0], m_imguiManager.m_scale[1], m_imguiManager.m_scale[2]) *
+				XMMatrixTranslation(m_objects[objIdx].center.x, m_objects[objIdx].center.y, m_objects[objIdx].center.z) * originMat;
+			OnResetSpp();
+		}
 
-	if (ImGui::DragFloat("Uniform Scale", &m_imguiManager.m_scale[3], 0.1f)) {
-		int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
-		XMMATRIX originMat = m_objects[objIdx].originTransform;
-		m_instances[objIdx].second = originMat * XMMatrixInverse(nullptr, originMat) *
-			XMMatrixTranslation(-m_objects[objIdx].center.x, -m_objects[objIdx].center.y, -m_objects[objIdx].center.z) *
-			XMMatrixScaling(m_imguiManager.m_scale[3], m_imguiManager.m_scale[3], m_imguiManager.m_scale[3]) *
-			XMMatrixTranslation(m_objects[objIdx].center.x, m_objects[objIdx].center.y, m_objects[objIdx].center.z) * originMat;
-		OnResetSpp();
-	}
+		if (ImGui::DragFloat("Uniform Scale", &m_imguiManager.m_scale[3], 0.1f)) {
+			int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
+			XMMATRIX originMat = m_objects[objIdx].originTransform;
+			m_instances[objIdx].second = originMat * XMMatrixInverse(nullptr, originMat) *
+				XMMatrixTranslation(-m_objects[objIdx].center.x, -m_objects[objIdx].center.y, -m_objects[objIdx].center.z) *
+				XMMatrixScaling(m_imguiManager.m_scale[3], m_imguiManager.m_scale[3], m_imguiManager.m_scale[3]) *
+				XMMatrixTranslation(m_objects[objIdx].center.x, m_objects[objIdx].center.y, m_objects[objIdx].center.z) * originMat;
+			OnResetSpp();
+		}
 
-	if (ImGui::Button("Save transform")) {
-		int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
-		m_objects[objIdx].originTransform = m_instances[objIdx].second;
+		if (ImGui::Button("Save transform")) {
+			int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
+			m_objects[objIdx].originTransform = m_instances[objIdx].second;
+			for (int i = 0; i < 4; ++i) {
+				m_imguiManager.m_scale[i] = 1.f;
+			}
+			for (int i = 0; i < 3; ++i) {
+				m_imguiManager.m_rotation[i] = 0.f;
+				m_imguiManager.m_translation[i] = 0.f;
+			}
+		}
 	}
+	
+	ImGui::Text("Global Light:");
+	auto valueAddress2 = reinterpret_cast<float*>(&m_lights.front().lightDesc.position);
+	if (ImGui::DragFloat3("position", valueAddress2, 0.1f))
+		OnResetSpp();
+	valueAddress2 = reinterpret_cast<float*>(&m_lights.front().lightDesc.emitIntensity);
+	if (ImGui::DragFloat("emit", valueAddress2, 0.1f))
+		OnResetSpp();
 
 	m_imguiManager.isHovered = ImGui::IsWindowHovered() | ImGui::IsAnyItemHovered() | ImGui::IsAnyItemActive();
 
@@ -1539,7 +1604,7 @@ void SceneEditor::UpdateInstances()
 		// Instance ID visible in the shader in InstanceID()
 		instanceDescs[i].InstanceID = static_cast<UINT>(i);
 		// Index of the hit group invoked upon intersection
-		instanceDescs[i].InstanceContributionToHitGroupIndex = static_cast<UINT>(i);
+		instanceDescs[i].InstanceContributionToHitGroupIndex =  static_cast<UINT>(2*i);//because of shadowHit, mult 2
 		// Instance flags, including backface culling, winding, etc - TODO: should
 		// be accessible from outside
 		instanceDescs[i].Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
@@ -1578,4 +1643,13 @@ void SceneEditor::UpdateInstances()
 	uavBarrier.UAV.pResource = resultBuffer;
 	uavBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 	m_commandList->ResourceBarrier(1, &uavBarrier);
+}
+
+void SceneEditor::UpdateLight()
+{
+	if (m_lights.empty()) return;
+	uint8_t* pData2;
+	ThrowIfFailed(m_lights[0].lightBuffer->Map(0, nullptr, (void**)&pData2));
+	memcpy(pData2, &(m_lights[0].lightDesc), sizeof(Light));
+	m_lights[0].lightBuffer->Unmap(0, nullptr);
 }

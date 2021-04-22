@@ -11,3 +11,8 @@ void Miss(inout PayLoad payload)
 	//payload.radiance = float3(0.0f, 0.4f, 1.0f );
 	payload.radiance = float3(0.0f, 0.0f, 0.0f);
 }
+[shader("miss")]
+void Miss_ShadowRay(inout ShadowRayPayload payload)
+{
+	payload.tHit = HitDistanceOnMiss;
+}

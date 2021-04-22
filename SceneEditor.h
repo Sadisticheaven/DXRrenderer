@@ -84,6 +84,7 @@ private:
 		int texOfObj;
 		std::string str_objName;
 		std::wstring ws_hitGroupName;
+		std::wstring ws_shadowHitGroupName;
 		ComPtr<ID3D12Resource> bottomLevelAS;
 		XMMATRIX originTransform;
 		XMFLOAT3 center;
@@ -95,6 +96,7 @@ private:
 	void CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, float emitIntensity = 0.f,
 		float smoothness = 0.0f, float index_of_refraction = 1.0f, float  reflectivity = 0.3f, UINT hasDiffuseTexture = false);
 	void CreateMaterialBufferAndSetAttributes(PrimitiveMaterialBuffer& desc, int bufferIndex = 0);
+	void CreateLightBuffer(Light& desc);
 
 
 	// Synchronization objects.
@@ -205,4 +207,12 @@ private:
 	void UpdateTexOfObj(int objIdx);
 	
 	void UpdateInstances();
+
+	//light
+	struct LightSource {
+		Light lightDesc;
+		ComPtr<ID3D12Resource> lightBuffer;
+	};
+	std::vector<LightSource> m_lights;
+	void UpdateLight();
 };

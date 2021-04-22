@@ -321,5 +321,20 @@ float3 Disney_BRDF(float3 L, float3 V, float3 N, float3 Kd, PrimitiveMaterialBuf
 		+ Gs * Fs * Ds + 0.25 * clearcoat * Gr * Fr * Dr;
 }
 
+// Retrieve attribute at a hit position interpolated from vertex attributes using the hit's barycentrics.
+float3 HitAttribute(float3 vertexAttribute[3], BuiltInTriangleIntersectionAttributes attr)
+{
+	return vertexAttribute[0] +
+		attr.barycentrics.x * (vertexAttribute[1] - vertexAttribute[0]) +
+		attr.barycentrics.y * (vertexAttribute[2] - vertexAttribute[0]);
+}
+
+// Retrieve attribute at a hit position interpolated from vertex attributes using the hit's barycentrics.
+float2 HitAttribute(float2 vertexAttribute[3], BuiltInTriangleIntersectionAttributes attr)
+{
+	return vertexAttribute[0] +
+		attr.barycentrics.x * (vertexAttribute[1] - vertexAttribute[0]) +
+		attr.barycentrics.y * (vertexAttribute[2] - vertexAttribute[0]);
+}
 
 #endif // RAYTRACINGSHADERHELPER_H

@@ -221,173 +221,173 @@ namespace algorithm
 }
 
 using namespace algorithm;
-bool LoadObjFile(std::string Path, std::vector<Vertex> &vertices, std::vector<Index> &indices)
-{
-	// If the file is not an .obj file return false
-	if (Path.substr(Path.size() - 4, 4) != ".obj")
-		return false;
-
-	indices.clear();
-	vertices.clear();
-
-	std::ifstream file(Path);
-
-	if (!file.is_open())
-		return false;
-
-	std::vector<XMFLOAT3> Positions;
-	std::vector<XMFLOAT2> TCoords;
-	std::vector<XMFLOAT3> Normals;
-
-	std::vector<Vertex> Vertices;
-	//std::vector<unsigned int> Indices;
-
-	std::vector<std::string> MeshMatNames;
-
-	bool listening = false;
-	std::string meshname;
-
-
-
-	std::string curline;
-	int vnorCount = 0;
-	while (std::getline(file, curline))
-	{
-
-		//// Generate a Mesh Object or Prepare for an object to be created
-		//if (algorithm::firstToken(curline) == "o" || algorithm::firstToken(curline) == "g" || curline[0] == 'g')
-		//{
-		//	if (!listening)
-		//	{
-		//		listening = true;
-
-		//		if (algorithm::firstToken(curline) == "o" || algorithm::firstToken(curline) == "g")
-		//		{
-		//			meshname = algorithm::tail(curline);
-		//		}
-		//		else
-		//		{
-		//			meshname = "unnamed";
-		//		}
-		//	}
-		//	else
-		//	{
-		//		// Generate the mesh to put into the array
-
-		//		if (!Indices.empty() && !Vertices.empty())
-		//		{
-		//			// Create Mesh
-		//			tempMesh = Mesh(Vertices, Indices);
-		//			tempMesh.MeshName = meshname;
-
-		//			// Insert Mesh
-		//			LoadedMeshes.push_back(tempMesh);
-
-		//			// Cleanup
-		//			Vertices.clear();
-		//			Indices.clear();
-		//			meshname.clear();
-
-		//			meshname = algorithm::tail(curline);
-		//		}
-		//		else
-		//		{
-		//			if (algorithm::firstToken(curline) == "o" || algorithm::firstToken(curline) == "g")
-		//			{
-		//				meshname = algorithm::tail(curline);
-		//			}
-		//			else
-		//			{
-		//				meshname = "unnamed";
-		//			}
-		//		}
-		//	}
-		//}
-		// Generate a Vertex Position
-		if (algorithm::firstToken(curline) == "v")
-		{
-			std::vector<std::string> spos;
-			XMFLOAT3 vpos;
-			algorithm::split(algorithm::tail(curline), spos, " ");
-
-			vpos.x = std::stof(spos[0]);
-			vpos.y = std::stof(spos[1]);
-			vpos.z = std::stof(spos[2]);
-
-			Positions.push_back(vpos);
-			Normals.emplace_back();
-		}
-		// Generate a Vertex Texture Coordinate
-		if (algorithm::firstToken(curline) == "vt")
-		{
-			std::vector<std::string> stex;
-			XMFLOAT2 vtex;
-			algorithm::split(algorithm::tail(curline), stex, " ");
-
-			vtex.x = std::stof(stex[0]);
-			vtex.y = std::stof(stex[1]);
-
-			TCoords.push_back(vtex);
-		}
-		// Generate a Vertex Normal;
-		if (algorithm::firstToken(curline) == "vn")
-		{
-			std::vector<std::string> snor;
-			XMFLOAT3 vnor;
-			algorithm::split(algorithm::tail(curline), snor, " ");
-
-			vnor.x = std::stof(snor[0]);
-			vnor.y = std::stof(snor[1]);
-			vnor.z = std::stof(snor[2]);
-			
-			//Normals.push_back(vnor);
-			Normals[vnorCount++] += vnor;
-		}
-		// Generate a Face (vertices & indices)
-		if (algorithm::firstToken(curline) == "f")
-		{
-			std::vector<std::string> snor;
-			//XMFLOAT3 vnor;
-			algorithm::split(algorithm::tail(curline), snor, " ");
-			std::vector<int> index;
-			index.emplace_back(std::stof(snor[0]) - 1);
-			index.emplace_back(std::stof(snor[1]) - 1);
-			index.emplace_back(std::stof(snor[2]) - 1);
-			indices.emplace_back(index[0]);
-			indices.emplace_back(index[1]);
-			indices.emplace_back(index[2]);
-		
-			XMFLOAT3 normal = GenTriNormal(Positions[index[0]], Positions[index[1]], Positions[index[2]]);
-			
-			for (auto no : index) {
-				XMFLOAT3 preNormal = Normals[no];
-				XMFLOAT3 newNormal = normal + preNormal;
-				DirectX::XMStoreFloat3(&Normals[no], XMVector3Normalize(XMLoadFloat3(&newNormal)));
-			}
-			//Normals.push_back(vnor);
-		}
-		// Get Mesh Material Name
-		if (algorithm::firstToken(curline) == "usemtl")
-		{
-		}
-		// Load Materials
-		if (algorithm::firstToken(curline) == "mtllib")
-		{
-
-		}
-	}
-
-	file.close();
-
-	/*for (auto vertex : Positions) {
-		vertices.push_back({ vertex ,XMFLOAT4(0.0f,0.0f,0.0f,0.0f)});
-	}*/
-	for (int i = 0; i < Positions.size(); ++i) {
-		vertices.push_back({ Positions[i], Normals[i] });
-	}
-	// Set Materials for each Mesh
-	return true;
-}
+//bool LoadObjFile(std::string Path, std::vector<Vertex> &vertices, std::vector<Index> &indices)
+//{
+//	// If the file is not an .obj file return false
+//	if (Path.substr(Path.size() - 4, 4) != ".obj")
+//		return false;
+//
+//	indices.clear();
+//	vertices.clear();
+//
+//	std::ifstream file(Path);
+//
+//	if (!file.is_open())
+//		return false;
+//
+//	std::vector<XMFLOAT3> Positions;
+//	std::vector<XMFLOAT2> TCoords;
+//	std::vector<XMFLOAT3> Normals;
+//
+//	std::vector<Vertex> Vertices;
+//	//std::vector<unsigned int> Indices;
+//
+//	std::vector<std::string> MeshMatNames;
+//
+//	bool listening = false;
+//	std::string meshname;
+//
+//
+//
+//	std::string curline;
+//	int vnorCount = 0;
+//	while (std::getline(file, curline))
+//	{
+//
+//		//// Generate a Mesh Object or Prepare for an object to be created
+//		//if (algorithm::firstToken(curline) == "o" || algorithm::firstToken(curline) == "g" || curline[0] == 'g')
+//		//{
+//		//	if (!listening)
+//		//	{
+//		//		listening = true;
+//
+//		//		if (algorithm::firstToken(curline) == "o" || algorithm::firstToken(curline) == "g")
+//		//		{
+//		//			meshname = algorithm::tail(curline);
+//		//		}
+//		//		else
+//		//		{
+//		//			meshname = "unnamed";
+//		//		}
+//		//	}
+//		//	else
+//		//	{
+//		//		// Generate the mesh to put into the array
+//
+//		//		if (!Indices.empty() && !Vertices.empty())
+//		//		{
+//		//			// Create Mesh
+//		//			tempMesh = Mesh(Vertices, Indices);
+//		//			tempMesh.MeshName = meshname;
+//
+//		//			// Insert Mesh
+//		//			LoadedMeshes.push_back(tempMesh);
+//
+//		//			// Cleanup
+//		//			Vertices.clear();
+//		//			Indices.clear();
+//		//			meshname.clear();
+//
+//		//			meshname = algorithm::tail(curline);
+//		//		}
+//		//		else
+//		//		{
+//		//			if (algorithm::firstToken(curline) == "o" || algorithm::firstToken(curline) == "g")
+//		//			{
+//		//				meshname = algorithm::tail(curline);
+//		//			}
+//		//			else
+//		//			{
+//		//				meshname = "unnamed";
+//		//			}
+//		//		}
+//		//	}
+//		//}
+//		// Generate a Vertex Position
+//		if (algorithm::firstToken(curline) == "v")
+//		{
+//			std::vector<std::string> spos;
+//			XMFLOAT3 vpos;
+//			algorithm::split(algorithm::tail(curline), spos, " ");
+//
+//			vpos.x = std::stof(spos[0]);
+//			vpos.y = std::stof(spos[1]);
+//			vpos.z = std::stof(spos[2]);
+//
+//			Positions.push_back(vpos);
+//			Normals.emplace_back();
+//		}
+//		// Generate a Vertex Texture Coordinate
+//		if (algorithm::firstToken(curline) == "vt")
+//		{
+//			std::vector<std::string> stex;
+//			XMFLOAT2 vtex;
+//			algorithm::split(algorithm::tail(curline), stex, " ");
+//
+//			vtex.x = std::stof(stex[0]);
+//			vtex.y = std::stof(stex[1]);
+//
+//			TCoords.push_back(vtex);
+//		}
+//		// Generate a Vertex Normal;
+//		if (algorithm::firstToken(curline) == "vn")
+//		{
+//			std::vector<std::string> snor;
+//			XMFLOAT3 vnor;
+//			algorithm::split(algorithm::tail(curline), snor, " ");
+//
+//			vnor.x = std::stof(snor[0]);
+//			vnor.y = std::stof(snor[1]);
+//			vnor.z = std::stof(snor[2]);
+//			
+//			//Normals.push_back(vnor);
+//			Normals[vnorCount++] += vnor;
+//		}
+//		// Generate a Face (vertices & indices)
+//		if (algorithm::firstToken(curline) == "f")
+//		{
+//			std::vector<std::string> snor;
+//			//XMFLOAT3 vnor;
+//			algorithm::split(algorithm::tail(curline), snor, " ");
+//			std::vector<int> index;
+//			index.emplace_back(std::stof(snor[0]) - 1);
+//			index.emplace_back(std::stof(snor[1]) - 1);
+//			index.emplace_back(std::stof(snor[2]) - 1);
+//			indices.emplace_back(index[0]);
+//			indices.emplace_back(index[1]);
+//			indices.emplace_back(index[2]);
+//		
+//			XMFLOAT3 normal = GenTriNormal(Positions[index[0]], Positions[index[1]], Positions[index[2]]);
+//			
+//			for (auto no : index) {
+//				XMFLOAT3 preNormal = Normals[no];
+//				XMFLOAT3 newNormal = normal + preNormal;
+//				DirectX::XMStoreFloat3(&Normals[no], XMVector3Normalize(XMLoadFloat3(&newNormal)));
+//			}
+//			//Normals.push_back(vnor);
+//		}
+//		// Get Mesh Material Name
+//		if (algorithm::firstToken(curline) == "usemtl")
+//		{
+//		}
+//		// Load Materials
+//		if (algorithm::firstToken(curline) == "mtllib")
+//		{
+//
+//		}
+//	}
+//
+//	file.close();
+//
+//	/*for (auto vertex : Positions) {
+//		vertices.push_back({ vertex ,XMFLOAT4(0.0f,0.0f,0.0f,0.0f)});
+//	}*/
+//	for (int i = 0; i < Positions.size(); ++i) {
+//		vertices.push_back({ Positions[i], Normals[i] });
+//	}
+//	// Set Materials for each Mesh
+//	return true;
+//}
 
 Mesh processMesh(aiMesh* mesh, const aiScene* scene)
 {
