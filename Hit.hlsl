@@ -128,12 +128,17 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 		return float3(0.0, 0.0, 0.0);
 	}
 
+	seed = createRandomFloat4(seed);
+	float3 ramdomBary = float3(random(seed.xy + seed.yz), random(seed.yz + seed.zw), random(seed.zw + seed.xy)) / 2;
+	float3 random_sphere_vec = normalize(ramdomBary);
+
 	float3 position = global_light.position;
 
-	float pdf = 130 * 105 / M_PI;
+	//float pdf = 1 / (2 * M_PI);
 
 	// Set the ray's extents.
 	float3 direction = position - hitWorldPosition;
+	//direction += random_sphere_vec;
 	float disPow2 = dot(direction, direction);
 	float dis = sqrt(disPow2);
 	float3 normal_dire = normalize(direction);
@@ -154,7 +159,7 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 	rayDesc.Origin = hitWorldPosition;
 	rayDesc.Direction = normal_dire;
 	rayDesc.TMin = 0.01;
-	rayDesc.TMax = 10000;
+	rayDesc.TMax = dis + 1.f;
 
 	ShadowRayPayload rayPayload;
 	rayPayload.tHit = HitDistanceOnMiss;
@@ -171,7 +176,8 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 	if (rayPayload.tHit != HitDistanceOnMiss) {
 		return float3(0.0, 0.0, 0.0);
 	}
-	return  global_light.emitIntensity * global_light.emitIntensity * Kd * dot(direction, N) / disPow2;
+
+	return  global_light.emitIntensity * 1000.f * Kd * dot(normal_dire, N) / disPow2;
 }
 
 float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout float4 seed) {

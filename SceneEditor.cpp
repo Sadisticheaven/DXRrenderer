@@ -331,11 +331,19 @@ void SceneEditor::LoadAssets()
 			m_idxOfObj.insert({ fileNames[i], i });
 		}
 
-		// use sphere to simulate point light
+		// use sphere to simulate point light 
 		model.meshes.clear();
 		model.meshes.push_back(CreateGeosphere(5.f, 5));
-		AllocateUploadGeometryBuffer(model, "point light");
-		m_idxOfObj.insert({ "point light", i++ });
+		// inverse the normal, so light can through the shpere like a bulb
+		for (int i = 0; i < model.meshes.size(); ++i) {
+			for (int j = 0; j < model.meshes[i].vertices.size(); ++j) {
+				model.meshes[i].vertices[j].normal.x *= -1.f;
+				model.meshes[i].vertices[j].normal.y *= -1.f;
+				model.meshes[i].vertices[j].normal.z *= -1.f;
+			}
+		}
+		AllocateUploadGeometryBuffer(model, "Enviroment light");
+		m_idxOfObj.insert({ "Enviroment light", i++ });
 
 
 		std::vector<std::string> tmp;
@@ -386,9 +394,10 @@ void SceneEditor::LoadAssets()
 	// global light
 	{
 		Light lightDesc;
-		lightDesc.position = XMFLOAT3(200.f, 200.f, -10.f);
+		lightDesc.position = XMFLOAT3(278.f, 540.f, 279.5f);
+		//lightDesc.position = XMFLOAT3(200.f, 200.f, -10.f);
 		lightDesc.direction = XMFLOAT3(1.f, 0.f, 0.f);
-		lightDesc.emitIntensity = 12.f;
+		lightDesc.emitIntensity = 35.f;
 		lightDesc.theta = XM_2PI;
 		lightDesc.phi = XM_2PI;
 		CreateLightBuffer(lightDesc);
@@ -401,7 +410,8 @@ void SceneEditor::LoadAssets()
 		}
 		m_objects[m_idxOfObj["car"]].originTransform = XMMatrixRotationY(-XM_PIDIV2 - XM_PIDIV4) * XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(200.f, 165.f, 160.f);
 		m_objects[m_idxOfObj["nanosuit"]].originTransform = XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f);		
-		m_objects[m_idxOfObj["point light"]].originTransform = XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(-300.f, 200.f, -1000.f);		
+		m_objects[m_idxOfObj["Enviroment light"]].originTransform = XMMatrixScaling(500.f, 500.f, 500.f) * XMMatrixTranslation(200.f, 200.f, -10.f);
+		//m_objects[m_idxOfObj["point light"]].originTransform = XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(-300.f, 200.f, -1000.f);		
 	}
 
 	//  Modify  material of obj specified
@@ -448,7 +458,7 @@ void SceneEditor::LoadAssets()
 		m_objects[m_idxOfObj["nanosuit"]].materialAttributes.smoothness = 2.0f;
 		m_objects[m_idxOfObj["nanosuit"]].materialAttributes.index_of_refraction = 5.f;
 
-		m_objects[m_idxOfObj["point light"]].materialAttributes.emitIntensity = 0.f;
+		m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity = 0.8f;
 
 		for (int i = 0; i < m_objects.size(); ++i) {
 			UpadteMaterialParameter(i);
@@ -1553,7 +1563,7 @@ void SceneEditor::StartImgui()
 	if (ImGui::DragFloat3("position", valueAddress2, 0.1f))
 		OnResetSpp();
 	valueAddress2 = reinterpret_cast<float*>(&m_lights.front().lightDesc.emitIntensity);
-	if (ImGui::DragFloat("emit", valueAddress2, 0.1f))
+	if (ImGui::DragFloat("emit", valueAddress2, 0.1f, 0.f))
 		OnResetSpp();
 
 	m_imguiManager.isHovered = ImGui::IsWindowHovered() | ImGui::IsAnyItemHovered() | ImGui::IsAnyItemActive();
