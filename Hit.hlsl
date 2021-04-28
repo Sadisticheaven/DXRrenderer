@@ -7,9 +7,9 @@ StructuredBuffer<Vertex> Vertices: register(t0);
 StructuredBuffer<Index> Indices: register(t1);
 RaytracingAccelerationStructure SceneBVH : register(t2);
 ConstantBuffer<PrimitiveMaterialBuffer> MaterialAttributes : register(b0);
-StructuredBuffer<Vertex> light_vertices: register(t3);
-StructuredBuffer<Index> light_indices: register(t4);
-Texture2D bricksTex : register(t5);
+StructuredBuffer<Light> light_vertices: register(t3);
+//StructuredBuffer<Index> light_indices: register(t4);
+Texture2D bricksTex : register(t4);
 ConstantBuffer<Light> global_light : register(b1);
 //6个不同类型的采样器
 SamplerState gSamPointWrap : register(s0);

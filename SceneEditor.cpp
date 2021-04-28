@@ -967,12 +967,13 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateHitSignature() {
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 2);//TLAS
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);//MaterialAttributes
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 3);//light_vertices
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 4);//light_indices
+	//rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 4);//light_indices
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 1);//light
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 2);//SceneConstants
 
 	rsc.AddHeapRangesParameter(
 		{
-			{5 /*t5*/, 1 , 0 ,D3D12_DESCRIPTOR_RANGE_TYPE_SRV ,default},//texture
+			{4 /*t4*/, 1 , 0 ,D3D12_DESCRIPTOR_RANGE_TYPE_SRV ,default},//texture
 		});
 	return rsc.Generate(m_device.Get(), true);
 }
@@ -1228,9 +1229,10 @@ void SceneEditor::CreateShaderBindingTable() {
 			(void*)(m_topLevelASBuffers.pResult->GetGPUVirtualAddress()),
 			(void*)(m_objects[i].MaterialBuffer->GetGPUVirtualAddress()),
 			(void*)(m_objects[m_idxOfObj["light"]].vertexBuffer->GetGPUVirtualAddress()),
-			(void*)(m_objects[m_idxOfObj["light"]].indexBuffer->GetGPUVirtualAddress()),
+			//(void*)(m_objects[m_idxOfObj["light"]].indexBuffer->GetGPUVirtualAddress()),
 			//(void*)(m_cameraBuffer->GetGPUVirtualAddress()),
 			(void*)(m_lights[0].lightBuffer->GetGPUVirtualAddress()),
+			(void*)(m_cameraBuffer->GetGPUVirtualAddress()),
 			(void*)srvUavHeapHandle.ptr,
 			});
 
@@ -1331,11 +1333,11 @@ void SceneEditor::UpdateSceneParameterBuffer() {
 
 	//set spp as 0 if some parameters change
 	if (needRefreshScreen) {
-		matrices.CurrSampleIdx = 0;
+		matrices.curSampleIdx = 0;
 		needRefreshScreen = false;
 	}
 	else {
-		matrices.CurrSampleIdx++;
+		matrices.curSampleIdx++;
 		//matrices.CurrSampleIdx = min(matrices.CurrSampleIdx, 1000);
 	}
 	// Copy the matrix contents

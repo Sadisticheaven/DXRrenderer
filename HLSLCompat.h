@@ -45,6 +45,11 @@ typedef UINT32 Index;
         Type(Disney_BRDF)  \
 		Type(Count)  \
 
+#define FOREACH_LIGHT(Type) \
+        Type()   \
+        Type(Mirror)  \
+        Type(Glass)   \
+
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
 
@@ -90,7 +95,8 @@ struct SceneConstants
 	XMMATRIX projectionI;
 	XMMATRIX invViewProj;
 	XMFLOAT4 seed;
-	float CurrSampleIdx;
+	float curSampleIdx;
+	UINT point_light_nums;
 };
 
 namespace MaterialType {
@@ -105,13 +111,27 @@ namespace MaterialType {
 		FOREACH_MATERIAL(GENERATE_ENUM)
 	};
 }
+
+namespace LightType {
+	/*enum Type {
+		Lambert,
+		Mirror,
+		Glass,
+		Disney_brdf_Plastic,
+		Count
+	};*/
+	enum Type {
+		FOREACH_MATERIAL(GENERATE_ENUM)
+	};
+}
+
 struct PrimitiveMaterialBuffer
 {
 	XMFLOAT4 Kd;
 	//XMFLOAT4 Ks;
 	//XMFLOAT4 emit;
-	float emitIntensity;
 	float index_of_refraction;
+	float emitIntensity;
 	float smoothness;
 	float reflectivity;
 	//disney_brdf
@@ -131,6 +151,7 @@ struct PrimitiveMaterialBuffer
 	//BOOL hasNormalTexture;
 	//BOOL hasPerVertexTangents;
 	MaterialType::Type type;
+	LightType::Type light_type;
 #ifndef HLSL
 	//PrimitiveMaterialBuffer() :Kd(0, 0, 0), Ks(0, 0, 0), Kr(0, 0, 0), Kt(0, 0, 0), opacity(0, 0, 0), emit(0, 0, 0), roughness(0), type(MaterialType::Matte), padding(0) {
 
