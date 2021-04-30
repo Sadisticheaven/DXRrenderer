@@ -155,11 +155,18 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 		Kd *= MaterialAttributes.reflectivity;
 	}
 
+	
 	RayDesc rayDesc;
 	rayDesc.Origin = hitWorldPosition;
 	rayDesc.Direction = normal_dire;
 	rayDesc.TMin = 0.01;
 	rayDesc.TMax = dis + 1.f;
+
+	if (global_light.type == LightType::Distant) {
+		float3 distantDirection = normalize(global_light.direction);
+		rayDesc.Direction = -distantDirection;
+		rayDesc.TMax = 2 * global_light.worldRadius;
+	}
 
 	ShadowRayPayload rayPayload;
 	rayPayload.tHit = HitDistanceOnMiss;
@@ -176,8 +183,35 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 	if (rayPayload.tHit != HitDistanceOnMiss) {
 		return float3(0.0, 0.0, 0.0);
 	}
-
-	return  global_light.emitIntensity * 1000.f * Kd * dot(normal_dire, N) / disPow2;
+	if (global_light.type == LightType::Distant) {
+		float3 distantDirection = normalize(global_light.direction);
+		float cosx = dot(N, -distantDirection);
+		if (cosx < 0.f) {
+			return float3(0.0, 0.0, 0.0);
+		}
+		return  global_light.emitIntensity * Kd * cosx;
+	}
+	if (global_light.type == LightType::Point) {
+		return  global_light.emitIntensity * 1000.f * Kd * dot(normal_dire, N) / disPow2;
+	}
+	if (global_light.type == LightType::Spot) {
+		float cosx = dot(-normal_dire, normalize(global_light.direction));
+		float cosFalloffStart = cos(global_light.falloffStart);
+		float cosTotalWidth = cos(global_light.totalWidth);
+		float delta;
+		if (cosx > cosFalloffStart) {
+			delta = 1.f;
+		}
+		else if (cosx < cosTotalWidth) {
+			delta = 0.f;
+		}
+		else {
+			delta = (cosx - cosTotalWidth) / (cosFalloffStart - cosTotalWidth);
+		}
+		return global_light.emitIntensity * 1000.f * Kd * dot(normal_dire, N) * delta * delta * delta * delta / disPow2;
+	}
+	
+	return float3(0.0, 0.0, 0.0);
 }
 
 float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout float4 seed) {

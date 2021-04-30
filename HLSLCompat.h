@@ -46,9 +46,10 @@ typedef UINT32 Index;
 		Type(Count)  \
 
 #define FOREACH_LIGHT(Type) \
-        Type()   \
-        Type(Mirror)  \
-        Type(Glass)   \
+        Type(Point)   \
+        Type(Spot)  \
+        Type(Distant)   \
+		Type(Count)  \
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -69,12 +70,20 @@ struct ShadowRayPayload {
 	float tHit;         // Hit time <0,..> on Hit. -1 on miss.
 };
 
+namespace LightType {
+	enum Type {
+		FOREACH_LIGHT(GENERATE_ENUM)
+	};
+}
+
 struct Light {
 	XMFLOAT3 position;
 	float emitIntensity;//constant need be aligned with 4,so XMFLOAT3 need after float
+	LightType::Type type;
 	XMFLOAT3 direction;
-	float theta;
-	float phi;
+	float falloffStart;
+	float totalWidth;
+	float worldRadius;
 };
 
 typedef struct Vertex
@@ -112,18 +121,7 @@ namespace MaterialType {
 	};
 }
 
-namespace LightType {
-	/*enum Type {
-		Lambert,
-		Mirror,
-		Glass,
-		Disney_brdf_Plastic,
-		Count
-	};*/
-	enum Type {
-		FOREACH_MATERIAL(GENERATE_ENUM)
-	};
-}
+
 
 struct PrimitiveMaterialBuffer
 {
@@ -151,7 +149,7 @@ struct PrimitiveMaterialBuffer
 	//BOOL hasNormalTexture;
 	//BOOL hasPerVertexTangents;
 	MaterialType::Type type;
-	LightType::Type light_type;
+	//LightType::Type light_type;
 #ifndef HLSL
 	//PrimitiveMaterialBuffer() :Kd(0, 0, 0), Ks(0, 0, 0), Kr(0, 0, 0), Kt(0, 0, 0), opacity(0, 0, 0), emit(0, 0, 0), roughness(0), type(MaterialType::Matte), padding(0) {
 

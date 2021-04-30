@@ -57,6 +57,7 @@ private:
 	//DXGI_FORMAT m_outPutFormat = DXGI_FORMAT_R8G8B8A8_UNORM ;
 	DXGI_FORMAT m_outPutFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	char* m_MaterialType[MaterialType::Count + 1] = { FOREACH_MATERIAL(GENERATE_STRING) };
+
 	// Pipeline objects.
 	CD3DX12_VIEWPORT m_viewport;
 	CD3DX12_RECT m_scissorRect;
@@ -213,6 +214,7 @@ private:
 		Light lightDesc;
 		ComPtr<ID3D12Resource> lightBuffer;
 	};
+	char* m_LightType[LightType::Count + 1] = { FOREACH_LIGHT(GENERATE_STRING) };
 	std::vector<LightSource> m_lights;
 	void UpdateLight();
 };

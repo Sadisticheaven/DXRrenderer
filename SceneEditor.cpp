@@ -396,10 +396,12 @@ void SceneEditor::LoadAssets()
 		Light lightDesc;
 		lightDesc.position = XMFLOAT3(278.f, 540.f, 279.5f);
 		//lightDesc.position = XMFLOAT3(200.f, 200.f, -10.f);
-		lightDesc.direction = XMFLOAT3(1.f, 0.f, 0.f);
+		lightDesc.direction = XMFLOAT3(0.f, -1.f, 0.f);
 		lightDesc.emitIntensity = 35.f;
-		lightDesc.theta = XM_2PI;
-		lightDesc.phi = XM_2PI;
+		lightDesc.falloffStart = XM_PIDIV4 / 2;
+		lightDesc.totalWidth = XM_PIDIV4;
+		lightDesc.worldRadius = 500.f;
+		lightDesc.type = LightType::Spot;
 		CreateLightBuffer(lightDesc);
 	}
 
@@ -458,7 +460,7 @@ void SceneEditor::LoadAssets()
 		m_objects[m_idxOfObj["nanosuit"]].materialAttributes.smoothness = 2.0f;
 		m_objects[m_idxOfObj["nanosuit"]].materialAttributes.index_of_refraction = 5.f;
 
-		m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity = 0.8f;
+		m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity = 0.0f;
 
 		for (int i = 0; i < m_objects.size(); ++i) {
 			UpadteMaterialParameter(i);
@@ -1567,7 +1569,21 @@ void SceneEditor::StartImgui()
 	valueAddress2 = reinterpret_cast<float*>(&m_lights.front().lightDesc.emitIntensity);
 	if (ImGui::DragFloat("emit", valueAddress2, 0.1f, 0.f))
 		OnResetSpp();
-
+	valueAddress2 = reinterpret_cast<float*>(&m_lights.front().lightDesc.direction);
+	if (ImGui::DragFloat3("direction", valueAddress2, 0.1f))
+		OnResetSpp();
+	valueAddress2 = reinterpret_cast<float*>(&m_lights.front().lightDesc.falloffStart);
+	if (ImGui::DragFloat("falloffStart", valueAddress2, 0.01f, 0.f, m_lights.front().lightDesc.totalWidth))
+		OnResetSpp();
+	valueAddress2 = reinterpret_cast<float*>(&m_lights.front().lightDesc.totalWidth);
+	if (ImGui::DragFloat("totalWidth", valueAddress2, 0.01f, m_lights.front().lightDesc.falloffStart, XM_PIDIV2))
+		OnResetSpp();
+	valueAddress2 = reinterpret_cast<float*>(&m_lights.front().lightDesc.worldRadius);
+	if (ImGui::DragFloat("worldRadius", valueAddress2, 0.1f))
+		OnResetSpp();
+	auto lightType = reinterpret_cast<int*>(&m_lights.front().lightDesc.type);
+	if (ImGui::Combo("LightType", lightType, m_LightType, LightType::Count))
+		OnResetSpp();
 	m_imguiManager.isHovered = ImGui::IsWindowHovered() | ImGui::IsAnyItemHovered() | ImGui::IsAnyItemActive();
 
 	ImGui::End();
