@@ -182,7 +182,7 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 		else {
 			delta = (cosx - cosTotalWidth) / (cosFalloffStart - cosTotalWidth);
 		}
-		return emitIntensity * emitIntensity * eval * dot(normal_dire, N) * delta * delta * delta * delta / disPow2;
+		return emitIntensity * emitIntensity * eval  * delta * delta * delta * delta / disPow2;
 	}
 
 	return float3(0.0, 0.0, 0.0);
