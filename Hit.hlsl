@@ -125,9 +125,10 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 	}
 
 	float3 eval = get_eval_for_light_dir(worldRayDirection, N, normal_dire, uv);
+	float3 Kd = MaterialAttributes.Kd;
 	float emitIntensity = global_light.emitIntensity;
 
-	
+
 	RayDesc rayDesc;
 	rayDesc.Origin = hitWorldPosition;
 	rayDesc.Direction = normal_dire;
@@ -152,6 +153,7 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 		rayDesc,
 		rayPayload);
 
+
 	if (rayPayload.tHit != HitDistanceOnMiss) {
 		return float3(0.0, 0.0, 0.0);
 	}
@@ -161,10 +163,10 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 		if (cosx < 0.f) {
 			return float3(0.0, 0.0, 0.0);
 		}
-		return  global_light.emitIntensity * Kd * cosx;
+		return  emitIntensity * emitIntensity * Kd * cosx;
 	}
 	if (global_light.type == LightType::Point) {
-		return  global_light.emitIntensity * 1000.f * Kd * dot(normal_dire, N) / disPow2;
+		return  emitIntensity * emitIntensity * eval / disPow2;
 	}
 	if (global_light.type == LightType::Spot) {
 		float cosx = dot(-normal_dire, normalize(global_light.direction));
@@ -180,9 +182,9 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 		else {
 			delta = (cosx - cosTotalWidth) / (cosFalloffStart - cosTotalWidth);
 		}
-		return global_light.emitIntensity * 1000.f * Kd * dot(normal_dire, N) * delta * delta * delta * delta / disPow2;
+		return emitIntensity * emitIntensity * eval * dot(normal_dire, N) * delta * delta * delta * delta / disPow2;
 	}
-	
+
 	return float3(0.0, 0.0, 0.0);
 }
 
