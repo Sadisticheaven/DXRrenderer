@@ -21,124 +21,101 @@ SamplerState gSamAnisotropicClamp : register(s5);
 
 
 
-float3 toWorld(float3 a, float3 N) {
-	float3 B, C;
-	if (abs(N.x) > abs(N.y)) {
-		float invLen = 1.0f / sqrt(N.x * N.x + N.z * N.z);
-		C = float3(N.z * invLen, 0.0f, -N.x * invLen);
+float3 get_eval_for_light_dir(float3 wi, float3 wo, float3 N, float2 uv) {
+	wi = normalize(wi);
+	wo = normalize(wo);
+	N = normalize(N);
+	float3 Kd = MaterialAttributes.Kd;
+	if (MaterialAttributes.useDiffuseTexture) {
+		Kd = bricksTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz;
 	}
-	else {
-		float invLen = 1.0f / sqrt(N.y * N.y + N.z * N.z);
-		C = float3(0.0f, N.z * invLen, -N.y * invLen);
+	switch (MaterialAttributes.type) {
+	case MaterialType::Lambert:
+	{
+		float cosalpha = dot(N, wo);
+		if (cosalpha > 0.0f) {
+			return Kd * cosalpha;
+		}
+		return float3(0.0, 0.0, 0.0);
 	}
-	B = cross(C, N);
-	return a.x * B + a.y * C + a.z * N;
+	case MaterialType::Mirror: {
+
+		float3 reflect_dir = reflect(wi, N);
+		float cosalpha = dot(reflect_dir, wo);
+		if (cosalpha > 0.0f) {
+			float s = MaterialAttributes.smoothness;
+			float alpha = pow(1000.0f, s);
+			return Kd * (alpha + 2) * pow(cosalpha, alpha);
+		}
+		return float3(0.0, 0.0, 0.0);
+	}
+	case MaterialType::Glass:
+	{
+		float3 outward_normal;
+		float3 reflected = reflect(wi, N);
+		float ref_idx = MaterialAttributes.index_of_refraction;
+		float s = MaterialAttributes.smoothness;
+		float alpha = pow(1000.0f, s);
+		float ni_over_nt;
+		float3 refracted;
+		float reflect_prob;
+		float cosine;
+		if (dot(wi, N) > 0) {
+			outward_normal = -N;
+			ni_over_nt = ref_idx;
+			cosine = ref_idx * dot(wi, N);
+
+		}
+		else {
+			outward_normal = N;
+			ni_over_nt = 1.0 / ref_idx;
+			cosine = -dot(wi, N);
+		}
+		if (canRefract(wi, outward_normal, ni_over_nt, refracted)) {
+			reflect_prob = m_schlick(cosine, ref_idx);
+		}
+		else {
+			reflect_prob = 1.0;
+		}
+		if (dot(wo, outward_normal) > 0.0f) {
+			if (dot(wo, refracted) > 0.0f) {
+				return Kd * (alpha + 2) * pow(dot(wo, refracted), alpha) * (1 - reflect_prob);
+			}
+			else if (dot(wo, reflected) > 0.0f) {
+				return float3(0.0, 0.0, 0.0);
+				return Kd * (alpha + 2) * pow(dot(wo, reflected), alpha) * reflect_prob;
+			}
+		}
+		return float3(0.0, 0.0, 0.0);
+	}
+	case MaterialType::Plastic:
+	{
+		float s = MaterialAttributes.smoothness;
+		float alpha = pow(1000.0f, s);
+
+		float reflectivity = MaterialAttributes.reflectivity;
+		float cosalpha = dot(wo, N);
+		float3 reflect_dir = reflect(wi, N);
+		if (dot(wo, N) > 0.0f) {
+			return Kd * (reflectivity * pow(dot(wo, reflect_dir), alpha) + (1.0 - reflectivity) * dot(wo, N));
+		}
+		return float3(0.0, 0.0, 0.0);
+	}
+	case MaterialType::Disney_BRDF:
+	{
+		return  Disney_BRDF(wo, -wi, N, Kd, MaterialAttributes);
+	}
+	default: return float3(0.0, 0.0, 0.0);
+	}
+	return float3(0.0, 0.0, 0.0);
 }
-
-
-//float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N, float2 uv, inout float4 seed, in UINT curRecursionDepth)
-//{
-//	if (curRecursionDepth >= MAX_RAY_RECURSION_DEPTH)
-//	{
-//		return float3(0.0, 0.0, 0.0);
-//	}
-//
-//	if (MaterialAttributes.type != MaterialType::Lambert && MaterialAttributes.type != MaterialType::Plastic) {
-//		return float3(0.0, 0.0, 0.0);
-//	}
-//
-//	
-//	seed = createRandomFloat4(seed);
-//	float2 ramdomBary = float2(random(seed.xy + seed.yz), random(seed.yz + seed.zw)) / 2;
-//	uint vertId = ramdomBary.x <= ramdomBary.y ? 0 : 3;
-//
-//	float3 barycentrics = float3(1.f - ramdomBary.x - ramdomBary.y, ramdomBary.x, ramdomBary.y);
-//
-//	/*float3 light_normal = normalize(barycentrics.x * light_vertices[light_indices[vertId + 0]].normal +
-//		barycentrics.y * light_vertices[light_indices[vertId + 1]].normal +
-//		barycentrics.z * light_vertices[light_indices[vertId + 2]].normal);*/
-//
-//	float3 vertexNormal[3] = {
-//		light_vertices[light_indices[vertId + 0]].normal,
-//		light_vertices[light_indices[vertId + 1]].normal,
-//		light_vertices[light_indices[vertId + 2]].normal };
-//	float3 light_normal = HitAttribute(vertexNormal, ramdomBary);
-//
-//	/*float3 position = barycentrics.x * light_vertices[light_indices[vertId + 0]].position +
-//		barycentrics.y * light_vertices[light_indices[vertId + 1]].position +
-//		barycentrics.z * light_vertices[light_indices[vertId + 2]].position;*/
-//
-//	float3 vertexPos[3] = {
-//		light_vertices[light_indices[vertId + 0]].position,
-//		light_vertices[light_indices[vertId + 1]].position,
-//		light_vertices[light_indices[vertId + 2]].position };
-//	float3 position = HitAttribute(vertexPos, ramdomBary);
-//
-//	float pdf = 130 * 105 / M_PI;
-//
-//	 Set the ray's extents.
-//	float3 direction = position - hitWorldPosition;
-//	float disPow2 = dot(direction, direction);
-//	float dis = sqrt(disPow2);
-//	direction = normalize(direction);
-//
-//	if (dot(N, direction) <= 0.0f) {
-//		return float3(0.0, 0.0, 0.0);
-//	}
-//
-//	float3 Kd = MaterialAttributes.Kd;
-//	if (MaterialAttributes.useDiffuseTexture) {
-//		Kd = bricksTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz;
-//	}
-//	if (MaterialAttributes.type == MaterialType::Plastic) {
-//		Kd *= MaterialAttributes.reflectivity;
-//	}
-//
-//	RayDesc rayDesc;
-//	rayDesc.Origin = hitWorldPosition;
-//	rayDesc.Direction = direction;
-//	rayDesc.TMin = 0.01;
-//	rayDesc.TMax = dis + 1.0f;
-//
-//	PayLoad rayPayload;
-//	rayPayload.radiance = float3(0.0f, 0.0f, 0.0f);
-//	rayPayload.recursionDepth = MAX_RAY_RECURSION_DEPTH;
-//	rayPayload.seed = seed;
-//	TraceRay(
-//		SceneBVH,
-//		RAY_FLAG_NONE,
-//		0xFF,
-//		0,
-//		0,
-//		0,
-//		rayDesc,
-//		rayPayload);
-//
-//	return rayPayload.radiance * Kd * dot(direction, N) * dot(-direction, light_normal) / disPow2 * pdf;
-//}
 
 float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N, float2 uv, inout float4 seed, in UINT curRecursionDepth)
 {
-	if (curRecursionDepth >= MAX_RAY_RECURSION_DEPTH)
-	{
-		return float3(0.0, 0.0, 0.0);
-	}
-
-	if (MaterialAttributes.type != MaterialType::Lambert && MaterialAttributes.type != MaterialType::Plastic) {
-		return float3(0.0, 0.0, 0.0);
-	}
-
-	seed = createRandomFloat4(seed);
-	float3 ramdomBary = float3(random(seed.xy + seed.yz), random(seed.yz + seed.zw), random(seed.zw + seed.xy)) / 2;
-	float3 random_sphere_vec = normalize(ramdomBary);
 
 	float3 position = global_light.position;
 
-	//float pdf = 1 / (2 * M_PI);
-
-	// Set the ray's extents.
 	float3 direction = position - hitWorldPosition;
-	//direction += random_sphere_vec;
 	float disPow2 = dot(direction, direction);
 	float dis = sqrt(disPow2);
 	float3 normal_dire = normalize(direction);
@@ -147,13 +124,8 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 		return float3(0.0, 0.0, 0.0);
 	}
 
-	float3 Kd = MaterialAttributes.Kd;
-	if (MaterialAttributes.useDiffuseTexture) {
-		Kd = bricksTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz;
-	}
-	if (MaterialAttributes.type == MaterialType::Plastic) {
-		Kd *= MaterialAttributes.reflectivity;
-	}
+	float3 eval = get_eval_for_light_dir(worldRayDirection, N, normal_dire, uv);
+	float emitIntensity = global_light.emitIntensity;
 
 	RayDesc rayDesc;
 	rayDesc.Origin = hitWorldPosition;
@@ -177,8 +149,9 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 		return float3(0.0, 0.0, 0.0);
 	}
 
-	return  global_light.emitIntensity * 1000.f * Kd * dot(normal_dire, N) / disPow2;
+	return  emitIntensity * emitIntensity * eval * dot(normal_dire, N) / disPow2;
 }
+
 
 float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout float4 seed) {
 
@@ -446,7 +419,7 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	/*float2 uv = barycentrics.x * Vertices[Indices[vertId + 0]].TexCoords +
 		barycentrics.y * Vertices[Indices[vertId + 1]].TexCoords +
 		barycentrics.z * Vertices[Indices[vertId + 2]].TexCoords;*/
-	float2 vertexTex[3] = { 
+	float2 vertexTex[3] = {
 		Vertices[Indices[vertId + 0]].TexCoords,
 		Vertices[Indices[vertId + 1]].TexCoords,
 		Vertices[Indices[vertId + 2]].TexCoords };

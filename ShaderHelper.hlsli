@@ -29,6 +29,7 @@ bool canRefract(float3 v, float3 n, float ni_over_nt, inout float3 refracted) {
 	float discriminant = 1.0 - ni_over_nt * (1 - dt * dt);
 	if (discriminant > 0) {
 		refracted = ni_over_nt * (uv - n * dt) - n * sqrt(discriminant);
+		refracted = normalize(refracted);
 		return true;
 	}
 	return false;
@@ -70,6 +71,20 @@ float TrowbridgeReitz(in float cos2, in float alpha2)
 //	float lambda2 = 0.5 * (-1 + sqrt(1 + alpha2 * (1 - cos2) / cos2));
 //	return 1 / (1 + lambda1 + lambda2);
 //}
+
+float3 toWorld(float3 a, float3 N) {
+	float3 B, C;
+	if (abs(N.x) > abs(N.y)) {
+		float invLen = 1.0f / sqrt(N.x * N.x + N.z * N.z);
+		C = float3(N.z * invLen, 0.0f, -N.x * invLen);
+	}
+	else {
+		float invLen = 1.0f / sqrt(N.y * N.y + N.z * N.z);
+		C = float3(0.0f, N.z * invLen, -N.y * invLen);
+	}
+	B = cross(C, N);
+	return a.x * B + a.y * C + a.z * N;
+}
 
 float length_toPow2(float2 p)
 {
@@ -273,7 +288,6 @@ float3 lin2mon(float3 x)
 	return float3(pow(x.x, 1 / 2.2), pow(x.y, 1 / 2.2), pow(x.z, 1 / 2.2));
 }
 
-//目前使用该版本
 float3 Disney_BRDF_diffuse(float3 L, float3 V, float3 N, float3 Kd, PrimitiveMaterialBuffer Mat)
 {
 	float metallic = Mat.metallic;
@@ -367,7 +381,6 @@ float3 Disney_BRDF_clearcoat(float3 L, float3 V, float3 N, float3 Kd, PrimitiveM
 	return  0.25 * clearcoat * Gr * Fr / NdotL / NdotV / NdotH * VdotH;
 }
 
-//以下版本保留，暂不使用
 float3 Disney_BRDF(float3 L, float3 V, float3 N, float3 Kd, PrimitiveMaterialBuffer Mat)
 {
 	float metallic = Mat.metallic;

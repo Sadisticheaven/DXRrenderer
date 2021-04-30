@@ -950,7 +950,7 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateRayGenSignature() {
 			{0 /*t0*/, 1 , 0 ,D3D12_DESCRIPTOR_RANGE_TYPE_SRV ,default},//TLAS
 			{0 /*b0*/, 1 , 0, D3D12_DESCRIPTOR_RANGE_TYPE_CBV ,default},//Scene parameters
 		});
-
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 1);
 	return rsc.Generate(m_device.Get(), true);
 }
 
@@ -1208,7 +1208,7 @@ void SceneEditor::CreateShaderBindingTable() {
 	auto heapPointer = reinterpret_cast<UINT64*>(srvUavHeapHandle.ptr);
 
 	// The ray generation only uses heap data
-	m_sbtHelper.AddRayGenerationProgram(L"RayGen", { heapPointer });
+	m_sbtHelper.AddRayGenerationProgram(L"RayGen", { heapPointer,(void*)(m_lights[0].lightBuffer->GetGPUVirtualAddress())});
 
 	// The miss and hit shaders do not access any external resources: instead they
 	// communicate their results through the ray payload
