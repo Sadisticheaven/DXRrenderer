@@ -20,6 +20,7 @@ public:
 
 	char** m_objectsName;
 	int m_selectObjIdx = 0;
+	int m_selectLightIdx = 0;
 	std::string m_selObjName;
 
 	float m_translation[3] = { 0.f , 0.f, 0.f};

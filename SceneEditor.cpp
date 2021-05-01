@@ -279,21 +279,41 @@ void SceneEditor::CreateMaterialBufferAndSetAttributes(int objIndex, MaterialTyp
 	m_objects[objIndex].MaterialBuffer->Unmap(0, nullptr);
 }
 
-void SceneEditor::CreateLightBuffer(Light& desc)
+void SceneEditor::AllocateUploadLightBuffer()
 {
-	int lightBufferSize = SizeOfIn256(Light);
-	LightSource lightSource;
-	lightSource.lightBuffer = nv_helpers_dx12::CreateBuffer(
-		m_device.Get(), lightBufferSize, D3D12_RESOURCE_FLAG_NONE,
-		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
-	lightSource.lightDesc = desc;
-	
-	uint8_t* pData;
-	ThrowIfFailed(lightSource.lightBuffer->Map(0, nullptr, (void**)&pData));
-	memcpy(pData, &(lightSource.lightDesc), sizeof(Light));
-	lightSource.lightBuffer->Unmap(0, nullptr);
-	m_lights.emplace_back(lightSource);
+	const UINT LightBufferSize = static_cast<UINT>(lightsInScene.size()) * sizeof(Light);
+	{
+		CD3DX12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		CD3DX12_RESOURCE_DESC bufferResource = CD3DX12_RESOURCE_DESC::Buffer(1000 * sizeof(Light));
+		ThrowIfFailed(m_device->CreateCommittedResource(
+			&heapProperty, D3D12_HEAP_FLAG_NONE, &bufferResource,
+			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_lightsBuffer)));
+
+		// Copy the triangle data to the vertex buffer.
+		UINT8* pVertexDataBegin;
+		CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_lightsBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
+		memcpy(pVertexDataBegin, lightsInScene.data(), LightBufferSize);
+		m_lightsBuffer->Unmap(0, nullptr);
+	}
 }
+
+
+//void SceneEditor::CreateLightBuffer(Light& desc)
+//{
+//	int lightBufferSize = SizeOfIn256(Light);
+//	LightSource lightSource;
+//	lightSource.lightBuffer = nv_helpers_dx12::CreateBuffer(
+//		m_device.Get(), lightBufferSize, D3D12_RESOURCE_FLAG_NONE,
+//		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
+//	lightSource.lightDesc = desc;
+//
+//	uint8_t* pData;
+//	ThrowIfFailed(lightSource.lightBuffer->Map(0, nullptr, (void**)&pData));
+//	memcpy(pData, &(lightSource.lightDesc), sizeof(Light));
+//	lightSource.lightBuffer->Unmap(0, nullptr);
+//	m_lights.emplace_back(lightSource);
+//}
 // Load the sample assets.
 
 void SceneEditor::LoadAssets()
@@ -333,7 +353,7 @@ void SceneEditor::LoadAssets()
 
 		// use sphere to simulate point light 
 		model.meshes.clear();
-		model.meshes.push_back(CreateGeosphere(5.f, 5));
+		model.meshes.push_back(CreateGeosphere(5.f, 3));
 		// inverse the normal, so light can through the shpere like a bulb
 		for (int i = 0; i < model.meshes.size(); ++i) {
 			for (int j = 0; j < model.meshes[i].vertices.size(); ++j) {
@@ -377,7 +397,7 @@ void SceneEditor::LoadAssets()
 
 		m_imguiManager.ConvertString2Char(m_imguiManager.m_texNamesChar, m_texNames);
 	}
-	
+
 	// assign tex ¡¢ hitgroup Name¡¢ Material
 	{
 		for (int i = 0; i < m_objects.size(); ++i) {
@@ -397,12 +417,15 @@ void SceneEditor::LoadAssets()
 		lightDesc.position = XMFLOAT3(278.f, 540.f, 279.5f);
 		//lightDesc.position = XMFLOAT3(200.f, 200.f, -10.f);
 		lightDesc.direction = XMFLOAT3(0.f, -1.f, 0.f);
-		lightDesc.emitIntensity = 35.f;
+		lightDesc.emitIntensity = 150.f;
 		lightDesc.falloffStart = XM_PIDIV4 / 2;
 		lightDesc.totalWidth = XM_PIDIV4;
 		lightDesc.worldRadius = 500.f;
 		lightDesc.type = LightType::Spot;
-		CreateLightBuffer(lightDesc);
+		matrices.light_nums = 1;
+		lightsInScene.push_back(lightDesc);
+		AllocateUploadLightBuffer();
+		//CreateLightBuffer(lightDesc);
 	}
 
 	// set origin transform
@@ -411,7 +434,7 @@ void SceneEditor::LoadAssets()
 			m_objects[i].originTransform = XMMatrixIdentity();
 		}
 		m_objects[m_idxOfObj["car"]].originTransform = XMMatrixRotationY(-XM_PIDIV2 - XM_PIDIV4) * XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(200.f, 165.f, 160.f);
-		m_objects[m_idxOfObj["nanosuit"]].originTransform = XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f);		
+		m_objects[m_idxOfObj["nanosuit"]].originTransform = XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f);
 		m_objects[m_idxOfObj["Enviroment light"]].originTransform = XMMatrixScaling(500.f, 500.f, 500.f) * XMMatrixTranslation(200.f, 200.f, -10.f);
 		//m_objects[m_idxOfObj["point light"]].originTransform = XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(-300.f, 200.f, -1000.f);		
 	}
@@ -466,7 +489,7 @@ void SceneEditor::LoadAssets()
 			UpadteMaterialParameter(i);
 		}
 	}
-	
+
 
 	{
 		ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
@@ -857,7 +880,7 @@ void SceneEditor::CreateTopLevelAS(
 		//AddInstance(instances1, matrix1, instanceId1, hitGroupIndex1);
 		m_topLevelASGenerator.AddInstance(instances[i].first.Get(),
 			instances[i].second, static_cast<UINT>(i),
-			static_cast<UINT>(2*i));//because of shadowHitGroup, mult 2
+			static_cast<UINT>(2 * i));//because of shadowHitGroup, mult 2
 	}
 
 	// As for the bottom-level AS, the building the AS requires some scratch space
@@ -919,7 +942,7 @@ void SceneEditor::CreateAccelerationStructures() {
 	for (int i = 0; i < m_objects.size(); ++i) {
 		m_instances.emplace_back(std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>(m_objects[i].bottomLevelAS, m_objects[i].originTransform));
 	}
-	
+
 	CreateTopLevelAS(m_instances);
 
 	// Flush the command list and wait for it to finish
@@ -952,7 +975,8 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateRayGenSignature() {
 			{0 /*t0*/, 1 , 0 ,D3D12_DESCRIPTOR_RANGE_TYPE_SRV ,default},//TLAS
 			{0 /*b0*/, 1 , 0, D3D12_DESCRIPTOR_RANGE_TYPE_CBV ,default},//Scene parameters
 		});
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 1);
+	//rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 1);
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1);
 	return rsc.Generate(m_device.Get(), true);
 }
 
@@ -971,7 +995,7 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateHitSignature() {
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 3);//light_vertices
 	//rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 4);//light_indices
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 1);//light
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 2);//SceneConstants
+	//rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 2);
 
 	rsc.AddHeapRangesParameter(
 		{
@@ -1210,7 +1234,11 @@ void SceneEditor::CreateShaderBindingTable() {
 	auto heapPointer = reinterpret_cast<UINT64*>(srvUavHeapHandle.ptr);
 
 	// The ray generation only uses heap data
-	m_sbtHelper.AddRayGenerationProgram(L"RayGen", { heapPointer,(void*)(m_lights[0].lightBuffer->GetGPUVirtualAddress())});
+	m_sbtHelper.AddRayGenerationProgram(L"RayGen",
+		{ heapPointer,
+		//(void*)(m_lights[0].lightBuffer->GetGPUVirtualAddress()),
+		(void*)(m_lightsBuffer->GetGPUVirtualAddress()),
+		});
 
 	// The miss and hit shaders do not access any external resources: instead they
 	// communicate their results through the ray payload
@@ -1230,10 +1258,10 @@ void SceneEditor::CreateShaderBindingTable() {
 			(void*)(m_objects[i].indexBuffer->GetGPUVirtualAddress()),
 			(void*)(m_topLevelASBuffers.pResult->GetGPUVirtualAddress()),
 			(void*)(m_objects[i].MaterialBuffer->GetGPUVirtualAddress()),
-			(void*)(m_objects[m_idxOfObj["light"]].vertexBuffer->GetGPUVirtualAddress()),
+			(void*)(m_lightsBuffer->GetGPUVirtualAddress()),
 			//(void*)(m_objects[m_idxOfObj["light"]].indexBuffer->GetGPUVirtualAddress()),
 			//(void*)(m_cameraBuffer->GetGPUVirtualAddress()),
-			(void*)(m_lights[0].lightBuffer->GetGPUVirtualAddress()),
+			//(void*)(m_lights[0].lightBuffer->GetGPUVirtualAddress()),
 			(void*)(m_cameraBuffer->GetGPUVirtualAddress()),
 			(void*)srvUavHeapHandle.ptr,
 			});
@@ -1350,7 +1378,7 @@ void SceneEditor::UpdateSceneParameterBuffer() {
 	memcpy(pData, &matrices, m_cameraBufferSize);
 	m_cameraBuffer->Unmap(0, nullptr);
 
-	
+
 }
 
 void SceneEditor::OnMouseDown(WPARAM btnState, int x, int y)
@@ -1430,6 +1458,7 @@ void SceneEditor::StartImgui()
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
+
 	ImGui::Begin("Parameters");
 	if (ImGui::Combo("ObjectsName", &m_imguiManager.m_selectObjIdx, m_imguiManager.m_objectsName, m_objects.size())) {
 		m_imguiManager.m_selObjName = m_imguiManager.m_objectsName[m_imguiManager.m_selectObjIdx];
@@ -1438,7 +1467,7 @@ void SceneEditor::StartImgui()
 	ImGui::Text("Color:");
 	if (ImGui::ColorEdit4("Kd", reinterpret_cast<float*>(&m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.Kd)))
 		OnResetSpp();
-	
+
 
 	ImGui::Text("Material:");
 	{
@@ -1460,7 +1489,7 @@ void SceneEditor::StartImgui()
 		if (ImGui::DragFloat("EmitIntensity", &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.emitIntensity, 0.1f, 0.f, 30.f))
 			OnResetSpp();
 	}
-	
+
 
 	ImGui::Text("Texture:");
 	{
@@ -1473,7 +1502,7 @@ void SceneEditor::StartImgui()
 			OnResetSpp();
 		}
 	}
-	
+
 	ImGui::Text("The following parameters are used for Disney_BRDF:");
 	{
 		auto valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.subsurface;
@@ -1561,29 +1590,55 @@ void SceneEditor::StartImgui()
 			}
 		}
 	}
-	
+
 	ImGui::Text("Global Light:");
-	auto valueAddress2 = reinterpret_cast<float*>(&m_lights.front().lightDesc.position);
-	if (ImGui::DragFloat3("position", valueAddress2, 0.1f))
-		OnResetSpp();
-	valueAddress2 = reinterpret_cast<float*>(&m_lights.front().lightDesc.emitIntensity);
-	if (ImGui::DragFloat("emit", valueAddress2, 0.1f, 0.f))
-		OnResetSpp();
-	valueAddress2 = reinterpret_cast<float*>(&m_lights.front().lightDesc.direction);
-	if (ImGui::DragFloat3("direction", valueAddress2, 0.1f))
-		OnResetSpp();
-	valueAddress2 = reinterpret_cast<float*>(&m_lights.front().lightDesc.falloffStart);
-	if (ImGui::DragFloat("falloffStart", valueAddress2, 0.01f, 0.f, m_lights.front().lightDesc.totalWidth))
-		OnResetSpp();
-	valueAddress2 = reinterpret_cast<float*>(&m_lights.front().lightDesc.totalWidth);
-	if (ImGui::DragFloat("totalWidth", valueAddress2, 0.01f, m_lights.front().lightDesc.falloffStart, XM_PIDIV2))
-		OnResetSpp();
-	valueAddress2 = reinterpret_cast<float*>(&m_lights.front().lightDesc.worldRadius);
-	if (ImGui::DragFloat("worldRadius", valueAddress2, 0.1f))
-		OnResetSpp();
-	auto lightType = reinterpret_cast<int*>(&m_lights.front().lightDesc.type);
-	if (ImGui::Combo("LightType", lightType, m_LightType, LightType::Count))
-		OnResetSpp();
+	{
+		while (lightIdxChar.size() < lightsInScene.size()) {
+			int i = lightIdxChar.size();
+			std::string s = std::to_string(i);
+			s.push_back(char(0));
+			char* cur = new char[s.size()];
+			for (int j = 0; j < s.size(); ++j)
+				cur[j] = s[j];
+			lightIdxChar.push_back((char*)cur);
+		}
+		ImGui::Combo("Light index", &m_imguiManager.m_selectLightIdx, lightIdxChar.data(), lightsInScene.size());
+		int i = m_imguiManager.m_selectLightIdx;
+		auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].position);
+		if (ImGui::DragFloat3("position", valueAddress2, 0.1f))
+			OnResetSpp();
+		valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].emitIntensity);
+		if (ImGui::DragFloat("emit", valueAddress2, 0.1f, 0.f))
+			OnResetSpp();
+		valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].direction);
+		if (ImGui::DragFloat3("direction", valueAddress2, 0.1f))
+			OnResetSpp();
+		valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].falloffStart);
+		if (ImGui::DragFloat("falloffStart", valueAddress2, 0.01f, 0.f, lightsInScene[i].totalWidth))
+			OnResetSpp();
+		valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].totalWidth);
+		if (ImGui::DragFloat("totalWidth", valueAddress2, 0.01f, lightsInScene[i].falloffStart, XM_PIDIV2))
+			OnResetSpp();
+		valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].worldRadius);
+		if (ImGui::DragFloat("worldRadius", valueAddress2, 0.1f))
+			OnResetSpp();
+		auto lightType = reinterpret_cast<int*>(&lightsInScene[i].type);
+		if (ImGui::Combo("LightType", lightType, m_LightType, LightType::Count))
+			OnResetSpp();
+		if (ImGui::Button("Add a light")) {
+			OnResetSpp();
+			lightsInScene.push_back(lightsInScene[0]);
+			matrices.light_nums++;
+		}
+		if (ImGui::Button("Delete a light")) {
+			if (lightsInScene.size() > 1) {
+				OnResetSpp();
+				lightsInScene.pop_back();
+				matrices.light_nums--;
+			}
+		}
+
+	}
 	m_imguiManager.isHovered = ImGui::IsWindowHovered() | ImGui::IsAnyItemHovered() | ImGui::IsAnyItemActive();
 
 	ImGui::End();
@@ -1632,7 +1687,7 @@ void SceneEditor::UpdateInstances()
 		// Instance ID visible in the shader in InstanceID()
 		instanceDescs[i].InstanceID = static_cast<UINT>(i);
 		// Index of the hit group invoked upon intersection
-		instanceDescs[i].InstanceContributionToHitGroupIndex =  static_cast<UINT>(2*i);//because of shadowHit, mult 2
+		instanceDescs[i].InstanceContributionToHitGroupIndex = static_cast<UINT>(2 * i);//because of shadowHit, mult 2
 		// Instance flags, including backface culling, winding, etc - TODO: should
 		// be accessible from outside
 		instanceDescs[i].Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
@@ -1675,9 +1730,19 @@ void SceneEditor::UpdateInstances()
 
 void SceneEditor::UpdateLight()
 {
-	if (m_lights.empty()) return;
+	/*if (m_lights.empty()) return;
 	uint8_t* pData2;
 	ThrowIfFailed(m_lights[0].lightBuffer->Map(0, nullptr, (void**)&pData2));
 	memcpy(pData2, &(m_lights[0].lightDesc), sizeof(Light));
-	m_lights[0].lightBuffer->Unmap(0, nullptr);
+	m_lights[0].lightBuffer->Unmap(0, nullptr);*/
+
+	const UINT LightBufferSize = static_cast<UINT>(lightsInScene.size()) * sizeof(Light);
+	{
+		// Copy the triangle data to the vertex buffer.
+		UINT8* pVertexDataBegin;
+		CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_lightsBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
+		memcpy(pVertexDataBegin, lightsInScene.data(), LightBufferSize);
+		m_lightsBuffer->Unmap(0, nullptr);
+	}
 }

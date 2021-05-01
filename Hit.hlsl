@@ -10,7 +10,8 @@ ConstantBuffer<PrimitiveMaterialBuffer> MaterialAttributes : register(b0);
 StructuredBuffer<Light> light_vertices: register(t3);
 //StructuredBuffer<Index> light_indices: register(t4);
 Texture2D bricksTex : register(t4);
-ConstantBuffer<Light> global_light : register(b1);
+ConstantBuffer<SceneConstants> sceneParameter : register(b1);
+//ConstantBuffer<Light> global_light : register(b1);
 //6个不同类型的采样器
 SamplerState gSamPointWrap : register(s0);
 SamplerState gSamPointClamp : register(s1);
@@ -112,80 +113,86 @@ float3 get_eval_for_light_dir(float3 wi, float3 wo, float3 N, float2 uv) {
 
 float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N, float2 uv, inout float4 seed, in UINT curRecursionDepth)
 {
+	float3 radiance = float3(0.0, 0.0, 0.0);
+	for (uint i = 0; i < sceneParameter.light_nums; ++i) {
+		Light global_light = light_vertices[i];
+		float3 position = global_light.position;
 
-	float3 position = global_light.position;
-
-	float3 direction = position - hitWorldPosition;
-	float disPow2 = dot(direction, direction);
-	float dis = sqrt(disPow2);
-	float3 normal_dire = normalize(direction);
-
-	if (dot(N, normal_dire) <= 0.0f) {
-		return float3(0.0, 0.0, 0.0);
-	}
-
-	float3 eval = get_eval_for_light_dir(worldRayDirection, N, normal_dire, uv);
-	float3 Kd = MaterialAttributes.Kd;
-	float emitIntensity = global_light.emitIntensity;
+		float3 direction = position - hitWorldPosition;
+		float disPow2 = dot(direction, direction);
+		float dis = sqrt(disPow2);
+		float3 normal_dire = normalize(direction);
 
 
-	RayDesc rayDesc;
-	rayDesc.Origin = hitWorldPosition;
-	rayDesc.Direction = normal_dire;
-	rayDesc.TMin = 0.01;
-	rayDesc.TMax = dis + 1.f;
-
-	if (global_light.type == LightType::Distant) {
-		float3 distantDirection = normalize(global_light.direction);
-		rayDesc.Direction = -distantDirection;
-		rayDesc.TMax = 2 * global_light.worldRadius;
-	}
-
-	ShadowRayPayload rayPayload;
-	rayPayload.tHit = HitDistanceOnMiss;
-	TraceRay(
-		SceneBVH,
-		RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
-		0xFF,
-		1,//shadowhit
-		0,
-		1,//shadowmiss
-		rayDesc,
-		rayPayload);
-
-
-	if (rayPayload.tHit != HitDistanceOnMiss) {
-		return float3(0.0, 0.0, 0.0);
-	}
-	if (global_light.type == LightType::Distant) {
-		float3 distantDirection = normalize(global_light.direction);
-		float cosx = dot(N, -distantDirection);
-		if (cosx < 0.f) {
-			return float3(0.0, 0.0, 0.0);
+		if (dot(N, normal_dire) <= 0.0f) {
+			continue;
 		}
-		return  emitIntensity * emitIntensity * Kd * cosx;
-	}
-	if (global_light.type == LightType::Point) {
-		return  emitIntensity * emitIntensity * eval / disPow2;
-	}
-	if (global_light.type == LightType::Spot) {
-		float cosx = dot(-normal_dire, normalize(global_light.direction));
-		float cosFalloffStart = cos(global_light.falloffStart);
-		float cosTotalWidth = cos(global_light.totalWidth);
-		float delta;
-		if (cosx > cosFalloffStart) {
-			delta = 1.f;
-		}
-		else if (cosx < cosTotalWidth) {
-			delta = 0.f;
-		}
-		else {
-			delta = (cosx - cosTotalWidth) / (cosFalloffStart - cosTotalWidth);
-		}
-		return emitIntensity * emitIntensity * eval  * delta * delta * delta * delta / disPow2;
-	}
 
-	return float3(0.0, 0.0, 0.0);
+		float3 eval = get_eval_for_light_dir(worldRayDirection, N, normal_dire, uv);
+		float3 Kd = MaterialAttributes.Kd;
+		float emitIntensity = global_light.emitIntensity;
+
+
+		RayDesc rayDesc;
+		rayDesc.Origin = hitWorldPosition;
+		rayDesc.Direction = normal_dire;
+		rayDesc.TMin = 0.01;
+		rayDesc.TMax = dis + 1.f;
+
+		if (global_light.type == LightType::Distant) {
+			float3 distantDirection = normalize(global_light.direction);
+			rayDesc.Direction = -distantDirection;
+			rayDesc.TMax = 2 * global_light.worldRadius;
+		}
+
+		ShadowRayPayload rayPayload;
+		rayPayload.tHit = HitDistanceOnMiss;
+		TraceRay(
+			SceneBVH,
+			RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
+			0xFF,
+			1,//shadowhit
+			0,
+			1,//shadowmiss
+			rayDesc,
+			rayPayload);
+
+
+		if (rayPayload.tHit != HitDistanceOnMiss) {
+			continue;
+		}
+		if (global_light.type == LightType::Distant) {
+			float3 distantDirection = normalize(global_light.direction);
+			float cosx = dot(N, -distantDirection);
+			if (cosx < 0.f) {
+				continue;
+			}
+			radiance += emitIntensity * emitIntensity * eval * cosx;
+			continue;
+		}
+		if (global_light.type == LightType::Point) {
+			radiance += emitIntensity * emitIntensity * eval / disPow2;
+			continue;
+		}
+		if (global_light.type == LightType::Spot) {
+			float cosx = dot(-normal_dire, normalize(global_light.direction));
+			float cosFalloffStart = cos(global_light.falloffStart);
+			float cosTotalWidth = cos(global_light.totalWidth);
+			float delta;
+			if (cosx > cosFalloffStart) {
+				delta = 1.f;
+			}
+			else if (cosx < cosTotalWidth) {
+				delta = 0.f;
+			}
+			else {
+				delta = (cosx - cosTotalWidth) / (cosFalloffStart - cosTotalWidth);
+			}
+			radiance += emitIntensity * emitIntensity * eval * delta * delta * delta * delta / disPow2;
+			continue;
+		}
+	}
+	return radiance;
 }
 
 

@@ -97,7 +97,7 @@ private:
 	void CreateMaterialBufferAndSetAttributes(int bufferIndex, MaterialType::Type type, XMFLOAT4 Kd, float emitIntensity = 0.f,
 		float smoothness = 0.0f, float index_of_refraction = 1.0f, float  reflectivity = 0.3f, UINT hasDiffuseTexture = false);
 	void CreateMaterialBufferAndSetAttributes(PrimitiveMaterialBuffer& desc, int bufferIndex = 0);
-	void CreateLightBuffer(Light& desc);
+	//void CreateLightBuffer(Light& desc);
 
 
 	// Synchronization objects.
@@ -214,7 +214,14 @@ private:
 		Light lightDesc;
 		ComPtr<ID3D12Resource> lightBuffer;
 	};
+
+
+	std::vector<Light> lightsInScene;
+	ComPtr<ID3D12Resource> m_lightsBuffer;
+	std::vector<char*> lightIdxChar;
+
 	char* m_LightType[LightType::Count + 1] = { FOREACH_LIGHT(GENERATE_STRING) };
-	std::vector<LightSource> m_lights;
+	//std::vector<LightSource> m_lights;
 	void UpdateLight();
+	void AllocateUploadLightBuffer();
 };

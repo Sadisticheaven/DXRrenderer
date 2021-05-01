@@ -10,7 +10,9 @@ RaytracingAccelerationStructure SceneBVH : register(t0);// declared in CreateRay
 
 // #DXR Extra: Perspective Camera
 ConstantBuffer<SceneConstants> sceneParameter : register(b0);
-ConstantBuffer<Light> global_light : register(b1);
+
+StructuredBuffer<Light> light_vertices: register(t1);
+//ConstantBuffer<Light> light_vertices[i] : register(b1);
 
 [shader("raygeneration")]
 void RayGen() {
@@ -26,8 +28,10 @@ void RayGen() {
 
 	RayDesc ray = GenerateCameraRay(launchIndex, sceneParameter);
 #if 1
+	for (uint i = 0; i < sceneParameter.light_nums; ++i)
 	{
-		float3 position = global_light.position;
+
+		float3 position = light_vertices[i].position;
 		float3 direction = position - ray.Origin.xyz;
 		float disPow2 = dot(direction, direction);
 		float dis = sqrt(disPow2);
@@ -70,6 +74,6 @@ void RayGen() {
 	);
 
 	//gOutput[launchIndex] = float4(payload.radiance, 1.f);
-	payload.radiance = clamp(payload.radiance, 0.0, 300.f);
+	payload.radiance = clamp(payload.radiance, 0.0, 100.f);
 	gOutput[launchIndex] = lerp(gOutput[launchIndex], float4(payload.radiance, 1.0f), 1.0 / (float(sceneParameter.curSampleIdx) + 1.0f));
 }

@@ -105,7 +105,7 @@ struct SceneConstants
 	XMMATRIX invViewProj;
 	XMFLOAT4 seed;
 	float curSampleIdx;
-	UINT point_light_nums;
+	UINT light_nums;
 };
 
 namespace MaterialType {
