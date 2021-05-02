@@ -114,7 +114,10 @@ float3 get_eval_for_light_dir(float3 wi, float3 wo, float3 N, float2 uv) {
 float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N, float2 uv, inout float4 seed, in UINT curRecursionDepth)
 {
 	float3 radiance = float3(0.0, 0.0, 0.0);
-	for (uint i = 0; i < sceneParameter.light_nums; ++i) {
+	seed = createRandomFloat4(seed);
+	uint times_of_dir_light_sample = 1;
+	for (uint t = 0; t < times_of_dir_light_sample; ++t) {
+		uint i = fmod(seed.w * sceneParameter.light_nums, sceneParameter.light_nums);
 		Light global_light = light_vertices[i];
 		float3 position = global_light.position;
 
@@ -192,7 +195,7 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 			continue;
 		}
 	}
-	return radiance;
+	return radiance * sceneParameter.light_nums / float(times_of_dir_light_sample);
 }
 
 
