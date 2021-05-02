@@ -83,7 +83,6 @@ float3 get_eval_for_light_dir(float3 wi, float3 wo, float3 N, float2 uv) {
 				return Kd * (alpha + 2) * pow(dot(wo, refracted), alpha) * (1 - reflect_prob);
 			}
 			else if (dot(wo, reflected) > 0.0f) {
-				return float3(0.0, 0.0, 0.0);
 				return Kd * (alpha + 2) * pow(dot(wo, reflected), alpha) * reflect_prob;
 			}
 		}
@@ -98,7 +97,9 @@ float3 get_eval_for_light_dir(float3 wi, float3 wo, float3 N, float2 uv) {
 		float cosalpha = dot(wo, N);
 		float3 reflect_dir = reflect(wi, N);
 		if (dot(wo, N) > 0.0f) {
-			return Kd * (reflectivity * pow(dot(wo, reflect_dir), alpha) + (1.0 - reflectivity) * dot(wo, N));
+			if (dot(wo, reflect_dir) > 0.0f)
+				return Kd * (reflectivity * pow(dot(wo, reflect_dir), alpha) * (alpha + 2) + (1.0 - reflectivity) * Kd * dot(wo, N));
+			return (1.0 - reflectivity) * Kd * dot(wo, N);
 		}
 		return float3(0.0, 0.0, 0.0);
 	}
@@ -320,7 +321,7 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 			wo = toWorld(localRay, reflect_dir);
 		}
 		else {
-			x_1 = pow(random_float.x, 1.0 / 2.0), x_2 = random_float.z;
+			x_1 = pow(random_float.x, 1.0 / 2.0), x_2 = random_float.y;
 			z = x_1;
 			r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
 			localRay = float3(r * cos(phi), r * sin(phi), z);
