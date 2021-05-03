@@ -290,10 +290,10 @@ void SceneEditor::AllocateUploadLightBuffer()
 			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_lightsBuffer)));
 
 		// Copy the triangle data to the vertex buffer.
-		UINT8* pVertexDataBegin;
+		UINT8* pLightDataBegin;
 		CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
-		ThrowIfFailed(m_lightsBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
-		memcpy(pVertexDataBegin, lightsInScene.data(), LightBufferSize);
+		ThrowIfFailed(m_lightsBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pLightDataBegin)));
+		memcpy(pLightDataBegin, lightsInScene.data(), LightBufferSize);
 		m_lightsBuffer->Unmap(0, nullptr);
 	}
 }
@@ -1183,8 +1183,8 @@ void SceneEditor::CreateShaderResourceHeap() {
 
 		// Describe and create a constant buffer view for the camera
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-		cbvDesc.BufferLocation = m_cameraBuffer->GetGPUVirtualAddress();
-		cbvDesc.SizeInBytes = m_cameraBufferSize;
+		cbvDesc.BufferLocation = m_sceneParameterBuffer->GetGPUVirtualAddress();
+		cbvDesc.SizeInBytes = m_sceneParameterBufferSize;
 		m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
 	}
 
@@ -1262,7 +1262,7 @@ void SceneEditor::CreateShaderBindingTable() {
 			//(void*)(m_objects[m_idxOfObj["light"]].indexBuffer->GetGPUVirtualAddress()),
 			//(void*)(m_cameraBuffer->GetGPUVirtualAddress()),
 			//(void*)(m_lights[0].lightBuffer->GetGPUVirtualAddress()),
-			(void*)(m_cameraBuffer->GetGPUVirtualAddress()),
+			(void*)(m_sceneParameterBuffer->GetGPUVirtualAddress()),
 			(void*)srvUavHeapHandle.ptr,
 			});
 
@@ -1301,12 +1301,12 @@ void SceneEditor::CreateCameraBuffer()
 {
 	//uint32_t nbMatrix = 4; // view, perspective, viewInverse, perspectiveInverse
 	//size must be multiple of 256
-	m_cameraBufferSize = SizeOfIn256(SceneConstants);
+	m_sceneParameterBufferSize = SizeOfIn256(SceneConstants);
 
 
 	// Create the constant buffer for all matrices
-	m_cameraBuffer = nv_helpers_dx12::CreateBuffer(
-		m_device.Get(), m_cameraBufferSize, D3D12_RESOURCE_FLAG_NONE,
+	m_sceneParameterBuffer = nv_helpers_dx12::CreateBuffer(
+		m_device.Get(), m_sceneParameterBufferSize, D3D12_RESOURCE_FLAG_NONE,
 		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
 
 	// Create a descriptor heap that will be used by the rasterization shaders
@@ -1315,8 +1315,8 @@ void SceneEditor::CreateCameraBuffer()
 
 	// Describe and create the constant buffer view.
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = m_cameraBuffer->GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = m_cameraBufferSize;
+	cbvDesc.BufferLocation = m_sceneParameterBuffer->GetGPUVirtualAddress();
+	cbvDesc.SizeInBytes = m_sceneParameterBufferSize;
 
 	// Get a handle to the heap memory on the CPU side, to be able to write the
 	// descriptors directly
@@ -1374,9 +1374,9 @@ void SceneEditor::UpdateSceneParameterBuffer() {
 	matrices.seed = XMFLOAT4(rand() / double(0xfff), rand() / double(0xfff), rand() / double(0xfff), rand() / double(0xfff));
 
 	uint8_t* pData;
-	ThrowIfFailed(m_cameraBuffer->Map(0, nullptr, (void**)&pData));
-	memcpy(pData, &matrices, m_cameraBufferSize);
-	m_cameraBuffer->Unmap(0, nullptr);
+	ThrowIfFailed(m_sceneParameterBuffer->Map(0, nullptr, (void**)&pData));
+	memcpy(pData, &matrices, m_sceneParameterBufferSize);
+	m_sceneParameterBuffer->Unmap(0, nullptr);
 
 
 }

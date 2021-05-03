@@ -132,7 +132,9 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 			continue;
 		}
 
-		float3 eval = get_eval_for_light_dir(worldRayDirection, N, normal_dire, uv);
+		worldRayDirection = normalize(worldRayDirection);
+
+		float3 eval = get_eval_for_light_dir(worldRayDirection, normal_dire, N, uv);
 		float3 Kd = MaterialAttributes.Kd;
 		float emitIntensity = global_light.emitIntensity;
 
@@ -213,11 +215,9 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 		//common
 		seed = createRandomFloat4(seed);
 		float4 random_float = seed;
-		//float x_1 = pow(random_float.x, 1.0 / 2), x_2 = random_float.z;
-		//float z = x_1;
-		float x_1 = random_float.x, x_2 = random_float.z;
-		float z = pow(random_float.x, 1.0 / 2);
-		float r = sqrt(1.0f - x_1), phi = 2 * M_PI * x_2;
+		float x_1 = cos(random_float.x * M_PI * 0.5), x_2 = random_float.z;
+		float z = pow(x_1, 1.0 / 2);
+		float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
 		float3 localRay = float3(r * cos(phi), r * sin(phi), z);
 		//end_common
 
@@ -237,8 +237,8 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 		float4 random_float = seed;
 		float s = MaterialAttributes.smoothness;
 		float alpha = pow(1000.0f, s);
-		float x_1 = pow(random_float.x, 1.0 / alpha), x_2 = random_float.z;
-		float z = x_1;
+		float x_1 = cos(random_float.x * M_PI * 0.5), x_2 = random_float.z;
+		float z = pow(x_1, 1.0 / alpha);
 		float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
 		float3 localRay = float3(r * cos(phi), r * sin(phi), z);
 		//end_common
@@ -263,8 +263,8 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 		float4 random_float = seed;
 		float s = MaterialAttributes.smoothness;
 		float alpha = pow(1000.0f, s);
-		float x_1 = pow(random_float.x, 1.0 / alpha), x_2 = random_float.z;
-		float z = x_1;
+		float x_1 = cos(random_float.x * M_PI * 0.5), x_2 = random_float.z;
+		float z = pow(x_1, 1.0 / alpha);
 		float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
 		float3 localRay = float3(r * cos(phi), r * sin(phi), z);
 		//end_common
@@ -313,16 +313,16 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 
 		float reflectivity = MaterialAttributes.reflectivity;
 		if (seed.w < reflectivity) {
-			x_1 = pow(random_float.x, 1.0 / alpha), x_2 = random_float.z;
-			z = x_1;
+			x_1 = cos(random_float.x * M_PI * 0.5), x_2 = random_float.z;
+			z = pow(x_1, 1.0 / alpha);
 			r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
 			localRay = float3(r * cos(phi), r * sin(phi), z);
 			float3 reflect_dir = reflect(wi, N);
 			wo = toWorld(localRay, reflect_dir);
 		}
 		else {
-			x_1 = pow(random_float.x, 1.0 / 2.0), x_2 = random_float.y;
-			z = x_1;
+			x_1 = cos(random_float.x * M_PI * 0.5), x_2 = random_float.y;
+			z = pow(x_1, 1.0 / 2.0);
 			r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
 			localRay = float3(r * cos(phi), r * sin(phi), z);
 			wo = toWorld(localRay, N);
@@ -341,7 +341,7 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 		//common
 		seed = createRandomFloat4(seed);
 		float4 random_float = seed;
-		float x_1 = random_float.x, x_2 = random_float.y;
+		float x_1 = cos(random_float.x * M_PI * 0.5), x_2 = random_float.y;
 		float z = x_1;
 		float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
 		float3 localRay = float3(r * cos(phi), r * sin(phi), z);

@@ -192,9 +192,9 @@ private:
 	// #DXR Extra: Perspective Camera
 	void CreateCameraBuffer();
 	void UpdateSceneParameterBuffer();
-	ComPtr<ID3D12Resource> m_cameraBuffer;
+	ComPtr<ID3D12Resource> m_sceneParameterBuffer;
 	ComPtr<ID3D12DescriptorHeap> m_constHeap;
-	uint32_t m_cameraBufferSize = 0;
+	uint32_t m_sceneParameterBufferSize = 0;
 	Camera m_camera;
 	POINT m_lastMousePos;
 
