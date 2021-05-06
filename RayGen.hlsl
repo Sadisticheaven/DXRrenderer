@@ -12,7 +12,6 @@ RaytracingAccelerationStructure SceneBVH : register(t0);// declared in CreateRay
 ConstantBuffer<SceneConstants> sceneParameter : register(b0);
 
 StructuredBuffer<Light> light_vertices: register(t1);
-//ConstantBuffer<Light> light_vertices[i] : register(b1);
 
 [shader("raygeneration")]
 void RayGen() {

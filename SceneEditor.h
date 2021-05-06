@@ -215,7 +215,6 @@ private:
 		ComPtr<ID3D12Resource> lightBuffer;
 	};
 
-
 	std::vector<Light> lightsInScene;
 	ComPtr<ID3D12Resource> m_lightsBuffer;
 	std::vector<char*> lightIdxChar;
