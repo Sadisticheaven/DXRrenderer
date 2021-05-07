@@ -8,10 +8,8 @@ StructuredBuffer<Index> Indices: register(t1);
 RaytracingAccelerationStructure SceneBVH : register(t2);
 ConstantBuffer<PrimitiveMaterialBuffer> MaterialAttributes : register(b0);
 StructuredBuffer<Light> light_vertices: register(t3);
-//StructuredBuffer<Index> light_indices: register(t4);
-Texture2D bricksTex : register(t4);
+Texture2D objectTex : register(t4);
 ConstantBuffer<SceneConstants> sceneParameter : register(b1);
-//ConstantBuffer<Light> global_light : register(b1);
 //6个不同类型的采样器
 SamplerState gSamPointWrap : register(s0);
 SamplerState gSamPointClamp : register(s1);
@@ -21,14 +19,13 @@ SamplerState gSamAnisotropicWarp : register(s4);
 SamplerState gSamAnisotropicClamp : register(s5);
 
 
-
 float3 get_eval_for_light_dir(float3 wi, float3 wo, float3 N, float2 uv) {
 	wi = normalize(wi);
 	wo = normalize(wo);
 	N = normalize(N);
 	float3 Kd = MaterialAttributes.Kd;
 	if (MaterialAttributes.useDiffuseTexture) {
-		Kd = bricksTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz;
+		Kd = objectTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz;
 	}
 	switch (MaterialAttributes.type) {
 	case MaterialType::Lambert:
@@ -206,7 +203,7 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 	float3 Kd = MaterialAttributes.Kd;
 	float x_1 = seed.x, x_2 = seed.y;
 	if (MaterialAttributes.useDiffuseTexture) {
-		Kd = bricksTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz;
+		Kd = objectTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz;
 	}
 	switch (MaterialAttributes.type) {
 	case MaterialType::Lambert:
@@ -448,7 +445,7 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 
 
 	if (MaterialAttributes.useDiffuseTexture) {
-		Kd = bricksTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz;
+		Kd = objectTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz;
 	}
 
 	RayDesc rayDescForDirLight;

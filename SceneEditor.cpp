@@ -993,9 +993,7 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateHitSignature() {
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 2);//TLAS
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);//MaterialAttributes
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 3);//light_vertices
-	//rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 4);//light_indices
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 1);//light
-	//rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 2);
 
 	rsc.AddHeapRangesParameter(
 		{
@@ -1077,7 +1075,6 @@ void SceneEditor::CreateRaytracingPipeline()
 	pipeline.AddRootSignatureAssociation(m_missSignature.Get(), { ws_missShaderNames });
 	for (int i = 0; i < m_objects.size(); ++i)
 		pipeline.AddRootSignatureAssociation(m_hitSignature.Get(), { m_objects[i].ws_hitGroupName, m_objects[i].ws_shadowHitGroupName });
-
 
 	// The payload size defines the maximum size of the data carried by the rays,
 	// ie. the the data
@@ -1174,7 +1171,6 @@ void SceneEditor::CreateShaderResourceHeap() {
 		m_device->CreateShaderResourceView(nullptr, &srvDesc, srvHandle);
 	}
 
-
 	// #DXR Extra: Perspective Camera
 	// Add the constant buffer for the camera after the TLAS
 	{
@@ -1190,6 +1186,7 @@ void SceneEditor::CreateShaderResourceHeap() {
 
 	m_texSrvHeapStart.ptr = srvHandle.ptr + m_device->GetDescriptorHandleIncrementSize(
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
 	// Add textures
 	for (int i = 0; i < m_objects.size(); ++i) {
 		srvHandle.ptr += m_device->GetDescriptorHandleIncrementSize(
@@ -1205,8 +1202,6 @@ void SceneEditor::CreateShaderResourceHeap() {
 		srvDesc.Texture2D.PlaneSlice = 0;
 		m_device->CreateShaderResourceView(texRes.Get(), &srvDesc, srvHandle);
 	}
-
-
 }
 
 //-----------------------------------------------------------------------------
@@ -1236,7 +1231,6 @@ void SceneEditor::CreateShaderBindingTable() {
 	// The ray generation only uses heap data
 	m_sbtHelper.AddRayGenerationProgram(L"RayGen",
 		{ heapPointer,
-		//(void*)(m_lights[0].lightBuffer->GetGPUVirtualAddress()),
 		(void*)(m_lightsBuffer->GetGPUVirtualAddress()),
 		});
 
@@ -1303,7 +1297,6 @@ void SceneEditor::CreateCameraBuffer()
 	//size must be multiple of 256
 	m_sceneParameterBufferSize = SizeOfIn256(SceneConstants);
 
-
 	// Create the constant buffer for all matrices
 	m_sceneParameterBuffer = nv_helpers_dx12::CreateBuffer(
 		m_device.Get(), m_sceneParameterBufferSize, D3D12_RESOURCE_FLAG_NONE,
@@ -1337,19 +1330,11 @@ void SceneEditor::UpadteMaterialParameter(int bufferIndex) {
 // Create and copies the viewmodel and perspective matrices of the camera
 //
 void SceneEditor::UpdateSceneParameterBuffer() {
-	//SceneConstants matrices;
-
 	// Initialize the view matrix, ideally this should be based on user
 	// interactions The lookat and perspective matrices used for rasterization are
 	// defined to transform world-space vertices into a [0,1]x[0,1]x[0,1] camera
 	// space
-	/*XMVECTOR Eye = XMVectorSet(0.0f, 0.0f, 2.0f, 0.0f);
-	XMVECTOR At = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
-	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);*/
-	//matrices.view = XMMatrixLookAtRH(Eye, At, Up);
 	matrices.view = XMMatrixLookAtLH(m_camera.GetEye(), m_camera.GetAt(), m_camera.GetUp());
-
-	//float fovAngleY = 10.0f * XM_PI / 180.0f;
 
 	matrices.projection =
 		XMMatrixPerspectiveFovLH(m_camera.GetFov(), m_aspectRatio, 0.1f, 1000.0f);
@@ -1368,7 +1353,6 @@ void SceneEditor::UpdateSceneParameterBuffer() {
 	}
 	else {
 		matrices.curSampleIdx++;
-		//matrices.CurrSampleIdx = min(matrices.CurrSampleIdx, 1000);
 	}
 	// Copy the matrix contents
 	matrices.seed = XMFLOAT4(rand() / double(0xfff), rand() / double(0xfff), rand() / double(0xfff), rand() / double(0xfff));
@@ -1377,8 +1361,6 @@ void SceneEditor::UpdateSceneParameterBuffer() {
 	ThrowIfFailed(m_sceneParameterBuffer->Map(0, nullptr, (void**)&pData));
 	memcpy(pData, &matrices, m_sceneParameterBufferSize);
 	m_sceneParameterBuffer->Unmap(0, nullptr);
-
-
 }
 
 void SceneEditor::OnMouseDown(WPARAM btnState, int x, int y)
@@ -1625,20 +1607,22 @@ void SceneEditor::StartImgui()
 		auto lightType = reinterpret_cast<int*>(&lightsInScene[i].type);
 		if (ImGui::Combo("LightType", lightType, m_LightType, LightType::Count))
 			OnResetSpp();
+
 		if (ImGui::Button("Add a light")) {
-			OnResetSpp();
 			lightsInScene.push_back(lightsInScene[0]);
 			matrices.light_nums++;
+			OnResetSpp();
 		}
 		if (ImGui::Button("Delete a light")) {
 			if (lightsInScene.size() > 1) {
-				OnResetSpp();
-				lightsInScene.pop_back();
+				lightsInScene.erase(lightsInScene.begin() + m_imguiManager.m_selectLightIdx);
+				m_imguiManager.m_selectLightIdx = --m_imguiManager.m_selectLightIdx > 0 ? m_imguiManager.m_selectLightIdx : 0;
 				matrices.light_nums--;
+				OnResetSpp();				
 			}
 		}
-
 	}
+
 	m_imguiManager.isHovered = ImGui::IsWindowHovered() | ImGui::IsAnyItemHovered() | ImGui::IsAnyItemActive();
 
 	ImGui::End();
