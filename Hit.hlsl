@@ -112,100 +112,99 @@ float3 get_eval_for_light_dir(float3 wi, float3 wo, float3 N, float2 uv) {
 	return float3(0.0, 0.0, 0.0);
 }
 
-float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N, float2 uv, inout float4 seed, in UINT curRecursionDepth)
+float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N, float2 uv, inout  RayDesc rayDesc, inout float4 seed, in UINT curRecursionDepth)
 {
 	float3 radiance = float3(0.0, 0.0, 0.0);
 	seed = createRandomFloat4(seed);
-	uint times_of_dir_light_sample = 1;
-	for (uint t = 0; t < times_of_dir_light_sample; ++t) {
-		uint i = fmod(seed.w * sceneParameter.light_nums, sceneParameter.light_nums);
-		Light global_light = light_vertices[i];
-		float3 position = global_light.position;
+	uint i = fmod(seed.w * sceneParameter.light_nums, sceneParameter.light_nums);
+	Light global_light = light_vertices[i];
+	float3 position = global_light.position;
 
-		float3 direction = position - hitWorldPosition;
-		float disPow2 = dot(direction, direction);
-		float dis = sqrt(disPow2);
-		float3 normal_dire = normalize(direction);
+	float3 direction = position - hitWorldPosition;
+	float disPow2 = dot(direction, direction);
+	float dis = sqrt(disPow2);
+	float3 normal_dire = normalize(direction);
 
 
-		if (dot(N, normal_dire) <= 0.0f) {
-			continue;
-		}
-
-		worldRayDirection = normalize(worldRayDirection);
-
-		float3 eval = get_eval_for_light_dir(worldRayDirection, normal_dire, N, uv);
-		float3 Kd = MaterialAttributes.Kd;
-		float emitIntensity = global_light.emitIntensity;
-
-
-		RayDesc rayDesc;
-		rayDesc.Origin = hitWorldPosition;
-		rayDesc.Direction = normal_dire;
-		rayDesc.TMin = 0.01;
-		rayDesc.TMax = dis + 1.f;
-
-		if (global_light.type == LightType::Distant) {
-			float3 distantDirection = normalize(global_light.direction);
-			rayDesc.Direction = -distantDirection;
-			rayDesc.TMax = 2 * global_light.worldRadius;
-		}
-
-		ShadowRayPayload rayPayload;
-		rayPayload.tHit = HitDistanceOnMiss;
-		TraceRay(
-			SceneBVH,
-			RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
-			0xFF,
-			1,//shadowhit
-			0,
-			1,//shadowmiss
-			rayDesc,
-			rayPayload);
-
-
-		if (rayPayload.tHit != HitDistanceOnMiss) {
-			continue;
-		}
-		if (global_light.type == LightType::Distant) {
-			float3 distantDirection = normalize(global_light.direction);
-			float cosx = dot(N, -distantDirection);
-			if (cosx < 0.f) {
-				continue;
-			}
-			radiance += emitIntensity * emitIntensity * eval * cosx;
-			continue;
-		}
-		if (global_light.type == LightType::Point) {
-			radiance += emitIntensity * emitIntensity * eval / disPow2;
-			continue;
-		}
-		if (global_light.type == LightType::Spot) {
-			float cosx = dot(-normal_dire, normalize(global_light.direction));
-			float cosFalloffStart = cos(global_light.falloffStart);
-			float cosTotalWidth = cos(global_light.totalWidth);
-			float delta;
-			if (cosx > cosFalloffStart) {
-				delta = 1.f;
-			}
-			else if (cosx < cosTotalWidth) {
-				delta = 0.f;
-			}
-			else {
-				delta = (cosx - cosTotalWidth) / (cosFalloffStart - cosTotalWidth);
-			}
-			radiance += emitIntensity * emitIntensity * eval * delta * delta * delta * delta / disPow2;
-			continue;
-		}
+	if (dot(N, normal_dire) <= 0.0f) {
+		return float3(0.0, 0.0, 0.0);
 	}
-	return radiance * sceneParameter.light_nums / float(times_of_dir_light_sample);
+
+	worldRayDirection = normalize(worldRayDirection);
+
+	float3 eval = get_eval_for_light_dir(worldRayDirection, normal_dire, N, uv);
+	float3 Kd = MaterialAttributes.Kd;
+	float emitIntensity = global_light.emitIntensity;
+
+
+	rayDesc.Origin = hitWorldPosition;
+	rayDesc.Direction = normal_dire;
+	rayDesc.TMin = 0.01;
+	rayDesc.TMax = dis;
+
+	if (global_light.type == LightType::Distant) {
+		float3 distantDirection = normalize(global_light.direction);
+		rayDesc.Direction = -distantDirection;
+		rayDesc.TMax = 2 * global_light.worldRadius;
+	}
+
+	if (global_light.type == LightType::Distant) {
+		float3 distantDirection = normalize(global_light.direction);
+		float cosx = dot(N, -distantDirection);
+		if (cosx < 0.f) {
+			return float3(0.0, 0.0, 0.0);
+		}
+		disPow2 = global_light.worldRadius * global_light.worldRadius;
+		return emitIntensity * emitIntensity * eval * cosx / disPow2;
+	}
+	if (global_light.type == LightType::Point) {
+		return emitIntensity * emitIntensity * eval / disPow2;
+	}
+	if (global_light.type == LightType::Spot) {
+		float cosx = dot(-normal_dire, normalize(global_light.direction));
+		float cosFalloffStart = cos(global_light.falloffStart);
+		float cosTotalWidth = cos(global_light.totalWidth);
+		float delta;
+		if (cosx > cosFalloffStart) {
+			delta = 1.f;
+		}
+		else if (cosx < cosTotalWidth) {
+			delta = 0.f;
+		}
+		else {
+			delta = (cosx - cosTotalWidth) / (cosFalloffStart - cosTotalWidth);
+		}
+		return emitIntensity * emitIntensity * eval * delta * delta * delta * delta / disPow2;
+	}
+	return float3(0.0, 0.0, 0.0);
+}
+
+float castDirectionRay(RayDesc rayDesc) {
+	ShadowRayPayload rayPayload;
+	rayPayload.tHit = HitDistanceOnMiss;
+	TraceRay(
+		SceneBVH,
+		RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
+		0xFF,
+		1,//shadowhit
+		0,
+		1,//shadowmiss
+		rayDesc,
+		rayPayload);
+
+	if (rayPayload.tHit != HitDistanceOnMiss) {
+		return 0.0;
+	}
+	return 1.0;
 }
 
 
 float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout float4 seed) {
 
 	wi = normalize(wi);
+	seed = createRandomFloat4(seed);
 	float3 Kd = MaterialAttributes.Kd;
+	float x_1 = seed.x, x_2 = seed.y;
 	if (MaterialAttributes.useDiffuseTexture) {
 		Kd = bricksTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz;
 	}
@@ -213,9 +212,6 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 	case MaterialType::Lambert:
 	{
 		//common
-		seed = createRandomFloat4(seed);
-		float4 random_float = seed;
-		float x_1 = cos(random_float.x * M_PI * 0.5), x_2 = random_float.z;
 		float z = pow(x_1, 1.0 / 2);
 		float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
 		float3 localRay = float3(r * cos(phi), r * sin(phi), z);
@@ -233,11 +229,8 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 	}
 	case MaterialType::Mirror: {
 		//common
-		seed = createRandomFloat4(seed);
-		float4 random_float = seed;
 		float s = MaterialAttributes.smoothness;
 		float alpha = pow(1000.0f, s);
-		float x_1 = cos(random_float.x * M_PI * 0.5), x_2 = random_float.z;
 		float z = pow(x_1, 1.0 / alpha);
 		float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
 		float3 localRay = float3(r * cos(phi), r * sin(phi), z);
@@ -259,11 +252,8 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 	case MaterialType::Glass:
 	{
 		//common
-		seed = createRandomFloat4(seed);
-		float4 random_float = seed;
 		float s = MaterialAttributes.smoothness;
 		float alpha = pow(1000.0f, s);
-		float x_1 = cos(random_float.x * M_PI * 0.5), x_2 = random_float.z;
 		float z = pow(x_1, 1.0 / alpha);
 		float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
 		float3 localRay = float3(r * cos(phi), r * sin(phi), z);
@@ -303,17 +293,14 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 	case MaterialType::Plastic:
 	{
 		//common
-		seed = createRandomFloat4(seed);
-		float4 random_float = seed;
 		float s = MaterialAttributes.smoothness;
 		float alpha = pow(1000.0f, s);
-		float x_1, x_2, r, z, phi;
+		float  r, z, phi;
 		float3 localRay, wo = float3(0.0, 0.0, 0.0), H;
 		//end_common
 
 		float reflectivity = MaterialAttributes.reflectivity;
 		if (seed.w < reflectivity) {
-			x_1 = cos(random_float.x * M_PI * 0.5), x_2 = random_float.z;
 			z = pow(x_1, 1.0 / alpha);
 			r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
 			localRay = float3(r * cos(phi), r * sin(phi), z);
@@ -321,7 +308,6 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 			wo = toWorld(localRay, reflect_dir);
 		}
 		else {
-			x_1 = cos(random_float.x * M_PI * 0.5), x_2 = random_float.y;
 			z = pow(x_1, 1.0 / 2.0);
 			r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
 			localRay = float3(r * cos(phi), r * sin(phi), z);
@@ -339,9 +325,6 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 	case MaterialType::Disney_BRDF:
 	{
 		//common
-		seed = createRandomFloat4(seed);
-		float4 random_float = seed;
-		float x_1 = cos(random_float.x * M_PI * 0.5), x_2 = random_float.y;
 		float z = x_1;
 		float r = sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
 		float3 localRay = float3(r * cos(phi), r * sin(phi), z);
@@ -356,8 +339,8 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 			eval = Disney_BRDF_diffuse(wo, -wi, N, Kd, MaterialAttributes);
 		}
 		else if (seed.w < 1 / (1 + clearcoat / 2)) {
-			float u = random_float.x;
-			float v = random_float.y;
+			float u = seed.x;
+			float v = seed.y;
 			float tan2theta = roughness * roughness * (u / (1 - u));
 			float cos2theta = 1 / (1 + tan2theta);
 			float sinTheta = sqrt(1 - cos2theta);
@@ -368,8 +351,8 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 			eval = Disney_BRDF_specular(wo, -wi, N, Kd, MaterialAttributes);// *max(1e-4, (sin((roughness* roughness)* M_PI / 2)));
 		}
 		else {
-			float u = random_float.x;
-			float v = random_float.y;
+			float u = seed.x;
+			float v = seed.y;
 			float tan2theta = 0.25 * 0.25 * u / (1 - u);
 			float cos2theta = 1 / (1 + tan2theta);
 			float sinTheta = sqrt(1 - cos2theta);
@@ -389,7 +372,7 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 }
 
 
-float3 CastRay(Ray ray, uint curRecursionDepth, float4 seed) {
+float3 CastIndirectionRay(Ray ray, uint curRecursionDepth, float4 seed) {
 
 	if (curRecursionDepth >= MAX_RAY_RECURSION_DEPTH)
 		return float3(0.0f, 0.0f, 0.0f);
@@ -418,18 +401,17 @@ float3 CastRay(Ray ray, uint curRecursionDepth, float4 seed) {
 	return rayPayload.radiance;
 }
 
-float3 get_light_indir(float3 worldRayDirection, float3 normal, float3 hitWorldPosition, float2 uv, uint curRecursionDepth, inout float4 random_seed) {
-	float3 L_intdir = float3(0.0, 0.0, 0.0);
+float3 get_light_indir(float3 worldRayDirection, float3 normal, float3 hitWorldPosition, float2 uv, inout Ray ray, uint curRecursionDepth, inout float4 seed) {
 	float3 eval;
-	float3 sp_direction = createSampleRay(worldRayDirection, normal, eval, uv, random_seed);
+	float3 sp_direction = createSampleRay(worldRayDirection, normal, eval, uv, seed);
 
-	if (random(float2(random_seed.x + random_seed.y, random_seed.z + random_seed.w)) <= PROBABILITY_RUSSIAN_ROULETTE) {
-		Ray ray;
-		ray.origin = hitWorldPosition;
-		ray.direction = sp_direction;
-		L_intdir = CastRay(ray, curRecursionDepth, createRandomFloat4(random_seed)) * eval / PROBABILITY_RUSSIAN_ROULETTE;
-	}
-	return L_intdir;
+	ray.origin = hitWorldPosition;
+	ray.direction = sp_direction;
+
+	if (random(float2(seed.x + seed.y, seed.z + seed.w)) > PROBABILITY_RUSSIAN_ROULETTE)
+		return float3(0.0, 0.0, 0.0);
+
+	return eval / PROBABILITY_RUSSIAN_ROULETTE;
 }
 
 
@@ -439,46 +421,53 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	float3 barycentrics =
 		float3(1.f - attrib.barycentrics.x - attrib.barycentrics.y, attrib.barycentrics.x, attrib.barycentrics.y);
 	uint vertId = 3 * PrimitiveIndex();
-
-	/*float3 normal = barycentrics.x * Vertices[Indices[vertId + 0]].normal +
-		barycentrics.y * Vertices[Indices[vertId + 1]].normal +
-		barycentrics.z * Vertices[Indices[vertId + 2]].normal;*/
-
-	float3 vertexNormal[3] = {
-		Vertices[Indices[vertId + 0]].normal,
-		Vertices[Indices[vertId + 1]].normal,
-		Vertices[Indices[vertId + 2]].normal };
-	float3 normal = HitAttribute(vertexNormal, attrib);
-
-	//float3 normal = normalize(cross(Vertices[Indices[vertId + 0]].position - Vertices[Indices[vertId + 1]].position,
-	//	Vertices[Indices[vertId + 0]].position - Vertices[Indices[vertId + 2]].position));
-	normal = normalize(mul((float3x3)ObjectToWorld3x4(), normal));
-
-	float3 worldRayDirection = WorldRayDirection();
-	float3 hitWorldPosition = HitWorldPosition();
-	float4 random_seed = payload.seed;
-
-
-	float emit_rate = dot(normal, -normalize(worldRayDirection));
-
-	float3 Kd = MaterialAttributes.Kd;
-	float emitIntensity2 = MaterialAttributes.emitIntensity * MaterialAttributes.emitIntensity;
-	/*float2 uv = barycentrics.x * Vertices[Indices[vertId + 0]].TexCoords +
-		barycentrics.y * Vertices[Indices[vertId + 1]].TexCoords +
-		barycentrics.z * Vertices[Indices[vertId + 2]].TexCoords;*/
 	float2 vertexTex[3] = {
 		Vertices[Indices[vertId + 0]].TexCoords,
 		Vertices[Indices[vertId + 1]].TexCoords,
 		Vertices[Indices[vertId + 2]].TexCoords };
 	float2 uv = HitAttribute(vertexTex, attrib);
+#if 1 //这里采用三点法线插值获得hitpoint法线
+	float3 vertexNormal[3] = {
+		Vertices[Indices[vertId + 0]].normal,
+		Vertices[Indices[vertId + 1]].normal,
+		Vertices[Indices[vertId + 2]].normal };
+	float3 normal = HitAttribute(vertexNormal, attrib);
+#else //这里采用三点位置叉乘获得hitpoint法线
+	float3 normal = normalize(cross(Vertices[Indices[vertId + 0]].position - Vertices[Indices[vertId + 1]].position,
+		Vertices[Indices[vertId + 0]].position - Vertices[Indices[vertId + 2]].position));
+#endif
+	normal = normalize(mul((float3x3)ObjectToWorld3x4(), normal));
+
+	float3 worldRayDirection = WorldRayDirection();
+	float3 hitWorldPosition = HitWorldPosition();
+	float4 seed = payload.seed;
+
+	float emit_rate = dot(normal, -normalize(worldRayDirection));
+	float3 Kd = MaterialAttributes.Kd;
+	float emitIntensity2 = MaterialAttributes.emitIntensity * MaterialAttributes.emitIntensity;
+
+
 	if (MaterialAttributes.useDiffuseTexture) {
 		Kd = bricksTex.SampleLevel(gSamAnisotropicWarp, uv, 0).xyz;
 	}
 
-	float3 L_indir = get_light_indir(worldRayDirection, normal, hitWorldPosition, uv, payload.recursionDepth, random_seed);
-	float3 L_dir = get_light_dir(worldRayDirection, hitWorldPosition, normal, uv, random_seed, payload.recursionDepth);
+	RayDesc rayDescForDirLight;
+	Ray ray;
+	float3 sampleRadiance = float3(0.0, 0.0, 0.0);
+	float3 directionLightEval = get_light_dir(worldRayDirection, hitWorldPosition, normal, uv, rayDescForDirLight, seed, payload.recursionDepth);
 
-	payload.radiance = Kd * emitIntensity2 * emit_rate + L_indir + L_dir;
+	seed = createRandomFloat4(seed);
+	float3 indirectionLightEval = get_light_indir(worldRayDirection, normal, hitWorldPosition, uv, ray, payload.recursionDepth, seed);
+
+	seed = createRandomFloat4(seed);
+	if (seed.z < 0.5) {
+		sampleRadiance = CastIndirectionRay(ray, payload.recursionDepth, createRandomFloat4(seed)) * indirectionLightEval * 2;
+	}
+	else {
+		sampleRadiance = castDirectionRay(rayDescForDirLight) * directionLightEval * 2;
+	}
+
+	payload.radiance = Kd * emitIntensity2 * emit_rate + sampleRadiance;
 }
 
 
