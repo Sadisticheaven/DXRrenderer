@@ -362,8 +362,8 @@ void SceneEditor::LoadAssets()
 				model.meshes[i].vertices[j].normal.z *= -1.f;
 			}
 		}
-		AllocateUploadGeometryBuffer(model, "Enviroment light");
-		m_idxOfObj.insert({ "Enviroment light", i++ });
+		//AllocateUploadGeometryBuffer(model, "Enviroment light");
+		//m_idxOfObj.insert({ "Enviroment light", i++ });
 
 
 		std::vector<std::string> tmp;
@@ -435,7 +435,7 @@ void SceneEditor::LoadAssets()
 		}
 		m_objects[m_idxOfObj["car"]].originTransform = XMMatrixRotationY(-XM_PIDIV2 - XM_PIDIV4) * XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(200.f, 165.f, 160.f);
 		m_objects[m_idxOfObj["nanosuit"]].originTransform = XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f);
-		m_objects[m_idxOfObj["Enviroment light"]].originTransform = XMMatrixScaling(500.f, 500.f, 500.f) * XMMatrixTranslation(200.f, 200.f, -10.f);
+		//m_objects[m_idxOfObj["Enviroment light"]].originTransform = XMMatrixScaling(500.f, 500.f, 500.f) * XMMatrixTranslation(200.f, 200.f, -10.f);
 		//m_objects[m_idxOfObj["point light"]].originTransform = XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(-300.f, 200.f, -1000.f);		
 	}
 
@@ -483,7 +483,7 @@ void SceneEditor::LoadAssets()
 		m_objects[m_idxOfObj["nanosuit"]].materialAttributes.smoothness = 2.0f;
 		m_objects[m_idxOfObj["nanosuit"]].materialAttributes.index_of_refraction = 5.f;
 
-		m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity = 0.0f;
+		//m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity = 0.0f;
 
 		for (int i = 0; i < m_objects.size(); ++i) {
 			UpadteMaterialParameter(i);
@@ -511,7 +511,7 @@ void SceneEditor::LoadAssets()
 void SceneEditor::OnUpdate()
 {
 	// #DXR Extra: Perspective Camera
-	UpdateSceneParameterBuffer();
+	UpdateSceneParametersBuffer();
 	UpadteMaterialParameter(m_idxOfObj[m_imguiManager.m_selObjName]);
 	UpdateLight();
 }
@@ -1133,7 +1133,7 @@ void SceneEditor::CreateRaytracingOutputBuffer() {
 
 	// #DXR Extra: Perspective Camera
 	// Create a buffer to store the modelview and perspective camera matrices
-	CreateCameraBuffer();
+	CreateSceneParametersBuffer();
 
 }
 
@@ -1291,7 +1291,7 @@ void SceneEditor::CreateShaderBindingTable() {
 // rasterization path.
 //
 // #DXR Extra: Perspective Camera
-void SceneEditor::CreateCameraBuffer()
+void SceneEditor::CreateSceneParametersBuffer()
 {
 	//uint32_t nbMatrix = 4; // view, perspective, viewInverse, perspectiveInverse
 	//size must be multiple of 256
@@ -1329,7 +1329,7 @@ void SceneEditor::UpadteMaterialParameter(int bufferIndex) {
 //--------------------------------------------------------------------------------
 // Create and copies the viewmodel and perspective matrices of the camera
 //
-void SceneEditor::UpdateSceneParameterBuffer() {
+void SceneEditor::UpdateSceneParametersBuffer() {
 	// Initialize the view matrix, ideally this should be based on user
 	// interactions The lookat and perspective matrices used for rasterization are
 	// defined to transform world-space vertices into a [0,1]x[0,1]x[0,1] camera
@@ -1457,17 +1457,57 @@ void SceneEditor::StartImgui()
 		if (ImGui::Combo("Mat", materialAddress, m_MaterialType, MaterialType::Count))
 			OnResetSpp();
 
-		auto valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.smoothness;
-		if (ImGui::SliderFloat("smoothness", valueAddress, 0.1f, 5.f))
-			OnResetSpp();
-		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.index_of_refraction;
-		if (ImGui::SliderFloat("refraction", valueAddress, 0.f, 15.f))
-			OnResetSpp();
-
-		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.reflectivity;
-		if (ImGui::SliderFloat("reflectivity", valueAddress, 0.f, 1.f))
-			OnResetSpp();
-
+		auto type = m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.type;
+		if (type == MaterialType::Mirror || type == MaterialType::Glass || type == MaterialType::Plastic) {
+			auto valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.smoothness;
+			if (ImGui::SliderFloat("smoothness", valueAddress, 0.1f, 5.f))
+				OnResetSpp();
+		}
+		if (type == MaterialType::Glass) {
+			auto valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.index_of_refraction;
+			if (ImGui::SliderFloat("refraction", valueAddress, 0.f, 15.f))
+				OnResetSpp();
+		}
+		if (type == MaterialType::Plastic) {
+			auto valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.reflectivity;
+			if (ImGui::SliderFloat("reflectivity", valueAddress, 0.f, 1.f))
+				OnResetSpp();
+		}
+		if (type == MaterialType::Disney_BRDF) {
+			ImGui::Text("The following parameters are used for Disney_BRDF:");
+			{
+				auto valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.subsurface;
+				if (ImGui::SliderFloat("subsurface", valueAddress, 0.f, 1.f))
+					OnResetSpp();
+				valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.metallic;
+				if (ImGui::SliderFloat("metallic", valueAddress, 0.f, 1.f))
+					OnResetSpp();
+				valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.specular;
+				if (ImGui::SliderFloat("specular", valueAddress, 0.f, 1.f))
+					OnResetSpp();
+				valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.roughness;
+				if (ImGui::SliderFloat("roughness", valueAddress, 0.f, 1.f))
+					OnResetSpp();
+				valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.specularTint;
+				if (ImGui::SliderFloat("specularTint", valueAddress, 0.f, 1.f))
+					OnResetSpp();
+				valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.anisotropic;
+				if (ImGui::SliderFloat("anisotropic", valueAddress, 0.f, 1.f))
+					OnResetSpp();
+				valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.sheen;
+				if (ImGui::SliderFloat("sheen", valueAddress, 0.f, 1.f))
+					OnResetSpp();
+				valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.sheenTint;
+				if (ImGui::SliderFloat("sheenTint", valueAddress, 0.f, 1.f))
+					OnResetSpp();
+				valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.clearcoat;
+				if (ImGui::SliderFloat("clearcoat", valueAddress, 0.f, 1.f))
+					OnResetSpp();
+				valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.clearcoatGloss;
+				if (ImGui::SliderFloat("clearcoatGloss", valueAddress, 0.f, 1.f))
+					OnResetSpp();
+			}
+		}
 		if (ImGui::DragFloat("EmitIntensity", &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.emitIntensity, 0.1f, 0.f, 30.f))
 			OnResetSpp();
 	}
@@ -1484,41 +1524,6 @@ void SceneEditor::StartImgui()
 			OnResetSpp();
 		}
 	}
-
-	ImGui::Text("The following parameters are used for Disney_BRDF:");
-	{
-		auto valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.subsurface;
-		if (ImGui::SliderFloat("subsurface", valueAddress, 0.f, 1.f))
-			OnResetSpp();
-		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.metallic;
-		if (ImGui::SliderFloat("metallic", valueAddress, 0.f, 1.f))
-			OnResetSpp();
-		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.specular;
-		if (ImGui::SliderFloat("specular", valueAddress, 0.f, 1.f))
-			OnResetSpp();
-		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.roughness;
-		if (ImGui::SliderFloat("roughness", valueAddress, 0.f, 1.f))
-			OnResetSpp();
-		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.specularTint;
-		if (ImGui::SliderFloat("specularTint", valueAddress, 0.f, 1.f))
-			OnResetSpp();
-		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.anisotropic;
-		if (ImGui::SliderFloat("anisotropic", valueAddress, 0.f, 1.f))
-			OnResetSpp();
-		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.sheen;
-		if (ImGui::SliderFloat("sheen", valueAddress, 0.f, 1.f))
-			OnResetSpp();
-		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.sheenTint;
-		if (ImGui::SliderFloat("sheenTint", valueAddress, 0.f, 1.f))
-			OnResetSpp();
-		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.clearcoat;
-		if (ImGui::SliderFloat("clearcoat", valueAddress, 0.f, 1.f))
-			OnResetSpp();
-		valueAddress = &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.clearcoatGloss;
-		if (ImGui::SliderFloat("clearcoatGloss", valueAddress, 0.f, 1.f))
-			OnResetSpp();
-	}
-
 	ImGui::Text("Transform:");
 	{
 		if (ImGui::DragFloat3("Translation", m_imguiManager.m_translation)) {
@@ -1586,27 +1591,41 @@ void SceneEditor::StartImgui()
 		}
 		ImGui::Combo("Light index", &m_imguiManager.m_selectLightIdx, lightIdxChar.data(), lightsInScene.size());
 		int i = m_imguiManager.m_selectLightIdx;
-		auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].position);
-		if (ImGui::DragFloat3("position", valueAddress2, 0.1f))
-			OnResetSpp();
-		valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].emitIntensity);
-		if (ImGui::DragFloat("emit", valueAddress2, 0.1f, 0.f))
-			OnResetSpp();
-		valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].direction);
-		if (ImGui::DragFloat3("direction", valueAddress2, 0.1f))
-			OnResetSpp();
-		valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].falloffStart);
-		if (ImGui::DragFloat("falloffStart", valueAddress2, 0.01f, 0.f, lightsInScene[i].totalWidth))
-			OnResetSpp();
-		valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].totalWidth);
-		if (ImGui::DragFloat("totalWidth", valueAddress2, 0.01f, lightsInScene[i].falloffStart, XM_PIDIV2))
-			OnResetSpp();
-		valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].worldRadius);
-		if (ImGui::DragFloat("worldRadius", valueAddress2, 0.1f))
-			OnResetSpp();
 		auto lightType = reinterpret_cast<int*>(&lightsInScene[i].type);
 		if (ImGui::Combo("LightType", lightType, m_LightType, LightType::Count))
 			OnResetSpp();
+
+		auto type = lightsInScene[i].type;
+		if (type == LightType::Point || type == LightType::Spot) {
+			auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].position);
+			if (ImGui::DragFloat3("position", valueAddress2, 0.5f))
+				OnResetSpp();
+		}
+		if (true) {
+			auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].emitIntensity);
+			if (ImGui::DragFloat("emit", valueAddress2, 0.1f, 0.f))
+				OnResetSpp();
+		}
+		if (type == LightType::Distant || type == LightType::Spot) {
+			auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].direction);
+			if (ImGui::DragFloat3("direction", valueAddress2, 0.1f))
+				OnResetSpp();
+		}
+		if (type == LightType::Spot) {
+			auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].falloffStart);
+			if (ImGui::DragFloat("falloffStart", valueAddress2, 0.01f, 0.f, lightsInScene[i].totalWidth))
+				OnResetSpp();
+		}
+		if (type == LightType::Spot) {
+			auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].totalWidth);
+			if (ImGui::DragFloat("totalWidth", valueAddress2, 0.01f, lightsInScene[i].falloffStart, XM_PIDIV2))
+				OnResetSpp();
+		}
+		if (type == LightType::Distant) {
+			auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].worldRadius);
+			if (ImGui::DragFloat("worldRadius", valueAddress2, 0.1f))
+				OnResetSpp();
+		}
 
 		if (ImGui::Button("Add a light")) {
 			lightsInScene.push_back(lightsInScene[0]);
@@ -1618,7 +1637,7 @@ void SceneEditor::StartImgui()
 				lightsInScene.erase(lightsInScene.begin() + m_imguiManager.m_selectLightIdx);
 				m_imguiManager.m_selectLightIdx = --m_imguiManager.m_selectLightIdx > 0 ? m_imguiManager.m_selectLightIdx : 0;
 				matrices.light_nums--;
-				OnResetSpp();				
+				OnResetSpp();
 			}
 		}
 	}

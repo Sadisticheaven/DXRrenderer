@@ -19,7 +19,7 @@ SamplerState gSamAnisotropicWarp : register(s4);
 SamplerState gSamAnisotropicClamp : register(s5);
 
 
-float3 get_eval_for_light_dir(float3 wi, float3 wo, float3 N, float2 uv) {
+float3 EvalDirLightBRDF(float3 wi, float3 wo, float3 N, float2 uv) {
 	wi = normalize(wi);
 	wo = normalize(wo);
 	N = normalize(N);
@@ -109,7 +109,7 @@ float3 get_eval_for_light_dir(float3 wi, float3 wo, float3 N, float2 uv) {
 	return float3(0.0, 0.0, 0.0);
 }
 
-float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N, float2 uv, inout  RayDesc rayDesc, inout float4 seed, in UINT curRecursionDepth)
+float3 getLightDirEval(float3 worldRayDirection, float3 hitWorldPosition, float3 N, float2 uv, inout  RayDesc rayDesc, inout float4 seed, in UINT curRecursionDepth)
 {
 	float3 radiance = float3(0.0, 0.0, 0.0);
 	seed = createRandomFloat4(seed);
@@ -129,7 +129,7 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 
 	worldRayDirection = normalize(worldRayDirection);
 
-	float3 eval = get_eval_for_light_dir(worldRayDirection, normal_dire, N, uv);
+	float3 eval = EvalDirLightBRDF(worldRayDirection, normal_dire, N, uv);
 	float3 Kd = MaterialAttributes.Kd;
 	float emitIntensity = global_light.emitIntensity;
 
@@ -147,12 +147,8 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 
 	if (global_light.type == LightType::Distant) {
 		float3 distantDirection = normalize(global_light.direction);
-		float cosx = dot(N, -distantDirection);
-		if (cosx < 0.f) {
-			return float3(0.0, 0.0, 0.0);
-		}
-		disPow2 = global_light.worldRadius * global_light.worldRadius;
-		return emitIntensity * emitIntensity * eval * cosx / disPow2;
+
+		return emitIntensity / 1000 * eval;
 	}
 	if (global_light.type == LightType::Point) {
 		return emitIntensity * emitIntensity * eval / disPow2;
@@ -398,7 +394,7 @@ float3 CastIndirectionRay(Ray ray, uint curRecursionDepth, float4 seed) {
 	return rayPayload.radiance;
 }
 
-float3 get_light_indir(float3 worldRayDirection, float3 normal, float3 hitWorldPosition, float2 uv, inout Ray ray, uint curRecursionDepth, inout float4 seed) {
+float3 getLightIndirEval(float3 worldRayDirection, float3 normal, float3 hitWorldPosition, float2 uv, inout Ray ray, uint curRecursionDepth, inout float4 seed) {
 	float3 eval;
 	float3 sp_direction = createSampleRay(worldRayDirection, normal, eval, uv, seed);
 
@@ -428,7 +424,7 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 		Vertices[Indices[vertId + 0]].normal,
 		Vertices[Indices[vertId + 1]].normal,
 		Vertices[Indices[vertId + 2]].normal };
-	float3 normal = HitAttribute(vertexNormal, attrib);
+	float3 normal = normalize(HitAttribute(vertexNormal, attrib));
 #else //这里采用三点位置叉乘获得hitpoint法线
 	float3 normal = normalize(cross(Vertices[Indices[vertId + 0]].position - Vertices[Indices[vertId + 1]].position,
 		Vertices[Indices[vertId + 0]].position - Vertices[Indices[vertId + 2]].position));
@@ -451,17 +447,20 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	RayDesc rayDescForDirLight;
 	Ray ray;
 	float3 sampleRadiance = float3(0.0, 0.0, 0.0);
-	float3 directionLightEval = get_light_dir(worldRayDirection, hitWorldPosition, normal, uv, rayDescForDirLight, seed, payload.recursionDepth);
+	float3 directionLightEval = getLightDirEval(worldRayDirection, hitWorldPosition, normal, uv, rayDescForDirLight, seed, payload.recursionDepth);
 
 	seed = createRandomFloat4(seed);
-	float3 indirectionLightEval = get_light_indir(worldRayDirection, normal, hitWorldPosition, uv, ray, payload.recursionDepth, seed);
+	float3 indirectionLightEval = getLightIndirEval(worldRayDirection, normal, hitWorldPosition, uv, ray, payload.recursionDepth, seed);
+
+	float lenIndirEval = sqrt(dot(indirectionLightEval, indirectionLightEval));
+	float lenDirEval = sqrt(dot(directionLightEval, directionLightEval));
 
 	seed = createRandomFloat4(seed);
-	if (seed.z < 0.5) {
-		sampleRadiance = CastIndirectionRay(ray, payload.recursionDepth, createRandomFloat4(seed)) * indirectionLightEval * 2;
+	if (seed.z < lenIndirEval / (lenIndirEval + lenDirEval)) {
+		sampleRadiance = CastIndirectionRay(ray, payload.recursionDepth, createRandomFloat4(seed)) * indirectionLightEval * (lenIndirEval + lenDirEval) / lenIndirEval;
 	}
 	else {
-		sampleRadiance = castDirectionRay(rayDescForDirLight) * directionLightEval * 2;
+		sampleRadiance = castDirectionRay(rayDescForDirLight) * directionLightEval * (lenIndirEval + lenDirEval) / lenDirEval;
 	}
 
 	payload.radiance = Kd * emitIntensity2 * emit_rate + sampleRadiance;
