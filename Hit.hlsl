@@ -12,7 +12,7 @@ StructuredBuffer<Light> global_lights: register(t3);
 Texture2D objectTex : register(t4);
 StructuredBuffer<Vertex> areaLightVtx: register(t5);
 StructuredBuffer<Index> areaLightIdx: register(t6);
-//6个不同类型的采样器
+//6???????????????
 SamplerState gSamPointWrap : register(s0);
 SamplerState gSamPointClamp : register(s1);
 SamplerState gSamLinearWarp : register(s2);
@@ -21,7 +21,7 @@ SamplerState gSamAnisotropicWarp : register(s4);
 SamplerState gSamAnisotropicClamp : register(s5);
 
 
-float3 get_eval_for_light_dir(float3 wi, float3 wo, float3 N, float2 uv) {
+float3 EvalDirLightBRDF(float3 wi, float3 wo, float3 N, float2 uv) {
 	wi = normalize(wi);
 	wo = normalize(wo);
 	N = normalize(N);
@@ -110,7 +110,7 @@ float3 get_eval_for_light_dir(float3 wi, float3 wo, float3 N, float2 uv) {
 	return float3(0.0, 0.0, 0.0);
 }
 
-float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N, float2 uv, inout  RayDesc rayDesc, inout float4 seed, in UINT curRecursionDepth)
+float3 getLightDirEval(float3 worldRayDirection, float3 hitWorldPosition, float3 N, float2 uv, inout  RayDesc rayDesc, inout float4 seed, in UINT curRecursionDepth)
 {
 	float3 radiance = float3(0.0, 0.0, 0.0);
 	seed = createRandomFloat4(seed);
@@ -130,7 +130,7 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 
 	worldRayDirection = normalize(worldRayDirection);
 
-	float3 eval = get_eval_for_light_dir(worldRayDirection, normal_dire, N, uv);
+	float3 eval = EvalDirLightBRDF(worldRayDirection, normal_dire, N, uv);
 	float3 Kd = MaterialAttributes.Kd;
 	float emitIntensity = global_light.emitIntensity;
 
@@ -405,7 +405,7 @@ float3 CastIndirectionRay(Ray ray, uint curRecursionDepth, float4 seed) {
 	return rayPayload.radiance;
 }
 
-float3 get_light_indir(float3 worldRayDirection, float3 normal, float3 hitWorldPosition, float2 uv, inout Ray ray, uint curRecursionDepth, inout float4 seed) {
+float3 getLightIndirEval(float3 worldRayDirection, float3 normal, float3 hitWorldPosition, float2 uv, inout Ray ray, uint curRecursionDepth, inout float4 seed) {
 	float3 eval;
 	float3 sp_direction = createSampleRay(worldRayDirection, normal, eval, uv, seed);
 
@@ -430,13 +430,13 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 		Vertices[Indices[vertId + 1]].TexCoords,
 		Vertices[Indices[vertId + 2]].TexCoords };
 	float2 uv = HitAttribute(vertexTex, attrib);
-#if 1 //这里采用三点法线插值获得hitpoint法线
+#if 1 //??????????????????hitpoint????
 	float3 vertexNormal[3] = {
 		Vertices[Indices[vertId + 0]].normal,
 		Vertices[Indices[vertId + 1]].normal,
 		Vertices[Indices[vertId + 2]].normal };
-	float3 normal = HitAttribute(vertexNormal, attrib);
-#else //这里采用三点位置叉乘获得hitpoint法线
+	float3 normal = normalize(HitAttribute(vertexNormal, attrib));
+#else //???????????λ?ò????hitpoint????
 	float3 normal = normalize(cross(Vertices[Indices[vertId + 0]].position - Vertices[Indices[vertId + 1]].position,
 		Vertices[Indices[vertId + 0]].position - Vertices[Indices[vertId + 2]].position));
 #endif
@@ -458,10 +458,13 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	RayDesc rayDescForDirLight;
 	Ray ray;
 	float3 sampleRadiance = float3(0.0, 0.0, 0.0);
-	float3 directionLightEval = get_light_dir(worldRayDirection, hitWorldPosition, normal, uv, rayDescForDirLight, seed, payload.recursionDepth);
+	float3 directionLightEval = getLightDirEval(worldRayDirection, hitWorldPosition, normal, uv, rayDescForDirLight, seed, payload.recursionDepth);
 
 	seed = createRandomFloat4(seed);
-	float3 indirectionLightEval = get_light_indir(worldRayDirection, normal, hitWorldPosition, uv, ray, payload.recursionDepth, seed);
+	float3 indirectionLightEval = getLightIndirEval(worldRayDirection, normal, hitWorldPosition, uv, ray, payload.recursionDepth, seed);
+
+	float lenIndirEval = sqrt(dot(indirectionLightEval, indirectionLightEval));
+	float lenDirEval = sqrt(dot(directionLightEval, directionLightEval));
 
 	seed = createRandomFloat4(seed);
 	sampleRadiance += castDirectionRay(rayDescForDirLight) * directionLightEval * 2;
