@@ -3,11 +3,12 @@
 #include "ShaderHelper.hlsli"
 
 
+ConstantBuffer<PrimitiveMaterialBuffer> MaterialAttributes : register(b0);
+ConstantBuffer<SceneConstants> sceneParameter : register(b1);
+ConstantBuffer<AreaLight> areaLight: register(b2);
 StructuredBuffer<Vertex> Vertices: register(t0);
 StructuredBuffer<Index> Indices: register(t1);
 RaytracingAccelerationStructure SceneBVH : register(t2);
-ConstantBuffer<PrimitiveMaterialBuffer> MaterialAttributes : register(b0);
-ConstantBuffer<SceneConstants> sceneParameter : register(b1);
 StructuredBuffer<Light> global_lights: register(t3);
 Texture2D objectTex : register(t4);
 StructuredBuffer<Vertex> areaLightVtx: register(t5);
@@ -168,16 +169,19 @@ float3 getLightDirEval(float3 worldRayDirection, float3 hitWorldPosition, float3
 		else {
 			delta = (cosx - cosTotalWidth) / (cosFalloffStart - cosTotalWidth);
 		}
-		return emitIntensity * emitIntensity * eval * delta * delta * delta * delta / disPow2;
+		float delta2 = delta * delta;
+		return emitIntensity * emitIntensity * eval * delta2 * delta2 / disPow2;
 	}
 	if (global_light.type == LightType::Area) {
 		////sample on triangle
+		//
 		//float u = 1 - sqrt(seed.x);
 		//float v = seed.y * sqrt(seed.x);
-		//float pdf = global_light.area;
+		//float pdf_triangle = triangle_area / global_light.area;
+		//float pdf_point = 1 / triangle_area.area;
 		//float cosx = dot(N, -sampleDirection);
-		//float cosy = dot(sampleVtxNor);
-		//return emitIntensity * eval * cosx * cosy * pdf / disPow2;
+		//float cosy = dot(sampleVtxNor, sampleDirection);
+		//return emitIntensity * eval * cosx * cosy / pdf_triangle / disPow2 / pdf_point;
 	}
 
 	return float3(0.0, 0.0, 0.0);
@@ -467,13 +471,13 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	float lenDirEval = sqrt(dot(directionLightEval, directionLightEval));
 
 	seed = createRandomFloat4(seed);
-	sampleRadiance += castDirectionRay(rayDescForDirLight) * directionLightEval * 2;
-	if (seed.z < 0.5) {
-		sampleRadiance += CastIndirectionRay(ray, payload.recursionDepth, createRandomFloat4(seed)) * indirectionLightEval * 2;
+	//sampleRadiance += castDirectionRay(rayDescForDirLight) * directionLightEval * 2;
+	if (seed.z < lenIndirEval / (lenIndirEval + lenDirEval)) {
+		sampleRadiance = CastIndirectionRay(ray, payload.recursionDepth, createRandomFloat4(seed)) * indirectionLightEval * (lenIndirEval + lenDirEval) / lenIndirEval;
 	}
-	/*else {
-		sampleRadiance = castDirectionRay(rayDescForDirLight) * directionLightEval * 2;
-	}*/
+	else {
+		sampleRadiance = castDirectionRay(rayDescForDirLight) * directionLightEval * (lenIndirEval + lenDirEval) / lenDirEval;
+	}
 
 	payload.radiance = Kd * emitIntensity2 * emit_rate + sampleRadiance;
 }

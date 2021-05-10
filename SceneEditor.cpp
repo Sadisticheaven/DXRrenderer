@@ -361,8 +361,8 @@ void SceneEditor::LoadAssets()
 				model.meshes[i].vertices[j].normal.z *= -1.f;
 			}
 		}
-		//AllocateUploadGeometryBuffer(model, "Enviroment light");
-		//m_idxOfObj.insert({ "Enviroment light", i++ });
+		AllocateUploadGeometryBuffer(model, "Enviroment light");
+		m_idxOfObj.insert({ "Enviroment light", i++ });
 
 
 		std::vector<std::string> tmp;
@@ -434,7 +434,7 @@ void SceneEditor::LoadAssets()
 		}
 		m_objects[m_idxOfObj["car"]].originTransform = XMMatrixRotationY(-XM_PIDIV2 - XM_PIDIV4) * XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(200.f, 165.f, 160.f);
 		m_objects[m_idxOfObj["nanosuit"]].originTransform = XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f);
-		//m_objects[m_idxOfObj["Enviroment light"]].originTransform = XMMatrixScaling(500.f, 500.f, 500.f) * XMMatrixTranslation(200.f, 200.f, -10.f);
+		m_objects[m_idxOfObj["Enviroment light"]].originTransform = XMMatrixScaling(500.f, 500.f, 500.f) * XMMatrixTranslation(200.f, 200.f, -10.f);
 		//m_objects[m_idxOfObj["point light"]].originTransform = XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(-300.f, 200.f, -1000.f);		
 	}
 
@@ -482,7 +482,7 @@ void SceneEditor::LoadAssets()
 		m_objects[m_idxOfObj["nanosuit"]].materialAttributes.smoothness = 2.0f;
 		m_objects[m_idxOfObj["nanosuit"]].materialAttributes.index_of_refraction = 5.f;
 
-		//m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity = 0.0f;
+		m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity = 0.0f;
 
 		for (int i = 0; i < m_objects.size(); ++i) {
 			UpadteMaterialParameter(i);
@@ -987,12 +987,13 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateHitSignature() {
 	nv_helpers_dx12::RootSignatureGenerator rsc;
 	auto default = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 	// but we want to access vertex buffer in hit shader, so add a parameter of SRV
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);//MaterialAttributes
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 1);//light
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 2);//light
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 0);//Vertices
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1);//Indices
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 2);//TLAS
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);//MaterialAttributes
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 3);//global_lights
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 1);//light
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 5);//areaLightVtx
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 6);//areaLightIdx
 
@@ -1249,14 +1250,15 @@ void SceneEditor::CreateShaderBindingTable() {
 		srvUavHeapHandle.Offset(1, DescriptorHandleIncrementSize);
 		//m_sbtHelper.AddHitGroup(ws_hitGroupNames[i], {
 		m_sbtHelper.AddHitGroup(m_objects[i].ws_hitGroupName, {
+			(void*)(m_objects[i].MaterialBuffer->GetGPUVirtualAddress()),
+			(void*)(m_sceneParameterBuffer->GetGPUVirtualAddress()),
+			(void*) 0,
 			(void*)(m_objects[i].vertexBuffer->GetGPUVirtualAddress()),
 			(void*)(m_objects[i].indexBuffer->GetGPUVirtualAddress()),
 			(void*)(m_topLevelASBuffers.pResult->GetGPUVirtualAddress()),
-			(void*)(m_objects[i].MaterialBuffer->GetGPUVirtualAddress()),
 			(void*)(m_lightsBuffer->GetGPUVirtualAddress()),
 			//(void*)(m_objects[m_idxOfObj["light"]].indexBuffer->GetGPUVirtualAddress()),
 			//(void*)(m_lights[0].lightBuffer->GetGPUVirtualAddress()),
-			(void*)(m_sceneParameterBuffer->GetGPUVirtualAddress()),
 			(void*)srvUavHeapHandle.ptr,
 			(void*)(m_objects[m_idxOfObj["light"]].vertexBuffer->GetGPUVirtualAddress()),
 			(void*)(m_objects[m_idxOfObj["light"]].indexBuffer->GetGPUVirtualAddress()),
@@ -1595,7 +1597,7 @@ void SceneEditor::StartImgui()
 		int i = m_imguiManager.m_selectLightIdx;
 		auto lightType = reinterpret_cast<int*>(&lightsInScene[i].type);
 		if (ImGui::Combo("LightType", lightType, m_LightType, LightType::Count)) {
-			valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].emitIntensity);
+			auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].emitIntensity);
 			if (*lightType == LightType::Distant) {
 				*valueAddress2 = 1.f;
 			}

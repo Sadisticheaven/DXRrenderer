@@ -98,6 +98,15 @@ typedef struct Vertex
 	XMFLOAT3 Bitangent;
 };
 
+struct AreaLight {
+	BOOL useAreaLight;
+	XMMATRIX transfer;
+	UINT objectIndex;
+	UINT meshNum;
+	float area;
+	float emitIntensity;
+};
+
 struct SceneConstants
 {
 	XMMATRIX view;

@@ -24,6 +24,7 @@ typedef struct Mesh
 typedef struct Model
 {
 	std::vector<Mesh> meshes;
+
 };
 
 using uint16 = std::uint16_t;
