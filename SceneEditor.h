@@ -223,4 +223,5 @@ private:
 	//std::vector<LightSource> m_lights;
 	void UpdateLight();
 	void AllocateUploadLightBuffer();
+
 };

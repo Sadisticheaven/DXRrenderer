@@ -7,9 +7,11 @@ StructuredBuffer<Vertex> Vertices: register(t0);
 StructuredBuffer<Index> Indices: register(t1);
 RaytracingAccelerationStructure SceneBVH : register(t2);
 ConstantBuffer<PrimitiveMaterialBuffer> MaterialAttributes : register(b0);
-StructuredBuffer<Light> light_vertices: register(t3);
-Texture2D objectTex : register(t4);
 ConstantBuffer<SceneConstants> sceneParameter : register(b1);
+StructuredBuffer<Light> global_lights: register(t3);
+Texture2D objectTex : register(t4);
+StructuredBuffer<Vertex> areaLightVtx: register(t5);
+StructuredBuffer<Index> areaLightIdx: register(t6);
 //6个不同类型的采样器
 SamplerState gSamPointWrap : register(s0);
 SamplerState gSamPointClamp : register(s1);
@@ -62,7 +64,6 @@ float3 get_eval_for_light_dir(float3 wi, float3 wo, float3 N, float2 uv) {
 			outward_normal = -N;
 			ni_over_nt = ref_idx;
 			cosine = ref_idx * dot(wi, N);
-
 		}
 		else {
 			outward_normal = N;
@@ -114,7 +115,7 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 	float3 radiance = float3(0.0, 0.0, 0.0);
 	seed = createRandomFloat4(seed);
 	uint i = fmod(seed.w * sceneParameter.light_nums, sceneParameter.light_nums);
-	Light global_light = light_vertices[i];
+	Light global_light = global_lights[i];
 	float3 position = global_light.position;
 
 	float3 direction = position - hitWorldPosition;
@@ -143,16 +144,12 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 		float3 distantDirection = normalize(global_light.direction);
 		rayDesc.Direction = -distantDirection;
 		rayDesc.TMax = 2 * global_light.worldRadius;
-	}
-
-	if (global_light.type == LightType::Distant) {
-		float3 distantDirection = normalize(global_light.direction);
 		float cosx = dot(N, -distantDirection);
 		if (cosx < 0.f) {
 			return float3(0.0, 0.0, 0.0);
 		}
 		disPow2 = global_light.worldRadius * global_light.worldRadius;
-		return emitIntensity * emitIntensity * eval * cosx / disPow2;
+		return emitIntensity * eval * cosx;
 	}
 	if (global_light.type == LightType::Point) {
 		return emitIntensity * emitIntensity * eval / disPow2;
@@ -173,6 +170,16 @@ float3 get_light_dir(float3 worldRayDirection, float3 hitWorldPosition, float3 N
 		}
 		return emitIntensity * emitIntensity * eval * delta * delta * delta * delta / disPow2;
 	}
+	if (global_light.type == LightType::Area) {
+		////sample on triangle
+		//float u = 1 - sqrt(seed.x);
+		//float v = seed.y * sqrt(seed.x);
+		//float pdf = global_light.area;
+		//float cosx = dot(N, -sampleDirection);
+		//float cosy = dot(sampleVtxNor);
+		//return emitIntensity * eval * cosx * cosy * pdf / disPow2;
+	}
+
 	return float3(0.0, 0.0, 0.0);
 }
 
@@ -457,12 +464,13 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	float3 indirectionLightEval = get_light_indir(worldRayDirection, normal, hitWorldPosition, uv, ray, payload.recursionDepth, seed);
 
 	seed = createRandomFloat4(seed);
+	sampleRadiance += castDirectionRay(rayDescForDirLight) * directionLightEval * 2;
 	if (seed.z < 0.5) {
-		sampleRadiance = CastIndirectionRay(ray, payload.recursionDepth, createRandomFloat4(seed)) * indirectionLightEval * 2;
+		sampleRadiance += CastIndirectionRay(ray, payload.recursionDepth, createRandomFloat4(seed)) * indirectionLightEval * 2;
 	}
-	else {
+	/*else {
 		sampleRadiance = castDirectionRay(rayDescForDirLight) * directionLightEval * 2;
-	}
+	}*/
 
 	payload.radiance = Kd * emitIntensity2 * emit_rate + sampleRadiance;
 }

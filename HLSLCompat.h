@@ -49,6 +49,7 @@ typedef UINT32 Index;
         Type(Point)   \
         Type(Spot)  \
         Type(Distant)   \
+        Type(Area)   \
 		Type(Count)  \
 
 #define GENERATE_ENUM(ENUM) ENUM,
@@ -84,6 +85,7 @@ struct Light {
 	float falloffStart;
 	float totalWidth;
 	float worldRadius;
+	float area;
 };
 
 typedef struct Vertex
@@ -156,8 +158,5 @@ struct PrimitiveMaterialBuffer
 	//}
 #endif
 };
-
-
-
 
 #endif //RAYTRACINGHLSLCOMPAT_H

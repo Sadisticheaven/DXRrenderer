@@ -298,7 +298,6 @@ void SceneEditor::AllocateUploadLightBuffer()
 	}
 }
 
-
 //void SceneEditor::CreateLightBuffer(Light& desc)
 //{
 //	int lightBufferSize = SizeOfIn256(Light);
@@ -992,8 +991,10 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateHitSignature() {
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1);//Indices
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 2);//TLAS
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);//MaterialAttributes
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 3);//light_vertices
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 3);//global_lights
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 1);//light
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 5);//areaLightVtx
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 6);//areaLightIdx
 
 	rsc.AddHeapRangesParameter(
 		{
@@ -1254,10 +1255,11 @@ void SceneEditor::CreateShaderBindingTable() {
 			(void*)(m_objects[i].MaterialBuffer->GetGPUVirtualAddress()),
 			(void*)(m_lightsBuffer->GetGPUVirtualAddress()),
 			//(void*)(m_objects[m_idxOfObj["light"]].indexBuffer->GetGPUVirtualAddress()),
-			//(void*)(m_cameraBuffer->GetGPUVirtualAddress()),
 			//(void*)(m_lights[0].lightBuffer->GetGPUVirtualAddress()),
 			(void*)(m_sceneParameterBuffer->GetGPUVirtualAddress()),
 			(void*)srvUavHeapHandle.ptr,
+			(void*)(m_objects[m_idxOfObj["light"]].vertexBuffer->GetGPUVirtualAddress()),
+			(void*)(m_objects[m_idxOfObj["light"]].indexBuffer->GetGPUVirtualAddress()),
 			});
 
 		m_sbtHelper.AddHitGroup(m_objects[i].ws_shadowHitGroupName, {});
@@ -1605,8 +1607,16 @@ void SceneEditor::StartImgui()
 		if (ImGui::DragFloat("worldRadius", valueAddress2, 0.1f))
 			OnResetSpp();
 		auto lightType = reinterpret_cast<int*>(&lightsInScene[i].type);
-		if (ImGui::Combo("LightType", lightType, m_LightType, LightType::Count))
+		if (ImGui::Combo("LightType", lightType, m_LightType, LightType::Count)) {
+			valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].emitIntensity);
+			if (*lightType == LightType::Distant) {
+				*valueAddress2 = 1.f;
+			}
+			else {
+				*valueAddress2 = 200.f;
+			}
 			OnResetSpp();
+		}
 
 		if (ImGui::Button("Add a light")) {
 			lightsInScene.push_back(lightsInScene[0]);
