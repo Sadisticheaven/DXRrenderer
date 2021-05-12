@@ -19,12 +19,12 @@ typedef struct Mesh
 	std::vector<Vertex> vertices;
 	std::vector<Index> indices;
 	XMFLOAT3 center;
+	double surfaceArea;
 };
 
 typedef struct Model
 {
 	std::vector<Mesh> meshes;
-
 };
 
 using uint16 = std::uint16_t;

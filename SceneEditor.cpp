@@ -186,8 +186,11 @@ void SceneEditor::AllocateUploadGeometryBuffer(Model& model, std::string objname
 	std::vector<Vertex> vertices;
 	std::vector<Index> indices;
 	XMFLOAT3 center(0.f, 0.f, 0.f);
+	ObjResource objDesc;
+	objDesc.surfaceArea = 0;
 	// store all meshes of model into one vertices nad indices
 	for (int i = 0, offset = 0; i < model.meshes.size(); ++i) {
+		objDesc.surfaceArea += model.meshes[i].surfaceArea;
 		vertices.insert(vertices.end(), model.meshes[i].vertices.begin(), model.meshes[i].vertices.end());
 		// each indices of meshes are started from 0, so offset the subsequent indices
 		for (int j = 0; j < model.meshes[i].indices.size(); ++j)
@@ -197,7 +200,7 @@ void SceneEditor::AllocateUploadGeometryBuffer(Model& model, std::string objname
 		center += model.meshes[i].center;
 	}
 
-	ObjResource objDesc;
+	
 	objDesc.vertexCount = static_cast<UINT>(vertices.size());
 	objDesc.indexCount = static_cast<UINT>(indices.size());
 	objDesc.str_objName = objname;

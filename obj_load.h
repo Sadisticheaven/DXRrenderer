@@ -396,6 +396,7 @@ Mesh processMesh(aiMesh* mesh, const aiScene* scene)
 	std::vector<Index> indices;
 	//std::vector<Texture> textures;
 	XMFLOAT3  center(0.f, 0.f, 0.f);
+	double area = 0;
 	//如果文件包含法线
 	if (mesh->mNormals != nullptr) {
 		// 遍历每个网格的顶点
@@ -442,8 +443,15 @@ Mesh processMesh(aiMesh* mesh, const aiScene* scene)
 		{
 			aiFace face = mesh->mFaces[i];
 			// 检索面的所有索引并将它们存储在索引向量中
-			for (unsigned int j = 0; j < face.mNumIndices; j++)
+			std::vector<Index> tmpIndex;
+			for (unsigned int j = 0; j < face.mNumIndices; ++j) {
 				indices.push_back(face.mIndices[j]);
+				tmpIndex.push_back(face.mIndices[j]);
+			}
+			XMFLOAT3 normal = GenTriNormal(vertices[tmpIndex[0]].position, vertices[tmpIndex[1]].position, vertices[tmpIndex[2]].position);
+			XMFLOAT3 cross;
+			XMStoreFloat3(&cross, XMVector3Length(XMLoadFloat3(&normal)));
+			area += cross.x;
 		}
 	}
 	else {
@@ -482,6 +490,9 @@ Mesh processMesh(aiMesh* mesh, const aiScene* scene)
 				tmpIndex.push_back(face.mIndices[j]);
 			}		
 			XMFLOAT3 normal = GenTriNormal(vertices[tmpIndex[0]].position, vertices[tmpIndex[1]].position, vertices[tmpIndex[2]].position);
+			XMFLOAT3 cross;
+			XMStoreFloat3(&cross, XMVector3Length(XMLoadFloat3(&normal)));
+			area += cross.x;
 			for (unsigned int j = 0; j < tmpIndex.size(); ++j) {
 				XMFLOAT3 preNormal = vertices[tmpIndex[j]].normal;
 				XMFLOAT3 newNormal = normal + preNormal;
@@ -519,6 +530,7 @@ Mesh processMesh(aiMesh* mesh, const aiScene* scene)
 	tmpMesh.vertices = vertices;
 	tmpMesh.indices = indices;
 	tmpMesh.center = center;
+	tmpMesh.surfaceArea = area;
 	return tmpMesh;
 }
 // 以递归方式处理节点。 处理位于节点处的每个单独网格，并在其子节点（如果有）上重复此过程。

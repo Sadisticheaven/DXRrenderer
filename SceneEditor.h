@@ -89,6 +89,7 @@ private:
 		ComPtr<ID3D12Resource> bottomLevelAS;
 		XMMATRIX originTransform;
 		XMFLOAT3 center;
+		double surfaceArea;
 	};
 	std::vector<ObjResource> m_objects;
 	std::unordered_map<std::string, int> m_idxOfObj;
