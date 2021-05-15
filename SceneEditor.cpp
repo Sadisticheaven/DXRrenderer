@@ -492,7 +492,6 @@ void SceneEditor::LoadAssets()
 		}
 	}
 
-
 	{
 		ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
 		m_fenceValue = 1;
@@ -997,13 +996,12 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateHitSignature() {
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1);//Indices
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 2);//TLAS
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 3);//global_lights
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 5);//areaLightVtx
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 6);//areaLightIdx
-
 	rsc.AddHeapRangesParameter(
 		{
 			{4 /*t4*/, 1 , 0 ,D3D12_DESCRIPTOR_RANGE_TYPE_SRV ,default},//texture
 		});
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 5);//areaLightVtx
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 6);//areaLightIdx
 	return rsc.Generate(m_device.Get(), true);
 }
 
@@ -1600,12 +1598,19 @@ void SceneEditor::StartImgui()
 		int i = m_imguiManager.m_selectLightIdx;
 		auto lightType = reinterpret_cast<int*>(&lightsInScene[i].type);
 		if (ImGui::Combo("LightType", lightType, m_LightType, LightType::Count)) {
-			auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].emitIntensity);
 			if (*lightType == LightType::Distant) {
-				*valueAddress2 = 1.f;
+				lightsInScene[i].emitIntensity = 1.f;
+			}
+			else if (*lightType == LightType::Area) {
+				lightsInScene[i].objectIndex = m_idxOfObj["light"];
+				lightsInScene[i].useAreaLight = TRUE;
+				lightsInScene[i].transfer = m_instances[m_idxOfObj["light"]].second;
+				lightsInScene[i].meshNum = m_objects[m_idxOfObj["light"]].indexCount/3;
+				lightsInScene[i].area = m_objects[m_idxOfObj["light"]].surfaceArea;
+				lightsInScene[i].emitIntensity = 5.f;
 			}
 			else {
-				*valueAddress2 = 200.f;
+				lightsInScene[i].emitIntensity = 200.f;
 			}
 			OnResetSpp();
 		}
@@ -1630,9 +1635,8 @@ void SceneEditor::StartImgui()
 			auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].falloffStart);
 			if (ImGui::DragFloat("falloffStart", valueAddress2, 0.01f, 0.f, lightsInScene[i].totalWidth))
 				OnResetSpp();
-		}
-		if (type == LightType::Spot) {
-			auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].totalWidth);
+		
+			valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].totalWidth);
 			if (ImGui::DragFloat("totalWidth", valueAddress2, 0.01f, lightsInScene[i].falloffStart, XM_PIDIV2))
 				OnResetSpp();
 		}
@@ -1640,6 +1644,17 @@ void SceneEditor::StartImgui()
 			auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].worldRadius);
 			if (ImGui::DragFloat("worldRadius", valueAddress2, 0.1f))
 				OnResetSpp();
+		}
+		if (type == LightType::Area) {
+			auto lightAddr = reinterpret_cast<int*>(&lightsInScene[i].objectIndex);
+			if (ImGui::Combo("LightObject", lightAddr, m_imguiManager.m_objectsName, m_objects.size())) {
+				OnResetSpp();
+			}
+			//int objidx = m_idxOfObj[m_imguiManager.m_objectsName[*lightAddr]];
+			//m_areaRes.vtxBuffer = m_objects[objidx].vertexBuffer;
+			//m_areaRes.idxBuffer = m_objects[objidx].indexBuffer;
+			//lightsInScene[i].area = m_objects[objidx].surfaceArea;
+			//lightsInScene[i].useAreaLight = TRUE;
 		}
 
 		if (ImGui::Button("Add a light")) {

@@ -81,10 +81,17 @@ struct Light {
 	XMFLOAT3 position;
 	float emitIntensity;//constant need be aligned with 4,so XMFLOAT3 need after float
 	LightType::Type type;
+	//Spot
 	XMFLOAT3 direction;
 	float falloffStart;
 	float totalWidth;
+	//Distant
 	float worldRadius;
+	// Area
+	BOOL useAreaLight;
+	XMMATRIX transfer;
+	UINT objectIndex;
+	UINT meshNum;
 	float area;
 };
 

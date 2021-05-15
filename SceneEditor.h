@@ -89,7 +89,7 @@ private:
 		ComPtr<ID3D12Resource> bottomLevelAS;
 		XMMATRIX originTransform;
 		XMFLOAT3 center;
-		double surfaceArea;
+		float surfaceArea;
 	};
 	std::vector<ObjResource> m_objects;
 	std::unordered_map<std::string, int> m_idxOfObj;
@@ -211,11 +211,11 @@ private:
 	void UpdateInstances();
 
 	//light
-	struct LightSource {
-		Light lightDesc;
-		ComPtr<ID3D12Resource> lightBuffer;
+	struct AreaLightResource {
+		ComPtr<ID3D12Resource> vtxBuffer;
+		ComPtr<ID3D12Resource> idxBuffer;
 	};
-
+	AreaLightResource m_areaRes;
 	std::vector<Light> lightsInScene;
 	ComPtr<ID3D12Resource> m_lightsBuffer;
 	std::vector<char*> lightIdxChar;

@@ -396,7 +396,7 @@ Mesh processMesh(aiMesh* mesh, const aiScene* scene)
 	std::vector<Index> indices;
 	//std::vector<Texture> textures;
 	XMFLOAT3  center(0.f, 0.f, 0.f);
-	double area = 0;
+	float area = 0;
 	//如果文件包含法线
 	if (mesh->mNormals != nullptr) {
 		// 遍历每个网格的顶点
