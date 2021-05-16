@@ -200,7 +200,7 @@ void SceneEditor::AllocateUploadGeometryBuffer(Model& model, std::string objname
 		center += model.meshes[i].center;
 	}
 
-	
+
 	objDesc.vertexCount = static_cast<UINT>(vertices.size());
 	objDesc.indexCount = static_cast<UINT>(indices.size());
 	objDesc.str_objName = objname;
@@ -1253,7 +1253,7 @@ void SceneEditor::CreateShaderBindingTable() {
 		m_sbtHelper.AddHitGroup(m_objects[i].ws_hitGroupName, {
 			(void*)(m_objects[i].MaterialBuffer->GetGPUVirtualAddress()),
 			(void*)(m_sceneParameterBuffer->GetGPUVirtualAddress()),
-			(void*) 0,
+			(void*)0,
 			(void*)(m_objects[i].vertexBuffer->GetGPUVirtualAddress()),
 			(void*)(m_objects[i].indexBuffer->GetGPUVirtualAddress()),
 			(void*)(m_topLevelASBuffers.pResult->GetGPUVirtualAddress()),
@@ -1513,8 +1513,15 @@ void SceneEditor::StartImgui()
 					OnResetSpp();
 			}
 		}
-		if (ImGui::DragFloat("EmitIntensity", &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.emitIntensity, 0.1f, 0.f, 30.f))
+		if (ImGui::DragFloat("EmitIntensity", &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.emitIntensity, 0.1f, 0.f, 30.f)) {
+			int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
+			int lightIdx = m_imguiManager.m_selectLightIdx;
+			auto lightType = reinterpret_cast<int*>(&lightsInScene[lightIdx].type);
+			if (lightsInScene[lightIdx].objectIndex == objIdx && *lightType == LightType::Area) {
+				lightsInScene[lightIdx].emitIntensity = m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.emitIntensity;
+			}
 			OnResetSpp();
+		}
 	}
 
 
@@ -1535,6 +1542,11 @@ void SceneEditor::StartImgui()
 			int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
 			m_instances[objIdx].second = m_objects[objIdx].originTransform *
 				XMMatrixTranslation(m_imguiManager.m_translation[0], m_imguiManager.m_translation[1], m_imguiManager.m_translation[2]);
+			int lightIdx = m_imguiManager.m_selectLightIdx;
+			auto lightType = reinterpret_cast<int*>(&lightsInScene[lightIdx].type);
+			if (lightsInScene[lightIdx].objectIndex == objIdx && *lightType == LightType::Area) {
+				lightsInScene[lightIdx].transfer = m_instances[objIdx].second;
+			}
 			OnResetSpp();
 		}
 
@@ -1547,6 +1559,11 @@ void SceneEditor::StartImgui()
 				XMMatrixRotationY(m_imguiManager.m_rotation[1] * XM_PI * 2) *
 				XMMatrixRotationZ(m_imguiManager.m_rotation[2] * XM_PI * 2) *
 				XMMatrixTranslation(m_objects[objIdx].center.x, m_objects[objIdx].center.y, m_objects[objIdx].center.z) * originMat;
+			int lightIdx = m_imguiManager.m_selectLightIdx;
+			auto lightType = reinterpret_cast<int*>(&lightsInScene[lightIdx].type);
+			if (lightsInScene[lightIdx].objectIndex == objIdx && *lightType == LightType::Area) {
+				lightsInScene[lightIdx].transfer = m_instances[objIdx].second;
+			}
 			OnResetSpp();
 		}
 
@@ -1557,6 +1574,11 @@ void SceneEditor::StartImgui()
 				XMMatrixTranslation(-m_objects[objIdx].center.x, -m_objects[objIdx].center.y, -m_objects[objIdx].center.z) *
 				XMMatrixScaling(m_imguiManager.m_scale[0], m_imguiManager.m_scale[1], m_imguiManager.m_scale[2]) *
 				XMMatrixTranslation(m_objects[objIdx].center.x, m_objects[objIdx].center.y, m_objects[objIdx].center.z) * originMat;
+			int lightIdx = m_imguiManager.m_selectLightIdx;
+			auto lightType = reinterpret_cast<int*>(&lightsInScene[lightIdx].type);
+			if (lightsInScene[lightIdx].objectIndex == objIdx && *lightType == LightType::Area) {
+				lightsInScene[lightIdx].transfer = m_instances[objIdx].second;
+			}
 			OnResetSpp();
 		}
 
@@ -1567,6 +1589,11 @@ void SceneEditor::StartImgui()
 				XMMatrixTranslation(-m_objects[objIdx].center.x, -m_objects[objIdx].center.y, -m_objects[objIdx].center.z) *
 				XMMatrixScaling(m_imguiManager.m_scale[3], m_imguiManager.m_scale[3], m_imguiManager.m_scale[3]) *
 				XMMatrixTranslation(m_objects[objIdx].center.x, m_objects[objIdx].center.y, m_objects[objIdx].center.z) * originMat;
+			int lightIdx = m_imguiManager.m_selectLightIdx;
+			auto lightType = reinterpret_cast<int*>(&lightsInScene[lightIdx].type);
+			if (lightsInScene[lightIdx].objectIndex == objIdx && *lightType == LightType::Area) {
+				lightsInScene[lightIdx].transfer = m_instances[objIdx].second;
+			}
 			OnResetSpp();
 		}
 
@@ -1605,9 +1632,9 @@ void SceneEditor::StartImgui()
 				lightsInScene[i].objectIndex = m_idxOfObj["light"];
 				lightsInScene[i].useAreaLight = TRUE;
 				lightsInScene[i].transfer = m_instances[m_idxOfObj["light"]].second;
-				lightsInScene[i].meshNum = m_objects[m_idxOfObj["light"]].indexCount/3;
+				lightsInScene[i].meshNum = m_objects[m_idxOfObj["light"]].indexCount / 3;
 				lightsInScene[i].area = m_objects[m_idxOfObj["light"]].surfaceArea;
-				lightsInScene[i].emitIntensity = 5.f;
+				lightsInScene[i].emitIntensity = m_objects[lightsInScene[i].objectIndex].materialAttributes.emitIntensity;
 			}
 			else {
 				lightsInScene[i].emitIntensity = 200.f;
@@ -1621,7 +1648,7 @@ void SceneEditor::StartImgui()
 			if (ImGui::DragFloat3("position", valueAddress2, 0.5f))
 				OnResetSpp();
 		}
-		if (true) {
+		if (type == LightType::Point || type == LightType::Spot || type == LightType::Distant) {
 			auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].emitIntensity);
 			if (ImGui::DragFloat("emit", valueAddress2, 0.1f, 0.f))
 				OnResetSpp();
@@ -1635,7 +1662,7 @@ void SceneEditor::StartImgui()
 			auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].falloffStart);
 			if (ImGui::DragFloat("falloffStart", valueAddress2, 0.01f, 0.f, lightsInScene[i].totalWidth))
 				OnResetSpp();
-		
+
 			valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].totalWidth);
 			if (ImGui::DragFloat("totalWidth", valueAddress2, 0.01f, lightsInScene[i].falloffStart, XM_PIDIV2))
 				OnResetSpp();

@@ -11,7 +11,7 @@ RaytracingAccelerationStructure SceneBVH : register(t0);// declared in CreateRay
 // #DXR Extra: Perspective Camera
 ConstantBuffer<SceneConstants> sceneParameter : register(b0);
 
-StructuredBuffer<Light> light_vertices: register(t1);
+StructuredBuffer<Light> global_light: register(t1);
 
 [shader("raygeneration")]
 void RayGen() {
@@ -29,34 +29,35 @@ void RayGen() {
 #if 1
 	for (uint i = 0; i < sceneParameter.light_nums; ++i)
 	{
+		if (global_light[i].type == LightType::Point || global_light[i].type == LightType::Spot) {
+			float3 position = global_light[i].position;
+			float3 direction = position - ray.Origin.xyz;
+			float disPow2 = dot(direction, direction);
+			float dis = sqrt(disPow2);
+			float3 normal_dire = normalize(direction);
+			float3 row_dire = normalize(ray.Direction.xyz);
+			if (dot(row_dire, normal_dire) > 0.999995f) {
+				RayDesc rayDesc;
+				rayDesc.Origin = ray.Origin;
+				rayDesc.Direction = normal_dire;
+				rayDesc.TMin = 0.01;
+				rayDesc.TMax = dis;
 
-		float3 position = light_vertices[i].position;
-		float3 direction = position - ray.Origin.xyz;
-		float disPow2 = dot(direction, direction);
-		float dis = sqrt(disPow2);
-		float3 normal_dire = normalize(direction);
-		float3 row_dire = normalize(ray.Direction.xyz);
-		if (dot(row_dire, normal_dire) > 0.999995f) {
-			RayDesc rayDesc;
-			rayDesc.Origin = ray.Origin;
-			rayDesc.Direction = normal_dire;
-			rayDesc.TMin = 0.01;
-			rayDesc.TMax = dis + 1.f;
-
-			ShadowRayPayload rayPayload;
-			rayPayload.tHit = HitDistanceOnMiss;
-			TraceRay(
-				SceneBVH,
-				RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
-				0xFF,
-				1,//shadowhit
-				0,
-				1,//shadowmiss
-				rayDesc,
-				rayPayload);
-			if (rayPayload.tHit == HitDistanceOnMiss) {
-				gOutput[launchIndex] = float4(1, 1, 1, 1);
-				return;
+				ShadowRayPayload rayPayload;
+				rayPayload.tHit = HitDistanceOnMiss;
+				TraceRay(
+					SceneBVH,
+					RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
+					0xFF,
+					1,//shadowhit
+					0,
+					1,//shadowmiss
+					rayDesc,
+					rayPayload);
+				if (rayPayload.tHit == HitDistanceOnMiss) {
+					gOutput[launchIndex] = float4(1, 1, 1, 1);
+					return;
+				}
 			}
 		}
 	}

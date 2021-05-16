@@ -117,18 +117,18 @@ float3 getLightAreaEval(float3 worldRayDirection, float3 hitWorldPosition, float
 	uint i = fmod(seed.x * areaLight.meshNum, areaLight.meshNum);
 	uint vertId = 3 * i;
 	float2 attrib = float2(seed.y, seed.z);
-
+	matrix ObjectToWorld = areaLight.transfer;
 	float3 vertexPosition[3] = {
 		areaLightVtx[areaLightIdx[vertId + 0]].position,
 		areaLightVtx[areaLightIdx[vertId + 1]].position,
 		areaLightVtx[areaLightIdx[vertId + 2]].position };
-	float3 position = HitAttribute(vertexPosition, attrib);
+	float3 position = mul(ObjectToWorld, float4(HitAttribute(vertexPosition, attrib), 1));
 
 	float3 vertexNormal[3] = {
 		areaLightVtx[areaLightIdx[vertId + 0]].normal,
 		areaLightVtx[areaLightIdx[vertId + 1]].normal,
 		areaLightVtx[areaLightIdx[vertId + 2]].normal };
-	float3 lightNormal = normalize(HitAttribute(vertexNormal, attrib));
+	float3 lightNormal = normalize(mul((float3x3)ObjectToWorld, HitAttribute(vertexNormal, attrib)));
 
 	float3 direction = position - hitWorldPosition;
 	float disPow2 = dot(direction, direction);
