@@ -207,7 +207,7 @@ private:
 	std::vector<std::string> m_texNames;
 	D3D12_CPU_DESCRIPTOR_HANDLE m_texSrvHeapStart; // store start point of textures srv 
 	void UpdateTexOfObj(int objIdx);
-	
+
 	void UpdateInstances();
 
 	//light
@@ -223,6 +223,8 @@ private:
 	char* m_LightType[LightType::Count + 1] = { FOREACH_LIGHT(GENERATE_STRING) };
 	//std::vector<LightSource> m_lights;
 	void UpdateLight();
+	void CreateAreaLightVerticesBuffer();
+	void UpdateAreaLightVerticesBuffer(UINT index);
 	void AllocateUploadLightBuffer();
 
 };

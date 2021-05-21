@@ -180,6 +180,60 @@ void SceneEditor::LoadPipeline()
 
 	ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
 }
+void SceneEditor::CreateAreaLightVerticesBuffer()
+{
+	UINT VertexBufferSize = 0;
+	UINT IndexBufferSize = 0;
+	for (auto objDesc : m_objects) {
+		VertexBufferSize = max(VertexBufferSize, objDesc.vertexCount * sizeof(Vertex));
+		IndexBufferSize = max(IndexBufferSize, objDesc.indexCount * sizeof(UINT));
+	}
+	{
+		CD3DX12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		CD3DX12_RESOURCE_DESC bufferResource = CD3DX12_RESOURCE_DESC::Buffer(VertexBufferSize);
+		ThrowIfFailed(m_device->CreateCommittedResource(
+			&heapProperty, D3D12_HEAP_FLAG_NONE, &bufferResource, //
+			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_areaRes.vtxBuffer)));
+	}
+	{
+		CD3DX12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		CD3DX12_RESOURCE_DESC bufferResource = CD3DX12_RESOURCE_DESC::Buffer(IndexBufferSize);
+		ThrowIfFailed(m_device->CreateCommittedResource(
+			&heapProperty, D3D12_HEAP_FLAG_NONE, &bufferResource, //
+			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_areaRes.idxBuffer)));
+	}
+
+}
+void SceneEditor::UpdateAreaLightVerticesBuffer(UINT index)
+{
+
+	auto objDesc = m_objects[index];
+	const UINT VertexBufferSize = objDesc.vertexCount * sizeof(Vertex);
+	{
+		UINT8* pVertexDataBegin;
+		UINT8* pLightVertexDataBegin;
+		CD3DX12_RANGE readRange(0, 0);
+		CD3DX12_RANGE readRangeLight(0, 0);
+		ThrowIfFailed(objDesc.vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
+		ThrowIfFailed(m_areaRes.vtxBuffer->Map(0, &readRangeLight, reinterpret_cast<void**>(&pLightVertexDataBegin)));
+		memcpy(pLightVertexDataBegin, pVertexDataBegin, VertexBufferSize);
+		objDesc.vertexBuffer->Unmap(0, nullptr);
+		m_areaRes.vtxBuffer->Unmap(0, nullptr);
+	}
+
+	const UINT IndexBufferSize = objDesc.indexCount * sizeof(UINT);
+	{
+		UINT8* pIndexDataBegin;
+		UINT8* pLightIndexDataBegin;
+		CD3DX12_RANGE readRange(0, 0);
+		CD3DX12_RANGE readRangeLight(0, 0);
+		ThrowIfFailed(objDesc.indexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pIndexDataBegin)));
+		ThrowIfFailed(m_areaRes.idxBuffer->Map(0, &readRangeLight, reinterpret_cast<void**>(&pLightIndexDataBegin)));
+		memcpy(pLightIndexDataBegin, pIndexDataBegin, IndexBufferSize);
+		objDesc.indexBuffer->Unmap(0, nullptr);
+		m_areaRes.idxBuffer->Unmap(0, nullptr);
+	}
+}
 
 void SceneEditor::AllocateUploadGeometryBuffer(Model& model, std::string objname)
 {
@@ -502,7 +556,8 @@ void SceneEditor::LoadAssets()
 		{
 			ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
 		}
-
+		CreateAreaLightVerticesBuffer();
+		UpdateAreaLightVerticesBuffer(m_idxOfObj["light"]);
 		WaitForPreviousFrame();
 	}
 
@@ -1261,8 +1316,8 @@ void SceneEditor::CreateShaderBindingTable() {
 			//(void*)(m_objects[m_idxOfObj["light"]].indexBuffer->GetGPUVirtualAddress()),
 			//(void*)(m_lights[0].lightBuffer->GetGPUVirtualAddress()),
 			(void*)srvUavHeapHandle.ptr,
-			(void*)(m_objects[m_idxOfObj["light"]].vertexBuffer->GetGPUVirtualAddress()),
-			(void*)(m_objects[m_idxOfObj["light"]].indexBuffer->GetGPUVirtualAddress()),
+			(void*)(m_areaRes.vtxBuffer->GetGPUVirtualAddress()),
+			(void*)(m_areaRes.idxBuffer->GetGPUVirtualAddress()),
 			});
 
 		m_sbtHelper.AddHitGroup(m_objects[i].ws_shadowHitGroupName, {});
@@ -1630,6 +1685,7 @@ void SceneEditor::StartImgui()
 			}
 			else if (*lightType == LightType::Area) {
 				lightsInScene[i].objectIndex = m_idxOfObj["light"];
+				UpdateAreaLightVerticesBuffer(lightsInScene[i].objectIndex);
 				lightsInScene[i].useAreaLight = TRUE;
 				lightsInScene[i].transfer = m_instances[m_idxOfObj["light"]].second;
 				lightsInScene[i].meshNum = m_objects[m_idxOfObj["light"]].indexCount / 3;
@@ -1675,13 +1731,14 @@ void SceneEditor::StartImgui()
 		if (type == LightType::Area) {
 			auto lightAddr = reinterpret_cast<int*>(&lightsInScene[i].objectIndex);
 			if (ImGui::Combo("LightObject", lightAddr, m_imguiManager.m_objectsName, m_objects.size())) {
+				lightsInScene[i].useAreaLight = TRUE;
+				lightsInScene[i].transfer = m_instances[lightsInScene[i].objectIndex].second;
+				lightsInScene[i].meshNum = m_objects[lightsInScene[i].objectIndex].indexCount / 3;
+				lightsInScene[i].area = m_objects[lightsInScene[i].objectIndex].surfaceArea;
+				lightsInScene[i].emitIntensity = m_objects[lightsInScene[i].objectIndex].materialAttributes.emitIntensity;
+				UpdateAreaLightVerticesBuffer(lightsInScene[i].objectIndex);
 				OnResetSpp();
 			}
-			//int objidx = m_idxOfObj[m_imguiManager.m_objectsName[*lightAddr]];
-			//m_areaRes.vtxBuffer = m_objects[objidx].vertexBuffer;
-			//m_areaRes.idxBuffer = m_objects[objidx].indexBuffer;
-			//lightsInScene[i].area = m_objects[objidx].surfaceArea;
-			//lightsInScene[i].useAreaLight = TRUE;
 		}
 
 		if (ImGui::Button("Add a light")) {
