@@ -78,6 +78,7 @@ namespace LightType {
 }
 
 struct Light {
+	XMMATRIX transfer;
 	XMFLOAT3 position;
 	float emitIntensity;//constant need be aligned with 4,so XMFLOAT3 need after float
 	LightType::Type type;
@@ -89,10 +90,12 @@ struct Light {
 	float worldRadius;
 	// Area
 	BOOL useAreaLight;
-	XMMATRIX transfer;
 	UINT objectIndex;
 	UINT meshNum;
 	float area;
+#ifdef HLSL
+	float pad0;
+#endif
 };
 
 typedef struct Vertex
