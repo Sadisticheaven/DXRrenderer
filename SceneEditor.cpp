@@ -469,7 +469,7 @@ void SceneEditor::LoadAssets()
 	}
 	// global light
 	{
-		Light lightDesc;
+		//Light lightDesc;
 		lightDesc.position = XMFLOAT3(278.f, 540.f, 279.5f);
 		//lightDesc.position = XMFLOAT3(200.f, 200.f, -10.f);
 		lightDesc.direction = XMFLOAT3(0.f, -1.f, 0.f);
@@ -1742,7 +1742,7 @@ void SceneEditor::StartImgui()
 		}
 
 		if (ImGui::Button("Add a light")) {
-			lightsInScene.push_back(lightsInScene[0]);
+			lightsInScene.push_back(lightDesc);
 			matrices.light_nums++;
 			OnResetSpp();
 		}

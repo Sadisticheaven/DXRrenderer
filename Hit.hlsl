@@ -171,7 +171,7 @@ float3 getLightDirEval(float3 worldRayDirection, float3 hitWorldPosition, float3
 		float disPow2 = dot(direction, direction);
 		float dis = sqrt(disPow2);
 		float3 normal_dire = normalize(direction);
-		float3 eval = EvalDirLightBRDF(worldRayDirection, normal_dire, N, uv);
+		float3 eval = EvalDirLightBRDF(worldRayDirection, normal_dire, N, uv) * sceneParameter.light_nums;
 
 		rayDesc.Origin = hitWorldPosition;
 		rayDesc.Direction = normal_dire;

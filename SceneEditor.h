@@ -211,6 +211,7 @@ private:
 	void UpdateInstances();
 
 	//light
+	Light lightDesc;
 	struct AreaLightResource {
 		ComPtr<ID3D12Resource> vtxBuffer;
 		ComPtr<ID3D12Resource> idxBuffer;
