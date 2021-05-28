@@ -116,7 +116,7 @@ float3 getLightAreaEval(float3 worldRayDirection, float3 hitWorldPosition, float
 	seed = createRandomFloat4(seed);
 	uint i = fmod(seed.x * areaLight.meshNum, areaLight.meshNum);
 	uint vertId = 3 * i;
-	float2 attrib = float2(seed.y, seed.z);
+	float2 attrib = seed.y + seed.z <= 1 ? float2(seed.y, seed.z) : float2(1.0 - seed.y, 1.0 - seed.z);
 	matrix ObjectToWorld = areaLight.transfer;
 	float3 vertexPosition[3] = {
 		areaLightVtx[areaLightIdx[vertId + 0]].position,
@@ -163,6 +163,44 @@ float3 getLightDirEval(float3 worldRayDirection, float3 hitWorldPosition, float3
 	if (global_light.type == LightType::Area && global_light.useAreaLight) {
 		return getLightAreaEval(worldRayDirection, hitWorldPosition, N, uv, rayDesc, seed, curRecursionDepth, global_light);
 	}
+	else if (global_light.type == LightType::Triangle) {
+
+		seed = createRandomFloat4(seed);
+		float2 attrib = seed.y + seed.z <= 1 ? float2(seed.y, seed.z) : float2(1.0 - seed.y, 1.0 - seed.z);
+		float3 vertexPosition[3] = {
+			global_light.position0,
+			global_light.position1,
+			global_light.position2, };
+		float3 position = HitAttribute(vertexPosition, attrib);
+		float3 crossProduct = cross(global_light.position0 - global_light.position1,
+			global_light.position0 - global_light.position2);
+		float3 lightNormal = normalize(crossProduct);
+
+		float emitIntensity2 = global_light.emitIntensity * global_light.emitIntensity;
+		float area = 0.5 * sqrt(dot(crossProduct, crossProduct));
+		float3 direction = position - hitWorldPosition;
+		float disPow2 = dot(direction, direction);
+		float dis = sqrt(disPow2);
+		float3 normal_dire = normalize(direction);
+
+		rayDesc.Origin = hitWorldPosition;
+		rayDesc.Direction = normal_dire;
+		rayDesc.TMin = 0.01;
+		rayDesc.TMax = dis - 0.05;
+
+		float cosx = dot(N, normal_dire);
+		if (cosx <= 0.0f) {
+			return float3(0.0, 0.0, 0.0);
+		}
+		float cosy = dot(-normal_dire, lightNormal);
+		if (cosy <= 0.0f) {
+			return float3(0.0, 0.0, 0.0);
+		}
+		worldRayDirection = normalize(worldRayDirection);
+		float3 eval = EvalDirLightBRDF(worldRayDirection, normal_dire, N, uv);
+
+		return emitIntensity2 * eval * cosx * cosy / disPow2 * area;
+	}
 	else {
 		worldRayDirection = normalize(worldRayDirection);
 		float emitIntensity = global_light.emitIntensity;
@@ -181,7 +219,7 @@ float3 getLightDirEval(float3 worldRayDirection, float3 hitWorldPosition, float3
 		if (dot(N, normal_dire) <= 0.0f) {
 			return float3(0.0, 0.0, 0.0);
 		}
-		if (global_light.type == LightType::Distant) {
+		else if (global_light.type == LightType::Distant) {
 			float3 distantDirection = normalize(global_light.direction);
 			rayDesc.Direction = -distantDirection;
 			rayDesc.TMax = 2 * global_light.worldRadius;
@@ -192,10 +230,10 @@ float3 getLightDirEval(float3 worldRayDirection, float3 hitWorldPosition, float3
 			disPow2 = global_light.worldRadius * global_light.worldRadius;
 			return emitIntensity * eval * cosx;
 		}
-		if (global_light.type == LightType::Point) {
+		else if (global_light.type == LightType::Point) {
 			return emitIntensity * emitIntensity * eval / disPow2;
 		}
-		if (global_light.type == LightType::Spot) {
+		else if (global_light.type == LightType::Spot) {
 			float cosx = dot(-normal_dire, normalize(global_light.direction));
 			float cosFalloffStart = cos(global_light.falloffStart);
 			float cosTotalWidth = cos(global_light.totalWidth);
@@ -212,6 +250,7 @@ float3 getLightDirEval(float3 worldRayDirection, float3 hitWorldPosition, float3
 			float delta2 = delta * delta;
 			return emitIntensity * emitIntensity * eval * delta2 * delta2 / disPow2;
 		}
+
 	}
 
 	return float3(0.0, 0.0, 0.0);

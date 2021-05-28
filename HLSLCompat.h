@@ -50,6 +50,7 @@ typedef UINT32 Index;
         Type(Spot)  \
         Type(Distant)   \
         Type(Area)   \
+		Type(Triangle)      \
 		Type(Count)  \
 
 #define GENERATE_ENUM(ENUM) ENUM,
@@ -93,8 +94,17 @@ struct Light {
 	UINT objectIndex;
 	UINT meshNum;
 	float area;
+	//Triangle
+	XMFLOAT3 position0;
+	XMFLOAT3 position1;
+	XMFLOAT3 position2;
+
 #ifdef HLSL
-	float pad0;
+	// add some pad for alignment
+	// float pad0;
+	// float pad1;
+	// float pad2;
+	// float pad3;
 #endif
 };
 

@@ -60,6 +60,45 @@ void RayGen() {
 				}
 			}
 		}
+		else if (global_light[i].type == LightType::Triangle) {
+			for (uint j = 0; j < 3; ++j) {
+				float3 position = float3(0, 0, 0);
+				if (j == 0)
+					position = global_light[i].position0;
+				else if (j == 1)
+					position = global_light[i].position1;
+				else if (j == 2)
+					position = global_light[i].position2;
+				float3 direction = position - ray.Origin.xyz;
+				float disPow2 = dot(direction, direction);
+				float dis = sqrt(disPow2);
+				float3 normal_dire = normalize(direction);
+				float3 row_dire = normalize(ray.Direction.xyz);
+				if (dot(row_dire, normal_dire) > 0.999995f) {
+					RayDesc rayDesc;
+					rayDesc.Origin = ray.Origin;
+					rayDesc.Direction = normal_dire;
+					rayDesc.TMin = 0.01;
+					rayDesc.TMax = dis;
+
+					ShadowRayPayload rayPayload;
+					rayPayload.tHit = HitDistanceOnMiss;
+					TraceRay(
+						SceneBVH,
+						RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
+						0xFF,
+						1,//shadowhit
+						0,
+						1,//shadowmiss
+						rayDesc,
+						rayPayload);
+					if (rayPayload.tHit == HitDistanceOnMiss) {
+						gOutput[launchIndex] = float4(0.5, 1, 1, 1);
+						return;
+					}
+				}
+			}
+		}
 	}
 #endif
 	TraceRay(

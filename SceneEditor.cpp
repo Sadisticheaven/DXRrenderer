@@ -1568,7 +1568,7 @@ void SceneEditor::StartImgui()
 					OnResetSpp();
 			}
 		}
-		if (ImGui::DragFloat("EmitIntensity", &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.emitIntensity, 0.1f, 0.f, 30.f)) {
+		if (ImGui::DragFloat("EmitIntensity", &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.emitIntensity, 0.1f, 0.f)) {
 			int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
 			int lightIdx = m_imguiManager.m_selectLightIdx;
 			auto lightType = reinterpret_cast<int*>(&lightsInScene[lightIdx].type);
@@ -1692,6 +1692,12 @@ void SceneEditor::StartImgui()
 				lightsInScene[i].area = m_objects[m_idxOfObj["light"]].surfaceArea;
 				lightsInScene[i].emitIntensity = m_objects[lightsInScene[i].objectIndex].materialAttributes.emitIntensity;
 			}
+			else if (*lightType == LightType::Triangle) {
+				lightsInScene[i].position0 = lightDesc.position;
+				lightsInScene[i].position1 = lightDesc.position;
+				lightsInScene[i].position2 = lightDesc.position;
+				lightsInScene[i].emitIntensity = 10.f;
+			}
 			else {
 				lightsInScene[i].emitIntensity = 200.f;
 			}
@@ -1704,7 +1710,7 @@ void SceneEditor::StartImgui()
 			if (ImGui::DragFloat3("position", valueAddress2, 0.5f))
 				OnResetSpp();
 		}
-		if (type == LightType::Point || type == LightType::Spot || type == LightType::Distant) {
+		if (type == LightType::Point || type == LightType::Spot || type == LightType::Distant || type == LightType::Triangle) {
 			auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].emitIntensity);
 			if (ImGui::DragFloat("emit", valueAddress2, 0.1f, 0.f))
 				OnResetSpp();
@@ -1740,7 +1746,17 @@ void SceneEditor::StartImgui()
 				OnResetSpp();
 			}
 		}
-
+		if (type == LightType::Triangle) {
+			auto valueAddress = reinterpret_cast<float*>(&lightsInScene[i].position0);
+			if (ImGui::DragFloat3("position0", valueAddress, 0.5f))
+				OnResetSpp();
+			valueAddress = reinterpret_cast<float*>(&lightsInScene[i].position1);
+			if (ImGui::DragFloat3("position1", valueAddress, 0.5f))
+				OnResetSpp();
+			valueAddress = reinterpret_cast<float*>(&lightsInScene[i].position2);
+			if (ImGui::DragFloat3("position2", valueAddress, 0.5f))
+				OnResetSpp();
+		}
 		if (ImGui::Button("Add a light")) {
 			lightsInScene.push_back(lightDesc);
 			matrices.light_nums++;
