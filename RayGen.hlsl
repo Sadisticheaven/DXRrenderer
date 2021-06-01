@@ -103,7 +103,11 @@ void RayGen() {
 #endif
 	TraceRay(
 		SceneBVH,
-		/*RAY_FLAG_CULL_BACK_FACING_TRIANGLES*/RAY_FLAG_NONE,
+#if 0
+		RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
+#else
+		RAY_FLAG_NONE,
+#endif
 		0xFF,
 		0,
 		0,
