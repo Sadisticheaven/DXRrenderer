@@ -35,8 +35,9 @@ typedef UINT32 Index;
 #endif //HLSL
 
 #define HitDistanceOnMiss 0
-#define MAX_RAY_RECURSION_DEPTH 5
+#define MAX_RAY_RECURSION_DEPTH 12
 #define PROBABILITY_RUSSIAN_ROULETTE 0.8
+#define MINIMUMDISTANCE 0.000002f
 #define FOREACH_MATERIAL(Type) \
         Type(Lambert)   \
         Type(Mirror)  \

@@ -137,7 +137,7 @@ float3 getLightAreaEval(float3 worldRayDirection, float3 hitWorldPosition, float
 
 	rayDesc.Origin = hitWorldPosition;
 	rayDesc.Direction = normal_dire;
-	rayDesc.TMin = 0.01;
+	rayDesc.TMin = MINIMUMDISTANCE;
 	rayDesc.TMax = dis - 0.05;
 
 	float cosx = dot(N, normal_dire);
@@ -185,8 +185,8 @@ float3 getLightDirEval(float3 worldRayDirection, float3 hitWorldPosition, float3
 
 		rayDesc.Origin = hitWorldPosition;
 		rayDesc.Direction = normal_dire;
-		rayDesc.TMin = 0.01;
-		rayDesc.TMax = dis - 0.05;
+		rayDesc.TMin = MINIMUMDISTANCE;
+		rayDesc.TMax = dis - 0.0005;
 
 		float cosx = dot(N, normal_dire);
 		if (cosx <= 0.0f) {
@@ -213,7 +213,7 @@ float3 getLightDirEval(float3 worldRayDirection, float3 hitWorldPosition, float3
 
 		rayDesc.Origin = hitWorldPosition;
 		rayDesc.Direction = normal_dire;
-		rayDesc.TMin = 0.01;
+		rayDesc.TMin = MINIMUMDISTANCE;
 		rayDesc.TMax = dis;
 
 		if (dot(N, normal_dire) <= 0.0f) {
@@ -479,7 +479,7 @@ float3 getLightIndirEval(float3 worldRayDirection, float3 normal, float3 hitWorl
 	//ray.direction = sp_direction;
 	rayDesc.Origin = hitWorldPosition;
 	rayDesc.Direction = sp_direction;
-	rayDesc.TMin = 0.01;
+	rayDesc.TMin = MINIMUMDISTANCE;
 	rayDesc.TMax = 100000;
 
 	if (random(float2(seed.x + seed.y, seed.z + seed.w)) > PROBABILITY_RUSSIAN_ROULETTE)

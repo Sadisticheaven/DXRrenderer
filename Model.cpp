@@ -439,6 +439,7 @@ Mesh CreateGeosphere(float radius, uint32 numSubdivisions)
 	meshData.center.x /= size;
 	meshData.center.y /= size;
 	meshData.center.z /= size;
+	meshData.surfaceArea = 4 * radius * radius * XM_PI;
 
 	return meshData;
 }

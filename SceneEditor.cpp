@@ -387,7 +387,7 @@ void SceneEditor::LoadAssets()
 		// Define the geometry for a triangle.
 		Model model;
 		std::vector<std::string> fileNames;
-		std::string path = "./cornellbox/";
+		std::string path = "./Scene/";
 		std::string ext = "obj";
 		getFiles(path, ext, fileNames);
 		int i = 0;
@@ -409,7 +409,7 @@ void SceneEditor::LoadAssets()
 
 		// use sphere to simulate point light 
 		model.meshes.clear();
-		model.meshes.push_back(CreateGeosphere(5.f, 3));
+		model.meshes.push_back(CreateGeosphere(15.f, 3));
 		// inverse the normal, so light can through the shpere like a bulb
 		for (int i = 0; i < model.meshes.size(); ++i) {
 			for (int j = 0; j < model.meshes[i].vertices.size(); ++j) {
@@ -469,15 +469,13 @@ void SceneEditor::LoadAssets()
 	}
 	// global light
 	{
-		//Light lightDesc;
-		lightDesc.position = XMFLOAT3(278.f, 540.f, 279.5f);
-		//lightDesc.position = XMFLOAT3(200.f, 200.f, -10.f);
+		lightDesc.position = XMFLOAT3(2.f, 2.f, -1.f);
 		lightDesc.direction = XMFLOAT3(0.f, -1.f, 0.f);
-		lightDesc.emitIntensity = 150.f;
+		lightDesc.emitIntensity = 0.5f;
 		lightDesc.falloffStart = XM_PIDIV4 / 2;
 		lightDesc.totalWidth = XM_PIDIV4;
 		lightDesc.worldRadius = 500.f;
-		lightDesc.type = LightType::Spot;
+		lightDesc.type = LightType::Point;
 		matrices.light_nums = 1;
 		lightsInScene.push_back(lightDesc);
 		AllocateUploadLightBuffer();
@@ -489,9 +487,9 @@ void SceneEditor::LoadAssets()
 		for (int i = 0; i < m_objects.size(); ++i) {
 			m_objects[i].originTransform = XMMatrixIdentity();
 		}
-		m_objects[m_idxOfObj["car"]].originTransform = XMMatrixRotationY(-XM_PIDIV2 - XM_PIDIV4) * XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(200.f, 165.f, 160.f);
-		m_objects[m_idxOfObj["nanosuit"]].originTransform = XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f);
-		m_objects[m_idxOfObj["Enviroment light"]].originTransform = XMMatrixScaling(500.f, 500.f, 500.f) * XMMatrixTranslation(200.f, 200.f, -10.f);
+		//m_objects[m_idxOfObj["car"]].originTransform = XMMatrixRotationY(-XM_PIDIV2 - XM_PIDIV4) * XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(200.f, 165.f, 160.f);
+		//m_objects[m_idxOfObj["nanosuit"]].originTransform = XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f);
+		//m_objects[m_idxOfObj["Enviroment light"]].originTransform = XMMatrixScaling(500.f, 500.f, 500.f) * XMMatrixTranslation(200.f, 200.f, -10.f);
 		//m_objects[m_idxOfObj["point light"]].originTransform = XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(-300.f, 200.f, -1000.f);		
 	}
 
@@ -513,33 +511,33 @@ void SceneEditor::LoadAssets()
 		XMFLOAT4 default_Ks(0.14f, 0.14f, 0.14f, 0.0f);
 		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["floor"], MaterialType::Lambert, white, not_emit);
 		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["shortbox"], MaterialType::Glass, test, not_emit, 2.0f, 1.2f);
-		m_objects[m_idxOfObj["shortbox"]].materialAttributes.type = MaterialType::Glass;
-		m_objects[m_idxOfObj["shortbox"]].materialAttributes.Kd = test;
-		m_objects[m_idxOfObj["shortbox"]].materialAttributes.smoothness = 2.0f;
-		m_objects[m_idxOfObj["shortbox"]].materialAttributes.index_of_refraction = 1.2f;
-		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["tallbox"], MaterialType::Mirror, white, not_emit, 2.0);
-		m_objects[m_idxOfObj["tallbox"]].materialAttributes.type = MaterialType::Mirror;
-		m_objects[m_idxOfObj["tallbox"]].materialAttributes.smoothness = 2.0f;
-		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["left"], MaterialType::Lambert, red, not_emit);
-		m_objects[m_idxOfObj["left"]].materialAttributes.Kd = red;
-		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["right"], MaterialType::Lambert, green, not_emit);
-		m_objects[m_idxOfObj["right"]].materialAttributes.Kd = green;
-		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["light"], MaterialType::Lambert, light_kd, light_emit);
-		m_objects[m_idxOfObj["light"]].materialAttributes.Kd = light_kd;
-		//m_objects[m_idxOfObj["light"]].materialAttributes.emitIntensity = light_emit;
-		m_objects[m_idxOfObj["light"]].materialAttributes.emitIntensity = 0.f;
-		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["car"], MaterialType::Glass, test, not_emit, 2.0f, 5.f);
-		m_objects[m_idxOfObj["car"]].materialAttributes.type = MaterialType::Glass;
-		m_objects[m_idxOfObj["car"]].materialAttributes.Kd = test;
-		m_objects[m_idxOfObj["car"]].materialAttributes.smoothness = 2.0f;
-		m_objects[m_idxOfObj["car"]].materialAttributes.index_of_refraction = 5.f;
-		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["nanosuit"], MaterialType::Glass, test, not_emit, 2.0f, 5.f);
-		m_objects[m_idxOfObj["nanosuit"]].materialAttributes.type = MaterialType::Glass;
-		m_objects[m_idxOfObj["nanosuit"]].materialAttributes.Kd = test;
-		m_objects[m_idxOfObj["nanosuit"]].materialAttributes.smoothness = 2.0f;
-		m_objects[m_idxOfObj["nanosuit"]].materialAttributes.index_of_refraction = 5.f;
+		//m_objects[m_idxOfObj["shortbox"]].materialAttributes.type = MaterialType::Glass;
+		//m_objects[m_idxOfObj["shortbox"]].materialAttributes.Kd = test;
+		//m_objects[m_idxOfObj["shortbox"]].materialAttributes.smoothness = 2.0f;
+		//m_objects[m_idxOfObj["shortbox"]].materialAttributes.index_of_refraction = 1.2f;
+		////CreateMaterialBufferAndSetAttributes(m_idxOfObj["tallbox"], MaterialType::Mirror, white, not_emit, 2.0);
+		//m_objects[m_idxOfObj["tallbox"]].materialAttributes.type = MaterialType::Mirror;
+		//m_objects[m_idxOfObj["tallbox"]].materialAttributes.smoothness = 2.0f;
+		////CreateMaterialBufferAndSetAttributes(m_idxOfObj["left"], MaterialType::Lambert, red, not_emit);
+		//m_objects[m_idxOfObj["left"]].materialAttributes.Kd = red;
+		////CreateMaterialBufferAndSetAttributes(m_idxOfObj["right"], MaterialType::Lambert, green, not_emit);
+		//m_objects[m_idxOfObj["right"]].materialAttributes.Kd = green;
+		////CreateMaterialBufferAndSetAttributes(m_idxOfObj["light"], MaterialType::Lambert, light_kd, light_emit);
+		//m_objects[m_idxOfObj["light"]].materialAttributes.Kd = light_kd;
+		////m_objects[m_idxOfObj["light"]].materialAttributes.emitIntensity = light_emit;
+		//m_objects[m_idxOfObj["light"]].materialAttributes.emitIntensity = 0.f;
+		////CreateMaterialBufferAndSetAttributes(m_idxOfObj["car"], MaterialType::Glass, test, not_emit, 2.0f, 5.f);
+		//m_objects[m_idxOfObj["car"]].materialAttributes.type = MaterialType::Glass;
+		//m_objects[m_idxOfObj["car"]].materialAttributes.Kd = test;
+		//m_objects[m_idxOfObj["car"]].materialAttributes.smoothness = 2.0f;
+		//m_objects[m_idxOfObj["car"]].materialAttributes.index_of_refraction = 5.f;
+		////CreateMaterialBufferAndSetAttributes(m_idxOfObj["nanosuit"], MaterialType::Glass, test, not_emit, 2.0f, 5.f);
+		//m_objects[m_idxOfObj["nanosuit"]].materialAttributes.type = MaterialType::Glass;
+		//m_objects[m_idxOfObj["nanosuit"]].materialAttributes.Kd = test;
+		//m_objects[m_idxOfObj["nanosuit"]].materialAttributes.smoothness = 2.0f;
+		//m_objects[m_idxOfObj["nanosuit"]].materialAttributes.index_of_refraction = 5.f;
 
-		m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity = 0.0f;
+		//m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity = 0.0f;
 
 		for (int i = 0; i < m_objects.size(); ++i) {
 			UpadteMaterialParameter(i);
@@ -557,10 +555,26 @@ void SceneEditor::LoadAssets()
 			ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
 		}
 		CreateAreaLightVerticesBuffer();
-		UpdateAreaLightVerticesBuffer(m_idxOfObj["light"]);
 		WaitForPreviousFrame();
 	}
 
+	// Direction Enviroment light
+	{
+		Light enviromentLightDesc;
+		enviromentLightDesc.type = LightType::Area;
+		enviromentLightDesc.objectIndex = m_idxOfObj["Enviroment light"];
+		UpdateAreaLightVerticesBuffer(enviromentLightDesc.objectIndex);
+		enviromentLightDesc.useAreaLight = TRUE;
+		enviromentLightDesc.transfer = m_objects[m_idxOfObj["Enviroment light"]].originTransform;
+		enviromentLightDesc.meshNum = m_objects[m_idxOfObj["Enviroment light"]].indexCount / 3;
+		enviromentLightDesc.area = m_objects[m_idxOfObj["Enviroment light"]].surfaceArea;
+		m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity = 1.f;
+		UpadteMaterialParameter(m_idxOfObj["Enviroment light"]);
+		enviromentLightDesc.emitIntensity = m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity;
+		lightsInScene.push_back(enviromentLightDesc);
+		AllocateUploadLightBuffer();
+		WaitForPreviousFrame();
+	}
 }
 
 // Update frame-based values.
@@ -1568,7 +1582,7 @@ void SceneEditor::StartImgui()
 					OnResetSpp();
 			}
 		}
-		if (ImGui::DragFloat("EmitIntensity", &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.emitIntensity, 0.1f, 0.f)) {
+		if (ImGui::DragFloat("EmitIntensity", &m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.emitIntensity, 0.01f)) {
 			int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
 			int lightIdx = m_imguiManager.m_selectLightIdx;
 			auto lightType = reinterpret_cast<int*>(&lightsInScene[lightIdx].type);
@@ -1593,7 +1607,7 @@ void SceneEditor::StartImgui()
 	}
 	ImGui::Text("Transform:");
 	{
-		if (ImGui::DragFloat3("Translation", m_imguiManager.m_translation)) {
+		if (ImGui::DragFloat3("Translation", m_imguiManager.m_translation, 0.001f)) {
 			int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
 			m_instances[objIdx].second = m_objects[objIdx].originTransform *
 				XMMatrixTranslation(m_imguiManager.m_translation[0], m_imguiManager.m_translation[1], m_imguiManager.m_translation[2]);
@@ -1622,7 +1636,7 @@ void SceneEditor::StartImgui()
 			OnResetSpp();
 		}
 
-		if (ImGui::DragFloat3("Scale", m_imguiManager.m_scale, 0.1f)) {
+		if (ImGui::DragFloat3("Scale", m_imguiManager.m_scale, 0.001f)) {
 			int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
 			XMMATRIX originMat = m_objects[objIdx].originTransform;
 			m_instances[objIdx].second = originMat * XMMatrixInverse(nullptr, originMat) *
@@ -1637,7 +1651,7 @@ void SceneEditor::StartImgui()
 			OnResetSpp();
 		}
 
-		if (ImGui::DragFloat("Uniform Scale", &m_imguiManager.m_scale[3], 0.1f)) {
+		if (ImGui::DragFloat("Uniform Scale", &m_imguiManager.m_scale[3], 0.001f)) {
 			int objIdx = m_idxOfObj[m_imguiManager.m_selObjName];
 			XMMATRIX originMat = m_objects[objIdx].originTransform;
 			m_instances[objIdx].second = originMat * XMMatrixInverse(nullptr, originMat) *
@@ -1684,22 +1698,22 @@ void SceneEditor::StartImgui()
 				lightsInScene[i].emitIntensity = 1.f;
 			}
 			else if (*lightType == LightType::Area) {
-				lightsInScene[i].objectIndex = m_idxOfObj["light"];
+				lightsInScene[i].objectIndex = m_idxOfObj["Enviroment light"];
 				UpdateAreaLightVerticesBuffer(lightsInScene[i].objectIndex);
 				lightsInScene[i].useAreaLight = TRUE;
-				lightsInScene[i].transfer = m_instances[m_idxOfObj["light"]].second;
-				lightsInScene[i].meshNum = m_objects[m_idxOfObj["light"]].indexCount / 3;
-				lightsInScene[i].area = m_objects[m_idxOfObj["light"]].surfaceArea;
+				lightsInScene[i].transfer = m_instances[m_idxOfObj["Enviroment light"]].second;
+				lightsInScene[i].meshNum = m_objects[m_idxOfObj["Enviroment light"]].indexCount / 3;
+				lightsInScene[i].area = m_objects[m_idxOfObj["Enviroment light"]].surfaceArea;
 				lightsInScene[i].emitIntensity = m_objects[lightsInScene[i].objectIndex].materialAttributes.emitIntensity;
 			}
 			else if (*lightType == LightType::Triangle) {
 				lightsInScene[i].position0 = lightDesc.position;
 				lightsInScene[i].position1 = lightDesc.position;
 				lightsInScene[i].position2 = lightDesc.position;
-				lightsInScene[i].emitIntensity = 10.f;
+				lightsInScene[i].emitIntensity = 1.f;
 			}
 			else {
-				lightsInScene[i].emitIntensity = 200.f;
+				lightsInScene[i].emitIntensity = 0.5f;
 			}
 			OnResetSpp();
 		}
@@ -1707,12 +1721,12 @@ void SceneEditor::StartImgui()
 		auto type = lightsInScene[i].type;
 		if (type == LightType::Point || type == LightType::Spot) {
 			auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].position);
-			if (ImGui::DragFloat3("position", valueAddress2, 0.5f))
+			if (ImGui::DragFloat3("position", valueAddress2, 0.002f))
 				OnResetSpp();
 		}
 		if (type == LightType::Point || type == LightType::Spot || type == LightType::Distant || type == LightType::Triangle) {
 			auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].emitIntensity);
-			if (ImGui::DragFloat("emit", valueAddress2, 0.1f, 0.f))
+			if (ImGui::DragFloat("emit", valueAddress2, 0.01f, 0.f))
 				OnResetSpp();
 		}
 		if (type == LightType::Distant || type == LightType::Spot) {
@@ -1731,7 +1745,7 @@ void SceneEditor::StartImgui()
 		}
 		if (type == LightType::Distant) {
 			auto valueAddress2 = reinterpret_cast<float*>(&lightsInScene[i].worldRadius);
-			if (ImGui::DragFloat("worldRadius", valueAddress2, 0.1f))
+			if (ImGui::DragFloat("worldRadius", valueAddress2, 0.01f))
 				OnResetSpp();
 		}
 		if (type == LightType::Area) {
@@ -1748,13 +1762,13 @@ void SceneEditor::StartImgui()
 		}
 		if (type == LightType::Triangle) {
 			auto valueAddress = reinterpret_cast<float*>(&lightsInScene[i].position0);
-			if (ImGui::DragFloat3("position0", valueAddress, 0.5f))
+			if (ImGui::DragFloat3("position0", valueAddress, 0.002f))
 				OnResetSpp();
 			valueAddress = reinterpret_cast<float*>(&lightsInScene[i].position1);
-			if (ImGui::DragFloat3("position1", valueAddress, 0.5f))
+			if (ImGui::DragFloat3("position1", valueAddress, 0.002f))
 				OnResetSpp();
 			valueAddress = reinterpret_cast<float*>(&lightsInScene[i].position2);
-			if (ImGui::DragFloat3("position2", valueAddress, 0.5f))
+			if (ImGui::DragFloat3("position2", valueAddress, 0.002f))
 				OnResetSpp();
 		}
 		if (ImGui::Button("Add a light")) {

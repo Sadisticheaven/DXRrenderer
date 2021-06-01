@@ -15,8 +15,8 @@ using namespace DirectX;
 class Camera
 {
 public:
-	Camera(XMVECTOR eye = XMVectorSet(278.0f, 273.0f, -800.0f, 0.0f),/*278.0f, 273.0f*/
-		XMVECTOR at = XMVectorSet(278.0f, 273.0f, 0.0f, 0.0f),/*278.0f, 273.0f*/
+	Camera(XMVECTOR eye = XMVectorSet(2.0f, 2.0f, -3.0f, 0.0f),
+		XMVECTOR at = XMVectorSet(2.0f, 1.0f, -2.0f, 0.0f),
 		XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)) :m_eye(eye), m_at(at)
 	{
 		m_up = XMVector3Normalize(up);
@@ -31,13 +31,13 @@ public:
 	void SetUp(float x, float y, float z, float w) { m_up = XMVectorSet(x, y, z, w); }
 	void SetUp(XMVECTOR up) { m_up = XMVector3Normalize(up); }
 
-	void Set(XMVECTOR eye, XMVECTOR at, XMVECTOR up) 
-	{ 
+	void Set(XMVECTOR eye, XMVECTOR at, XMVECTOR up)
+	{
 		m_eye = eye;
 		m_at = at;
 		m_up = up;
 	}
-	
+
 	XMVECTOR GetEye() { return m_eye; }
 	XMVECTOR GetAt() { return m_at; }
 	XMVECTOR GetUp() { return m_up; }
@@ -62,6 +62,6 @@ private:
 	XMVECTOR m_left;
 	XMVECTOR m_direction;
 	float m_fovAngleY = 45.0f * XM_PI / 180.0f;
-	float m_movSpeed = 10.f;
+	float m_movSpeed = 0.1f;
 };
 
