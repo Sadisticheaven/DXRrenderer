@@ -572,6 +572,7 @@ void SceneEditor::LoadAssets()
 		UpadteMaterialParameter(m_idxOfObj["Enviroment light"]);
 		enviromentLightDesc.emitIntensity = m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity;
 		lightsInScene.push_back(enviromentLightDesc);
+		matrices.light_nums++;
 		AllocateUploadLightBuffer();
 		WaitForPreviousFrame();
 	}
