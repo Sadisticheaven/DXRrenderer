@@ -142,8 +142,8 @@ struct SceneConstants
 
 namespace MaterialType {
 	/*enum Type {
-		Lambert,     
-		Mirror,     
+		Lambert,
+		Mirror,
 		Glass,
 		Disney_brdf_Plastic,
 		Count
@@ -183,9 +183,17 @@ struct PrimitiveMaterialBuffer
 	MaterialType::Type type;
 	//LightType::Type light_type;
 #ifndef HLSL
-	//PrimitiveMaterialBuffer() :Kd(0, 0, 0), Ks(0, 0, 0), Kr(0, 0, 0), Kt(0, 0, 0), opacity(0, 0, 0), emit(0, 0, 0), roughness(0), type(MaterialType::Matte), padding(0) {
-
-	//}
+	PrimitiveMaterialBuffer() :Kd(0.0, 0.0, 0.0, 0.0), index_of_refraction(0.0), emitIntensity(0.0),
+		smoothness(0.0), reflectivity(0.0), metallic(0.0), subsurface(0.0), specular(0.0),
+		roughness(0.0), specularTint(0.0), anisotropic(0.0), sheen(0.0), sheenTint(0.0),
+		clearcoat(0.0), clearcoatGloss(0.0), useDiffuseTexture(0.0), type(MaterialType::Lambert) {}
+	bool operator==(const PrimitiveMaterialBuffer& p)const {
+		return (p.Kd.x == Kd.x && p.Kd.y == Kd.y && p.Kd.z == Kd.z && p.Kd.w == Kd.w && p.index_of_refraction == index_of_refraction &&
+			p.emitIntensity == emitIntensity && p.smoothness == smoothness && p.reflectivity == reflectivity && p.metallic == metallic &&
+			p.subsurface == subsurface && p.subsurface == subsurface && p.specular == specular && p.roughness == roughness &&
+			p.specularTint == specularTint && p.anisotropic == anisotropic && p.sheen == sheen && p.sheenTint == sheenTint &&
+			p.clearcoat == clearcoat && p.clearcoatGloss == clearcoatGloss && p.useDiffuseTexture == useDiffuseTexture && p.type == type);
+	}
 #endif
 };
 

@@ -447,6 +447,7 @@ void SceneEditor::LoadAssets()
 				tex.Filename.c_str(),
 				tex.Resource,
 				tex.UploadHeap));
+			m_idxOfTex[tex.Name] = m_textures.size();
 			m_textures.push_back(tex);
 			m_texNames.push_back(tex.Name);
 		}
@@ -476,10 +477,9 @@ void SceneEditor::LoadAssets()
 		lightDesc.totalWidth = XM_PIDIV4;
 		lightDesc.worldRadius = 500.f;
 		lightDesc.type = LightType::Point;
-		matrices.light_nums = 1;
-		lightsInScene.push_back(lightDesc);
+		matrices.light_nums = 0;
+		//lightsInScene.push_back(lightDesc);
 		AllocateUploadLightBuffer();
-		//CreateLightBuffer(lightDesc);
 	}
 
 	// set origin transform
@@ -487,10 +487,6 @@ void SceneEditor::LoadAssets()
 		for (int i = 0; i < m_objects.size(); ++i) {
 			m_objects[i].originTransform = XMMatrixIdentity();
 		}
-		//m_objects[m_idxOfObj["car"]].originTransform = XMMatrixRotationY(-XM_PIDIV2 - XM_PIDIV4) * XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(200.f, 165.f, 160.f);
-		//m_objects[m_idxOfObj["nanosuit"]].originTransform = XMMatrixRotationY(XM_PI) * XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(400.f, 0.f, 100.f);
-		//m_objects[m_idxOfObj["Enviroment light"]].originTransform = XMMatrixScaling(500.f, 500.f, 500.f) * XMMatrixTranslation(200.f, 200.f, -10.f);
-		//m_objects[m_idxOfObj["point light"]].originTransform = XMMatrixScaling(20.f, 20.f, 20.f) * XMMatrixTranslation(-300.f, 200.f, -1000.f);		
 	}
 
 	//  Modify  material of obj specified
@@ -498,47 +494,237 @@ void SceneEditor::LoadAssets()
 		auto Float4Multi = [&](const float& f, const XMFLOAT4 vec3) {
 			return XMFLOAT4(f * vec3.x, f * vec3.y, f * vec3.z, 0.0f);
 		};
-		float not_emit = 0.f;
-		XMFLOAT4 red(0.63f, 0.065f, 0.05f, 0.0f);
-		XMFLOAT4 green(0.14f, 0.45f, 0.091f, 0.0f);
-		XMFLOAT4 white(0.725f, 0.71f, 0.68f, 0.0f);
-		XMFLOAT4 light_kd(0.65f, 0.65f, 0.65f, 0.0f);
-		XMFLOAT4 test(0.95, 1.0, 1.0, 1.0);
-		XMFLOAT4 le1 = Float4Multi(8.0f, XMFLOAT4(0.747f + 0.058f, 0.747f + 0.258f, 0.747f, 0.0f));
-		XMFLOAT4 le2 = Float4Multi(15.6f, XMFLOAT4(0.740f + 0.287f, 0.740f + 0.160f, 0.740f, 0.0f));
-		XMFLOAT4 le3 = Float4Multi(18.4f, XMFLOAT4(0.737f + 0.642f, 0.737f + 0.159f, 0.737f, 0.0f));
-		float light_emit = 12.f;
-		XMFLOAT4 default_Ks(0.14f, 0.14f, 0.14f, 0.0f);
-		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["floor"], MaterialType::Lambert, white, not_emit);
-		//CreateMaterialBufferAndSetAttributes(m_idxOfObj["shortbox"], MaterialType::Glass, test, not_emit, 2.0f, 1.2f);
-		//m_objects[m_idxOfObj["shortbox"]].materialAttributes.type = MaterialType::Glass;
-		//m_objects[m_idxOfObj["shortbox"]].materialAttributes.Kd = test;
-		//m_objects[m_idxOfObj["shortbox"]].materialAttributes.smoothness = 2.0f;
-		//m_objects[m_idxOfObj["shortbox"]].materialAttributes.index_of_refraction = 1.2f;
-		////CreateMaterialBufferAndSetAttributes(m_idxOfObj["tallbox"], MaterialType::Mirror, white, not_emit, 2.0);
-		//m_objects[m_idxOfObj["tallbox"]].materialAttributes.type = MaterialType::Mirror;
-		//m_objects[m_idxOfObj["tallbox"]].materialAttributes.smoothness = 2.0f;
-		////CreateMaterialBufferAndSetAttributes(m_idxOfObj["left"], MaterialType::Lambert, red, not_emit);
-		//m_objects[m_idxOfObj["left"]].materialAttributes.Kd = red;
-		////CreateMaterialBufferAndSetAttributes(m_idxOfObj["right"], MaterialType::Lambert, green, not_emit);
-		//m_objects[m_idxOfObj["right"]].materialAttributes.Kd = green;
-		////CreateMaterialBufferAndSetAttributes(m_idxOfObj["light"], MaterialType::Lambert, light_kd, light_emit);
-		//m_objects[m_idxOfObj["light"]].materialAttributes.Kd = light_kd;
-		////m_objects[m_idxOfObj["light"]].materialAttributes.emitIntensity = light_emit;
-		//m_objects[m_idxOfObj["light"]].materialAttributes.emitIntensity = 0.f;
-		////CreateMaterialBufferAndSetAttributes(m_idxOfObj["car"], MaterialType::Glass, test, not_emit, 2.0f, 5.f);
-		//m_objects[m_idxOfObj["car"]].materialAttributes.type = MaterialType::Glass;
-		//m_objects[m_idxOfObj["car"]].materialAttributes.Kd = test;
-		//m_objects[m_idxOfObj["car"]].materialAttributes.smoothness = 2.0f;
-		//m_objects[m_idxOfObj["car"]].materialAttributes.index_of_refraction = 5.f;
-		////CreateMaterialBufferAndSetAttributes(m_idxOfObj["nanosuit"], MaterialType::Glass, test, not_emit, 2.0f, 5.f);
-		//m_objects[m_idxOfObj["nanosuit"]].materialAttributes.type = MaterialType::Glass;
-		//m_objects[m_idxOfObj["nanosuit"]].materialAttributes.Kd = test;
-		//m_objects[m_idxOfObj["nanosuit"]].materialAttributes.smoothness = 2.0f;
-		//m_objects[m_idxOfObj["nanosuit"]].materialAttributes.index_of_refraction = 5.f;
 
-		//m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity = 0.0f;
+		PrimitiveMaterialBuffer Dirt;
+		PrimitiveMaterialBuffer Floor;
+		PrimitiveMaterialBuffer TableWood;
+		PrimitiveMaterialBuffer Sofa;
+		PrimitiveMaterialBuffer SofaLegs;
+		PrimitiveMaterialBuffer Walls;
+		PrimitiveMaterialBuffer Paneling;
+		PrimitiveMaterialBuffer Mirror;
+		PrimitiveMaterialBuffer BrushedStainlessSteel;
+		PrimitiveMaterialBuffer MattePaint;
+		PrimitiveMaterialBuffer Painting;
+		PrimitiveMaterialBuffer PaintingBack;
+		PrimitiveMaterialBuffer Glass;
+		PrimitiveMaterialBuffer PlantPot;
+		PrimitiveMaterialBuffer FireplaceGlass;
+		PrimitiveMaterialBuffer Transluscent;
+		PrimitiveMaterialBuffer Leaves;
+		PrimitiveMaterialBuffer Branches;
+		PrimitiveMaterialBuffer BottleCap;
+		{
+			Dirt.type = MaterialType::Lambert;
+			Dirt.Kd = XMFLOAT4(0.098504, 0.045968, 0.035887, 0.0);
+		}
+		{
+			Floor.type = MaterialType::Disney_BRDF;
+			Floor.useDiffuseTexture = TRUE;
+			Floor.metallic = 0.5;
+			Floor.roughness = 0.15;
+		}
+		{
+			TableWood.type = MaterialType::Plastic;
+			TableWood.useDiffuseTexture = TRUE;
+			TableWood.reflectivity = 0.5f;
+			TableWood.smoothness = 1.0f;
+		}
+		{
+			Sofa.type = MaterialType::Lambert;
+			Sofa.Kd = XMFLOAT4(1.0, 1.0, 1.0, 0.0);
+		}
+		{
+			SofaLegs.type = MaterialType::Lambert;
+			SofaLegs.Kd = XMFLOAT4(0.1, 0.1, 0.1, 0.0);
+		}
+		{
+			Walls.type = MaterialType::Lambert;
+			Walls.Kd = XMFLOAT4(0.1, 0.1, 0.1, 0.0);
+		}
+		{
+			Paneling.type = MaterialType::Disney_BRDF;
+			Paneling.Kd = XMFLOAT4(0.800000, 0.800000, 0.800000, 0.0);
+			Paneling.metallic = 0.5;
+			Paneling.roughness = 0.2;
+		}
+		{
+			Mirror.type = MaterialType::Mirror;
+			Mirror.Kd = XMFLOAT4(1.0, 1.0, 1.0, 0.0);
+			Mirror.smoothness = 2.0f;
+		}
+		{
+			BrushedStainlessSteel.type = MaterialType::Disney_BRDF;
+			BrushedStainlessSteel.metallic = 0.8;
+			BrushedStainlessSteel.clearcoat = 0.8;
+			BrushedStainlessSteel.Kd = XMFLOAT4(0.9, 0.6, 0.4, 0.0);
+			BrushedStainlessSteel.roughness = 0.02;
+		}
+		{
+			MattePaint.type = MaterialType::Lambert;
+			MattePaint.Kd = XMFLOAT4(0.578596, 0.578596, 0.578596, 0.0);
+		}
+		{
+			Painting.type = MaterialType::Lambert;
+			Painting.useDiffuseTexture = TRUE;
+		}
+		{
+			PaintingBack.type = MaterialType::Lambert;
+			PaintingBack.Kd = XMFLOAT4(0.260000, 0.250000, 0.140000, 0.0);
+		}
+		{
+			Glass.type = MaterialType::Glass;
+			Glass.Kd = XMFLOAT4(1.0, 1.0, 1.0, 0.0);
+			Glass.index_of_refraction = 1.5;
+			Glass.smoothness = 2.0f;
+		}
+		{
+			PlantPot.type = MaterialType::Lambert;
+			PlantPot.Kd = XMFLOAT4(0.100000, 0.100000, 0.100000, 0.0);
+		}
+		{
+			FireplaceGlass.type = MaterialType::Mirror;
+			FireplaceGlass.Kd = XMFLOAT4(1.0, 1.0, 1.0, 0.0);
+			FireplaceGlass.smoothness = 2.0f;
+		}
+		{
+			Transluscent.type = MaterialType::Lambert;
+			Transluscent.Kd = XMFLOAT4(0.900000, 0.900000, 0.900000, 0.0);
+		}
+		{
+			Leaves.type = MaterialType::Lambert;
+			Leaves.useDiffuseTexture = TRUE;
+		}
+		{
+			Branches.type = MaterialType::Lambert;
+			Branches.Kd = XMFLOAT4(0.160444, 0.082414, 0.019918, 0.0);
+		}
+		{
+			BottleCap.type = MaterialType::Lambert;
+			BottleCap.Kd = XMFLOAT4(0.456263, 0.000000, 0.000000, 0.0);
+		}
+		m_objects[m_idxOfObj["Mesh038"]].materialAttributes = Paneling;
 
+		m_objects[m_idxOfObj["Mesh036"]].materialAttributes = Transluscent;
+
+		m_objects[m_idxOfObj["Mesh035"]].materialAttributes = MattePaint;
+
+		m_objects[m_idxOfObj["Mesh041"]].materialAttributes = BrushedStainlessSteel;
+
+		m_objects[m_idxOfObj["Mesh040"]].materialAttributes = Transluscent;
+
+		m_objects[m_idxOfObj["Mesh028"]].materialAttributes = MattePaint;
+
+		m_objects[m_idxOfObj["Mesh022"]].materialAttributes = BrushedStainlessSteel;
+
+		m_objects[m_idxOfObj["Mesh020"]].materialAttributes = PlantPot;
+
+		m_objects[m_idxOfObj["Mesh026"]].materialAttributes = Dirt;
+
+		m_objects[m_idxOfObj["Mesh018"]].materialAttributes = Branches;
+
+		m_objects[m_idxOfObj["Mesh025"]].materialAttributes = Leaves;
+		m_objects[m_idxOfObj["Mesh025"]].texOfObj = m_idxOfTex["leaf"];
+
+		m_objects[m_idxOfObj["Mesh060"]].materialAttributes = Branches;
+
+		m_objects[m_idxOfObj["Mesh032"]].materialAttributes = Leaves;
+		m_objects[m_idxOfObj["Mesh032"]].texOfObj = m_idxOfTex["leaf"];
+
+		m_objects[m_idxOfObj["Mesh016"]].materialAttributes = BrushedStainlessSteel;
+		m_objects[m_idxOfObj["Mesh015"]].materialAttributes = BrushedStainlessSteel;
+
+		m_objects[m_idxOfObj["Mesh029"]].materialAttributes = Paneling;
+		m_objects[m_idxOfObj["Mesh043"]].materialAttributes = Paneling;
+		m_objects[m_idxOfObj["Mesh033"]].materialAttributes = Paneling;
+		m_objects[m_idxOfObj["Mesh046"]].materialAttributes = Paneling;
+
+		m_objects[m_idxOfObj["Mesh049"]].materialAttributes = BrushedStainlessSteel;
+
+		m_objects[m_idxOfObj["Mesh039"]].materialAttributes = Paneling;
+		m_objects[m_idxOfObj["Mesh027"]].materialAttributes = Paneling;
+		m_objects[m_idxOfObj["Mesh050"]].materialAttributes = Paneling;
+
+		m_objects[m_idxOfObj["Mesh052"]].materialAttributes = BrushedStainlessSteel;
+
+		m_objects[m_idxOfObj["Mesh048"]].materialAttributes = Paneling;
+		m_objects[m_idxOfObj["Mesh024"]].materialAttributes = Paneling;
+
+		m_objects[m_idxOfObj["Mesh054"]].materialAttributes = Walls;
+
+		m_objects[m_idxOfObj["Mesh055"]].materialAttributes = Paneling;
+
+		m_objects[m_idxOfObj["Mesh056"]].materialAttributes = FireplaceGlass;
+
+		m_objects[m_idxOfObj["Mesh045"]].materialAttributes = Mirror;
+
+		m_objects[m_idxOfObj["Mesh063"]].materialAttributes = Paneling;
+
+		m_objects[m_idxOfObj["Mesh057"]].materialAttributes = MattePaint;
+
+		m_objects[m_idxOfObj["Mesh019"]].materialAttributes = Floor;
+		m_objects[m_idxOfObj["Mesh019"]].texOfObj = m_idxOfTex["wood"];
+
+		m_objects[m_idxOfObj["Mesh059"]].materialAttributes = Walls;
+
+		m_objects[m_idxOfObj["Mesh042"]].materialAttributes = MattePaint;
+
+		m_objects[m_idxOfObj["Mesh051"]].materialAttributes = Paneling;
+		m_objects[m_idxOfObj["Mesh061"]].materialAttributes = Paneling;
+
+		m_objects[m_idxOfObj["Mesh047"]].materialAttributes = Sofa;
+		m_objects[m_idxOfObj["Mesh062"]].materialAttributes = Sofa;
+		m_objects[m_idxOfObj["Mesh064"]].materialAttributes = Sofa;
+		m_objects[m_idxOfObj["Mesh014"]].materialAttributes = Sofa;
+		m_objects[m_idxOfObj["Mesh013"]].materialAttributes = Sofa;
+		m_objects[m_idxOfObj["Mesh034"]].materialAttributes = Sofa;
+
+		m_objects[m_idxOfObj["Mesh021"]].materialAttributes = SofaLegs;
+
+		m_objects[m_idxOfObj["Mesh011"]].materialAttributes = MattePaint;
+		m_objects[m_idxOfObj["Mesh012"]].materialAttributes = MattePaint;
+		m_objects[m_idxOfObj["Mesh053"]].materialAttributes = MattePaint;
+
+		m_objects[m_idxOfObj["Mesh010"]].materialAttributes = PlantPot;
+
+		m_objects[m_idxOfObj["Mesh009"]].materialAttributes = Dirt;
+
+		m_objects[m_idxOfObj["Mesh017"]].materialAttributes = Branches;
+
+		m_objects[m_idxOfObj["Mesh058"]].materialAttributes = Leaves;
+		m_objects[m_idxOfObj["Mesh058"]].texOfObj = m_idxOfTex["leaf"];
+
+		m_objects[m_idxOfObj["Mesh008"]].materialAttributes = Branches;
+
+		m_objects[m_idxOfObj["Mesh007"]].materialAttributes = Leaves;
+		m_objects[m_idxOfObj["Mesh007"]].texOfObj = m_idxOfTex["leaf"];
+
+		m_objects[m_idxOfObj["Mesh023"]].materialAttributes = Painting;
+		m_objects[m_idxOfObj["Mesh023"]].texOfObj = m_idxOfTex["picture8"];
+
+		m_objects[m_idxOfObj["Mesh006"]].materialAttributes = MattePaint;
+
+		m_objects[m_idxOfObj["Mesh005"]].materialAttributes = PaintingBack;
+
+		m_objects[m_idxOfObj["Mesh003"]].materialAttributes = TableWood;
+		m_objects[m_idxOfObj["Mesh003"]].texOfObj = m_idxOfTex["wood5"];
+		m_objects[m_idxOfObj["Mesh004"]].materialAttributes = TableWood;
+		m_objects[m_idxOfObj["Mesh004"]].texOfObj = m_idxOfTex["wood5"];
+
+		m_objects[m_idxOfObj["Mesh002"]].materialAttributes = Glass;
+
+		m_objects[m_idxOfObj["Mesh001"]].materialAttributes = BottleCap;
+
+		m_objects[m_idxOfObj["Mesh030"]].materialAttributes = Glass;
+		m_objects[m_idxOfObj["Mesh044"]].materialAttributes = Glass;
+
+		m_objects[m_idxOfObj["Mesh000"]].materialAttributes = TableWood;
+		m_objects[m_idxOfObj["Mesh000"]].texOfObj = m_idxOfTex["wood5"];
+		m_objects[m_idxOfObj["Mesh037"]].materialAttributes = TableWood;
+		m_objects[m_idxOfObj["Mesh037"]].texOfObj = m_idxOfTex["wood5"];
+		m_objects[m_idxOfObj["Mesh031"]].materialAttributes = TableWood;
+		m_objects[m_idxOfObj["Mesh031"]].texOfObj = m_idxOfTex["wood5"];
+		
 		for (int i = 0; i < m_objects.size(); ++i) {
 			UpadteMaterialParameter(i);
 		}
