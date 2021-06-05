@@ -131,7 +131,6 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
 		if (pSample)
 		{
 			pSample->OnKeyDown(static_cast<UINT8>(wParam));
-			pSample->OnResetSpp();
 		}
 		if (static_cast<UINT8>(wParam) == VK_ESCAPE)
 			PostQuitMessage(0);
@@ -141,7 +140,6 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
 		if (pSample)
 		{
 			pSample->OnKeyUp(static_cast<UINT8>(wParam));
-			pSample->OnResetSpp();
 		}
 		return 0;
 

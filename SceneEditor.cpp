@@ -1629,22 +1629,30 @@ void SceneEditor::OnKeyDown(UINT8 key)
 	{
 	case 'W':
 		m_camera.MoveEyeForward();
+		OnResetSpp();
 		break;
 	case 'S':
 		m_camera.MoveEyeBackward();
+		OnResetSpp();
 		break;
 	case 'A':
 		m_camera.MoveEyeLeft();
+		OnResetSpp();
 		break;
 	case 'D':
 		m_camera.MoveEyeRight();
+		OnResetSpp();
 		break;
 	case 'Q':
 		m_camera.MoveEyeUp();
+		OnResetSpp();
 		break;
 	case 'E':
 		m_camera.MoveEyeDown();
+		OnResetSpp();
 		break;
+	case 'R':
+		OnResetSpp();
 	default:
 		break;
 	}
@@ -1999,9 +2007,13 @@ void SceneEditor::StartImgui()
 		drawList->AddRectFilled(ToImVec2(barStart), ImVec2(barStart.x + barSize.x * progress, barEnd.y), barFilledColor);
 		drawList->AddRect(ToImVec2(barStart), ToImVec2(barEnd), barOutlineColor);
 
+		std::string progressString = std::to_string(int(progress * 10000));
+		if (progressString.size() > 2)
+			progressString = progressString.substr(0, progressString.size() - 2) + '.' + progressString.substr(progressString.size() - 2);
+		else
+			progressString = "0." + progressString;
 
-		std::string progressText = "Progress:" + std::to_string(int(progress * 10000)) + "%";
-		progressText = progressText.substr(0, progressText.size() - 3) + '.' + progressText.substr(progressText.size() - 3);
+		std::string progressText = "Progress:" + progressString + "%";
 		Float2 progressTextSize = Float2(ImGui::CalcTextSize(progressText.c_str()).x, ImGui::CalcTextSize(progressText.c_str()).y);
 		Float2 progressTextPos = barStart + (barSize * 0.5f) - (progressTextSize * 0.5f);
 		drawList->AddText(ToImVec2(progressTextPos), textColor, progressText.c_str());
