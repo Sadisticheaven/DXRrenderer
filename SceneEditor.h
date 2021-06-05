@@ -104,6 +104,7 @@ private:
 
 	// Synchronization objects.
 	UINT m_frameIndex;
+	int sqrtNum = 16;
 	HANDLE m_fenceEvent;
 	ComPtr<ID3D12Fence> m_fence;
 	UINT64 m_fenceValue;

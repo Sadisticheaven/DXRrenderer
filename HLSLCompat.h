@@ -126,6 +126,7 @@ struct SceneConstants{
 	XMMATRIX invViewProj;
 	XMFLOAT4 seed;
 	float curSampleIdx;
+	float maxSample;
 	UINT light_nums;
 };
 

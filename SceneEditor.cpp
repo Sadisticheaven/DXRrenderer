@@ -462,6 +462,7 @@ void SceneEditor::LoadAssets()
 		lightDesc.worldRadius = 500.f;
 		lightDesc.type = LightType::Point;
 		matrices.light_nums = 0;
+		matrices.maxSample = sqrtNum * sqrtNum;
 		//lightsInScene.push_back(lightDesc);
 		AllocateUploadLightBuffer();
 	}
@@ -1568,6 +1569,7 @@ void SceneEditor::UpdateSceneParametersBuffer() {
 	}
 	else {
 		matrices.curSampleIdx++;
+		matrices.curSampleIdx = min(matrices.curSampleIdx, matrices.maxSample);
 	}
 	// Copy the matrix contents
 	matrices.seed = XMFLOAT4(rand() / double(0xfff), rand() / double(0xfff), rand() / double(0xfff), rand() / double(0xfff));
@@ -1819,6 +1821,10 @@ void SceneEditor::StartImgui()
 			}
 		}
 	}
+	if (ImGui::SliderInt("SqrtNum", &sqrtNum, 1, 100)) {
+		matrices.maxSample = sqrtNum * sqrtNum;
+		OnResetSpp();
+	}
 
 	ImGui::Text("Global Light:");
 	{
@@ -1930,6 +1936,80 @@ void SceneEditor::StartImgui()
 	m_imguiManager.isHovered = ImGui::IsWindowHovered() | ImGui::IsAnyItemHovered() | ImGui::IsAnyItemActive();
 
 	ImGui::End();
+	if (matrices.curSampleIdx < matrices.maxSample)
+	{
+		struct Float2
+		{
+			float x, y;
+
+			Float2();
+			Float2(float x) { this->x = this->y = x; }
+			Float2(float x, float y) { this->x = x, this->y = y; }
+
+			Float2& operator+=(float s) { this->x += s, this->y += s; return *this; }
+			Float2 operator+(float s) { return Float2(this->x + s, this->y + s); }
+
+			Float2& operator+=(Float2 s) { this->x += s.x, this->y += s.y; return *this; }
+			Float2 operator+(Float2 s) { return Float2(this->x + s.x, this->y + s.y); }
+
+			Float2& operator-=(float s) { this->x -= s, this->y -= s; return *this; }
+			Float2 operator-(float s) { return Float2(this->x - s, this->y - s); }
+
+			Float2& operator-=(Float2 s) { this->x -= s.x, this->y -= s.y; return *this; }
+			Float2 operator-(Float2 s) { return Float2(this->x - s.x, this->y - s.y); }
+
+			Float2& operator*=(float s) { this->x *= s, this->y *= s; return *this; }
+			Float2 operator*(float s) { return Float2(this->x * s, this->y * s); }
+
+
+		};
+		auto ToImVec2 = [](Float2 v) {return ImVec2(v.x, v.y); };
+		float width = float(GetWidth());
+		float height = float(GetHeight());
+
+		const uint32 barEmptyColor = ImColor(0.0f, 0.0f, 0.0f, 1.0f);
+		const uint32 barFilledColor = ImColor(1.0f, 0.0f, 0.0f, 1.0f);
+		const uint32 barOutlineColor = ImColor(1.0f, 1.0f, 1.0f, 1.0f);
+		const uint32 textColor = ImColor(1.0f, 1.0f, 1.0f, 1.0f);
+
+		const float barPercentage = 0.5f;
+		const float barHeight = 50.0f;
+		Float2 barStart = Float2(width * (1.0f - barPercentage) * 0.5f, height - 100.0f);
+		Float2 barSize = Float2(width * barPercentage, barHeight);
+		Float2 barEnd = barStart + barSize;
+
+		Float2 windowStart = barStart - 8.0f;
+		Float2 windowSize = barSize + 16.0f;
+		Float2 windowEnd = windowStart + windowSize;
+
+		ImGui::SetNextWindowPos(ToImVec2(windowStart), 1);
+		ImGui::SetNextWindowSize(ToImVec2(windowSize), 1);
+		ImGui::SetNextWindowBgAlpha(0.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+		ImGui::Begin("HUD Window", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs |
+			ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
+			ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
+			ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoCollapse);
+
+		ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+		const float progress = matrices.curSampleIdx / matrices.maxSample;
+
+		drawList->AddRectFilled(ToImVec2(barStart), ToImVec2(barEnd), barEmptyColor);
+		drawList->AddRectFilled(ToImVec2(barStart), ImVec2(barStart.x + barSize.x * progress, barEnd.y), barFilledColor);
+		drawList->AddRect(ToImVec2(barStart), ToImVec2(barEnd), barOutlineColor);
+
+
+		std::string progressText = "Progress:" + std::to_string(int(progress * 10000)) + "%";
+		progressText = progressText.substr(0, progressText.size() - 3) + '.' + progressText.substr(progressText.size() - 3);
+		Float2 progressTextSize = Float2(ImGui::CalcTextSize(progressText.c_str()).x, ImGui::CalcTextSize(progressText.c_str()).y);
+		Float2 progressTextPos = barStart + (barSize * 0.5f) - (progressTextSize * 0.5f);
+		drawList->AddText(ToImVec2(progressTextPos), textColor, progressText.c_str());
+
+		ImGui::PopStyleVar();
+
+		ImGui::End();
+	}
 	// set a srvheap for imgui to seperate it from raytracing
 	m_commandList->SetDescriptorHeaps(1, m_imguiManager.GetSrvHeap4Imgui().GetAddressOf());
 	ImGui::Render();

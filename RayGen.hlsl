@@ -15,6 +15,8 @@ StructuredBuffer<Light> global_light: register(t1);
 
 [shader("raygeneration")]
 void RayGen() {
+	if (sceneParameter.curSampleIdx >= sceneParameter.maxSample)
+		return;
 	uint2 launchIndex = DispatchRaysIndex().xy;
 	PayLoad payload;
 	payload.radiance = float4(0, 0, 0, 0);
