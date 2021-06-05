@@ -28,6 +28,6 @@ The following light sources are implemented:
   * Triangle      
 
 ## Using The App
-To move the camera, press the W/S/A/D/Q/E keys. The camera can also be rotated by left-clicking on the window and dragging the mouse.You can also hold down the right-clicking and move the mouse to adjust the viewing angle.
+To move the camera, press the W/S/A/D/Q/E keys. The camera can also be rotated by left-clicking on the window and dragging the mouse.You can also hold down the right-clicking and move the mouse to adjust the field of view.
 
 UI provides object material modification and light source information settings.The "SqrtNum" is the square root of the number of samples, so increasing this value increases the total rendering time.If you change a setting or move the camera or press the R key, the render will reset and start accumulating samples again. 
