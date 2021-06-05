@@ -27,4 +27,7 @@ The following light sources are implemented:
   * Area
   * Triangle      
 
+## Using The App
+To move the camera, press the W/S/A/D/Q/E keys. The camera can also be rotated by left-clicking on the window and dragging the mouse.
 
+UI provides object material modification and light source information settings
