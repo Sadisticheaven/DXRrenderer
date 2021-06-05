@@ -25,6 +25,6 @@ The following light sources are implemented:
   * Spot
   * Distant   
   * Area
-	*	Triangle      
+  * Triangle      
 
 
