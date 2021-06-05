@@ -57,8 +57,7 @@ typedef UINT32 Index;
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
 
-struct PayLoad
-{
+struct PayLoad{
 	XMFLOAT3 radiance;
 	XMFLOAT4 seed;
 	UINT recursionDepth;
@@ -109,8 +108,7 @@ struct Light {
 #endif
 };
 
-typedef struct Vertex
-{
+typedef struct Vertex{
 	XMFLOAT3 position;
 	XMFLOAT3 normal;
 	XMFLOAT2 TexCoords;
@@ -118,18 +116,9 @@ typedef struct Vertex
 	XMFLOAT3 Tangent;
 	XMFLOAT3 Bitangent;
 };
+;
 
-struct AreaLight {
-	BOOL useAreaLight;
-	XMMATRIX transfer;
-	UINT objectIndex;
-	UINT meshNum;
-	float area;
-	float emitIntensity;
-};
-
-struct SceneConstants
-{
+struct SceneConstants{
 	XMMATRIX view;
 	XMMATRIX projection;
 	XMMATRIX viewI;
@@ -141,13 +130,6 @@ struct SceneConstants
 };
 
 namespace MaterialType {
-	/*enum Type {
-		Lambert,
-		Mirror,
-		Glass,
-		Disney_brdf_Plastic,
-		Count
-	};*/
 	enum Type {
 		FOREACH_MATERIAL(GENERATE_ENUM)
 	};
@@ -155,15 +137,13 @@ namespace MaterialType {
 
 
 
-struct PrimitiveMaterialBuffer
-{
+struct PrimitiveMaterialBuffer{
 	XMFLOAT4 Kd;
-	//XMFLOAT4 Ks;
-	//XMFLOAT4 emit;
 	float index_of_refraction;
 	float emitIntensity;
 	float smoothness;
 	float reflectivity;
+
 	//disney_brdf
 	float metallic;
 	float subsurface;
@@ -175,13 +155,9 @@ struct PrimitiveMaterialBuffer
 	float sheenTint;
 	float clearcoat;
 	float clearcoatGloss;
-	//disney_brdf
+
 	BOOL useDiffuseTexture;
-	//BOOL hasDiffuseTexture;
-	//BOOL hasNormalTexture;
-	//BOOL hasPerVertexTangents;
 	MaterialType::Type type;
-	//LightType::Type light_type;
 #ifndef HLSL
 	PrimitiveMaterialBuffer() :Kd(0.0, 0.0, 0.0, 0.0), index_of_refraction(0.0), emitIntensity(0.0),
 		smoothness(0.0), reflectivity(0.0), metallic(0.0), subsurface(0.0), specular(0.0),

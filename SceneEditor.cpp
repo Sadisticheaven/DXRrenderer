@@ -355,22 +355,6 @@ void SceneEditor::AllocateUploadLightBuffer()
 	}
 }
 
-//void SceneEditor::CreateLightBuffer(Light& desc)
-//{
-//	int lightBufferSize = SizeOfIn256(Light);
-//	LightSource lightSource;
-//	lightSource.lightBuffer = nv_helpers_dx12::CreateBuffer(
-//		m_device.Get(), lightBufferSize, D3D12_RESOURCE_FLAG_NONE,
-//		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
-//	lightSource.lightDesc = desc;
-//
-//	uint8_t* pData;
-//	ThrowIfFailed(lightSource.lightBuffer->Map(0, nullptr, (void**)&pData));
-//	memcpy(pData, &(lightSource.lightDesc), sizeof(Light));
-//	lightSource.lightBuffer->Unmap(0, nullptr);
-//	m_lights.emplace_back(lightSource);
-//}
-// Load the sample assets.
 
 void SceneEditor::LoadAssets()
 {
@@ -514,95 +498,95 @@ void SceneEditor::LoadAssets()
 		PrimitiveMaterialBuffer Leaves;
 		PrimitiveMaterialBuffer Branches;
 		PrimitiveMaterialBuffer BottleCap;
-		{
-			Dirt.type = MaterialType::Lambert;
-			Dirt.Kd = XMFLOAT4(0.098504, 0.045968, 0.035887, 0.0);
-		}
-		{
-			Floor.type = MaterialType::Disney_BRDF;
-			Floor.useDiffuseTexture = TRUE;
-			Floor.metallic = 0.5;
-			Floor.roughness = 0.15;
-		}
-		{
-			TableWood.type = MaterialType::Plastic;
-			TableWood.useDiffuseTexture = TRUE;
-			TableWood.reflectivity = 0.5f;
-			TableWood.smoothness = 1.0f;
-		}
-		{
-			Sofa.type = MaterialType::Lambert;
-			Sofa.Kd = XMFLOAT4(1.0, 1.0, 1.0, 0.0);
-		}
-		{
-			SofaLegs.type = MaterialType::Lambert;
-			SofaLegs.Kd = XMFLOAT4(0.1, 0.1, 0.1, 0.0);
-		}
-		{
-			Walls.type = MaterialType::Lambert;
-			Walls.Kd = XMFLOAT4(0.1, 0.1, 0.1, 0.0);
-		}
-		{
-			Paneling.type = MaterialType::Disney_BRDF;
-			Paneling.Kd = XMFLOAT4(0.800000, 0.800000, 0.800000, 0.0);
-			Paneling.metallic = 0.5;
-			Paneling.roughness = 0.2;
-		}
-		{
-			Mirror.type = MaterialType::Mirror;
-			Mirror.Kd = XMFLOAT4(1.0, 1.0, 1.0, 0.0);
-			Mirror.smoothness = 2.0f;
-		}
-		{
-			BrushedStainlessSteel.type = MaterialType::Disney_BRDF;
-			BrushedStainlessSteel.metallic = 0.8;
-			BrushedStainlessSteel.clearcoat = 0.8;
-			BrushedStainlessSteel.Kd = XMFLOAT4(0.9, 0.6, 0.4, 0.0);
-			BrushedStainlessSteel.roughness = 0.02;
-		}
-		{
-			MattePaint.type = MaterialType::Lambert;
-			MattePaint.Kd = XMFLOAT4(0.578596, 0.578596, 0.578596, 0.0);
-		}
-		{
-			Painting.type = MaterialType::Lambert;
-			Painting.useDiffuseTexture = TRUE;
-		}
-		{
-			PaintingBack.type = MaterialType::Lambert;
-			PaintingBack.Kd = XMFLOAT4(0.260000, 0.250000, 0.140000, 0.0);
-		}
-		{
-			Glass.type = MaterialType::Glass;
-			Glass.Kd = XMFLOAT4(1.0, 1.0, 1.0, 0.0);
-			Glass.index_of_refraction = 1.5;
-			Glass.smoothness = 2.0f;
-		}
-		{
-			PlantPot.type = MaterialType::Lambert;
-			PlantPot.Kd = XMFLOAT4(0.100000, 0.100000, 0.100000, 0.0);
-		}
-		{
-			FireplaceGlass.type = MaterialType::Mirror;
-			FireplaceGlass.Kd = XMFLOAT4(1.0, 1.0, 1.0, 0.0);
-			FireplaceGlass.smoothness = 2.0f;
-		}
-		{
-			Transluscent.type = MaterialType::Lambert;
-			Transluscent.Kd = XMFLOAT4(0.900000, 0.900000, 0.900000, 0.0);
-		}
-		{
-			Leaves.type = MaterialType::Lambert;
-			Leaves.useDiffuseTexture = TRUE;
-		}
-		{
-			Branches.type = MaterialType::Lambert;
-			Branches.Kd = XMFLOAT4(0.160444, 0.082414, 0.019918, 0.0);
-		}
-		{
-			BottleCap.type = MaterialType::Lambert;
-			BottleCap.Kd = XMFLOAT4(0.456263, 0.000000, 0.000000, 0.0);
-		}
+
+		Dirt.type = MaterialType::Lambert;
+		Dirt.Kd = XMFLOAT4(0.098504, 0.045968, 0.035887, 0.0);
+
+
+		Floor.type = MaterialType::Disney_BRDF;
+		Floor.useDiffuseTexture = TRUE;
+		Floor.metallic = 0.5;
+		Floor.roughness = 0.15;
+
+
+		TableWood.type = MaterialType::Plastic;
+		TableWood.useDiffuseTexture = TRUE;
+		TableWood.reflectivity = 0.5f;
+		TableWood.smoothness = 1.0f;
+
+
+		Sofa.type = MaterialType::Lambert;
+		Sofa.Kd = XMFLOAT4(1.0, 1.0, 1.0, 0.0);
+
+
+		SofaLegs.type = MaterialType::Lambert;
+		SofaLegs.Kd = XMFLOAT4(0.1, 0.1, 0.1, 0.0);
+
+
+		Walls.type = MaterialType::Lambert;
+		Walls.Kd = XMFLOAT4(0.1, 0.1, 0.1, 0.0);
+
+
+		Paneling.type = MaterialType::Disney_BRDF;
+		Paneling.Kd = XMFLOAT4(0.800000, 0.800000, 0.800000, 0.0);
+		Paneling.metallic = 0.5;
+		Paneling.roughness = 0.2;
+
+
+		Mirror.type = MaterialType::Mirror;
+		Mirror.Kd = XMFLOAT4(1.0, 1.0, 1.0, 0.0);
+		Mirror.smoothness = 2.0f;
+
+
+		BrushedStainlessSteel.type = MaterialType::Disney_BRDF;
+		BrushedStainlessSteel.metallic = 0.8;
+		BrushedStainlessSteel.clearcoat = 0.8;
+		BrushedStainlessSteel.Kd = XMFLOAT4(0.9, 0.6, 0.4, 0.0);
+		BrushedStainlessSteel.roughness = 0.02;
+
+
+		MattePaint.type = MaterialType::Lambert;
+		MattePaint.Kd = XMFLOAT4(0.578596, 0.578596, 0.578596, 0.0);
+
+
+		Painting.type = MaterialType::Lambert;
+		Painting.useDiffuseTexture = TRUE;
+
+
+		PaintingBack.type = MaterialType::Lambert;
+		PaintingBack.Kd = XMFLOAT4(0.260000, 0.250000, 0.140000, 0.0);
+
+
+		Glass.type = MaterialType::Glass;
+		Glass.Kd = XMFLOAT4(1.0, 1.0, 1.0, 0.0);
+		Glass.index_of_refraction = 1.5;
+		Glass.smoothness = 2.0f;
+
+
+		PlantPot.type = MaterialType::Lambert;
+		PlantPot.Kd = XMFLOAT4(0.100000, 0.100000, 0.100000, 0.0);
+
+
+		FireplaceGlass.type = MaterialType::Mirror;
+		FireplaceGlass.Kd = XMFLOAT4(1.0, 1.0, 1.0, 0.0);
+		FireplaceGlass.smoothness = 2.0f;
+
+
+		Transluscent.type = MaterialType::Lambert;
+		Transluscent.Kd = XMFLOAT4(0.900000, 0.900000, 0.900000, 0.0);
+
+
+		Leaves.type = MaterialType::Lambert;
+		Leaves.useDiffuseTexture = TRUE;
+
+
+		Branches.type = MaterialType::Lambert;
+		Branches.Kd = XMFLOAT4(0.160444, 0.082414, 0.019918, 0.0);
+
+
+		BottleCap.type = MaterialType::Lambert;
+		BottleCap.Kd = XMFLOAT4(0.456263, 0.000000, 0.000000, 0.0);
+
 		m_objects[m_idxOfObj["Mesh038"]].materialAttributes = Paneling;
 
 		m_objects[m_idxOfObj["Mesh036"]].materialAttributes = Transluscent;
@@ -724,7 +708,7 @@ void SceneEditor::LoadAssets()
 		m_objects[m_idxOfObj["Mesh037"]].texOfObj = m_idxOfTex["wood5"];
 		m_objects[m_idxOfObj["Mesh031"]].materialAttributes = TableWood;
 		m_objects[m_idxOfObj["Mesh031"]].texOfObj = m_idxOfTex["wood5"];
-		
+
 		for (int i = 0; i < m_objects.size(); ++i) {
 			UpadteMaterialParameter(i);
 		}
@@ -837,21 +821,6 @@ void SceneEditor::OnResize(HWND hWnd, int width, int height)
 
 	WaitForPreviousFrame();
 
-	// For rasterazation.
-	{
-		// Update the viewport transform to cover the client area.
-		/*m_viewport.TopLeftX = 0;
-		m_viewport.TopLeftY = 0;
-		m_viewport.Width = static_cast<float>(width);
-		m_viewport.Height = static_cast<float>(height);
-		m_viewport.MinDepth = 0.0f;
-		m_viewport.MaxDepth = 1.0f;
-
-		m_scissorRect.left = 0;
-		m_scissorRect.top = 0;
-		m_scissorRect.right = width;
-		m_scissorRect.bottom = height;*/
-	}
 
 	// For raytracing.
 	{
@@ -897,15 +866,6 @@ void SceneEditor::PopulateCommandList()
 
 	// Record commands 
 	//Rasterazation.	
-	/*
-	if (m_raster)
-	{
-		const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-		m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-		m_commandList->DrawInstanced(6, 1, 0, 0);
-	}*/
 	// update matrix of instances
 	UpdateInstances();
 
@@ -1247,7 +1207,6 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateHitSignature() {
 	// but we want to access vertex buffer in hit shader, so add a parameter of SRV
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 0);//MaterialAttributes
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 1);//light
-	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 2);//light
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 0);//Vertices
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1);//Indices
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 2);//TLAS
@@ -1499,8 +1458,6 @@ void SceneEditor::CreateShaderBindingTable() {
 	m_sbtHelper.AddMissProgram(ws_missShaderNames[1], {});//shadow miss
 
 	// Adding the triangle hit shader
-	//m_sbtHelper.AddHitGroup(L"HitGroup", {});
-	// Access vertexBuffer in hit shader
 	INT DescriptorHandleIncrementSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	srvUavHeapHandle.Offset(2, DescriptorHandleIncrementSize);
 	for (int i = 0; i < m_objects.size(); ++i) {
@@ -1509,13 +1466,10 @@ void SceneEditor::CreateShaderBindingTable() {
 		m_sbtHelper.AddHitGroup(m_objects[i].ws_hitGroupName, {
 			(void*)(m_objects[i].MaterialBuffer->GetGPUVirtualAddress()),
 			(void*)(m_sceneParameterBuffer->GetGPUVirtualAddress()),
-			(void*)0,
 			(void*)(m_objects[i].vertexBuffer->GetGPUVirtualAddress()),
 			(void*)(m_objects[i].indexBuffer->GetGPUVirtualAddress()),
 			(void*)(m_topLevelASBuffers.pResult->GetGPUVirtualAddress()),
 			(void*)(m_lightsBuffer->GetGPUVirtualAddress()),
-			//(void*)(m_objects[m_idxOfObj["light"]].indexBuffer->GetGPUVirtualAddress()),
-			//(void*)(m_lights[0].lightBuffer->GetGPUVirtualAddress()),
 			(void*)srvUavHeapHandle.ptr,
 			(void*)(m_areaRes.vtxBuffer->GetGPUVirtualAddress()),
 			(void*)(m_areaRes.idxBuffer->GetGPUVirtualAddress()),

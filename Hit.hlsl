@@ -5,7 +5,6 @@
 
 ConstantBuffer<PrimitiveMaterialBuffer> MaterialAttributes : register(b0);
 ConstantBuffer<SceneConstants> sceneParameter : register(b1);
-ConstantBuffer<AreaLight> areaLights: register(b2);
 StructuredBuffer<Vertex> Vertices: register(t0);
 StructuredBuffer<Index> Indices: register(t1);
 RaytracingAccelerationStructure SceneBVH : register(t2);
