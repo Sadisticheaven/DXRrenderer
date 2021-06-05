@@ -11,5 +11,20 @@ This is a simple DXR renderer. It currently supports the following functions:
   * dxcompiler.dll
   * dxil.dll
 
-Please make sure the `Debug` folder has the `dxcompiler.dll` and `dxil.dll`.
-  
+## Materials
+The following materials are implemented:
+  * Lambert  
+  * Mirror
+  * Glass
+  * Plastic
+  * Disney_BRDF
+
+## Light source
+The following light sources are implemented:
+  * Point   
+  * Spot
+  * Distant   
+  * Area
+	*	Triangle      
+
+
