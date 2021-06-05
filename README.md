@@ -30,4 +30,4 @@ The following light sources are implemented:
 ## Using The App
 To move the camera, press the W/S/A/D/Q/E keys. The camera can also be rotated by left-clicking on the window and dragging the mouse.
 
-UI provides object material modification and light source information settings
+UI provides object material modification and light source information settings.The "SqrtNum" is the square root of the number of samples, so increasing this value increases the total rendering time.
