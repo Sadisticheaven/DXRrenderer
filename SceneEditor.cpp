@@ -353,6 +353,14 @@ void SceneEditor::AllocateUploadLightBuffer()
 		memcpy(pLightDataBegin, lightsInScene.data(), LightBufferSize);
 		m_lightsBuffer->Unmap(0, nullptr);
 	}
+	const UINT sceneOutputBuffer = sizeof(SceneOutput);
+	{
+		CD3DX12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
+		CD3DX12_RESOURCE_DESC bufferResource = CD3DX12_RESOURCE_DESC::Buffer(sceneOutputBuffer);
+		ThrowIfFailed(m_device->CreateCommittedResource(
+			&heapProperty, D3D12_HEAP_FLAG_NONE, &bufferResource,
+			D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_sceneOutputBuffer)));
+	}
 }
 
 
@@ -770,7 +778,7 @@ void SceneEditor::OnRender()
 
 	// Present the frame.
 	ThrowIfFailed(m_swapChain->Present(1, 0));
-
+	UpdatesceneOutputBuffer();
 	WaitForPreviousFrame();
 }
 
@@ -1195,6 +1203,7 @@ ComPtr<ID3D12RootSignature> SceneEditor::CreateRayGenSignature() {
 		});
 	//rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_CBV, 1);
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1);
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_UAV, 1);
 	return rsc.Generate(m_device.Get(), true);
 }
 
@@ -1451,6 +1460,7 @@ void SceneEditor::CreateShaderBindingTable() {
 	m_sbtHelper.AddRayGenerationProgram(L"RayGen",
 		{ heapPointer,
 		(void*)(m_lightsBuffer->GetGPUVirtualAddress()),
+		(void*)(m_sceneOutputBuffer->GetGPUVirtualAddress()),
 		});
 
 	// The miss and hit shaders do not access any external resources: instead they
@@ -1562,6 +1572,7 @@ void SceneEditor::UpdateSceneParametersBuffer() {
 	matrices.viewI = XMMatrixInverse(&det, matrices.view);
 	matrices.projectionI = XMMatrixInverse(&det, matrices.projection);
 
+
 	//set spp as 0 if some parameters change
 	if (needRefreshScreen) {
 		matrices.curSampleIdx = 0;
@@ -1582,13 +1593,24 @@ void SceneEditor::UpdateSceneParametersBuffer() {
 
 void SceneEditor::OnMouseDown(WPARAM btnState, int x, int y)
 {
-	m_lastMousePos.x = x;
-	m_lastMousePos.y = y;
-	SetCapture(m_mainWndHandle);
+	if ((btnState & MK_LBUTTON) != 0) {
+		matrices.xIdx = x;
+		matrices.yIdx = y;
+	}
+	if ((btnState & MK_RBUTTON) != 0) {
+		m_lastMousePos.x = x;
+		m_lastMousePos.y = y;
+		SetCapture(m_mainWndHandle);
+	}
+
 }
 
 void SceneEditor::OnMouseUp(WPARAM btnState, int x, int y)
 {
+	if (!m_imguiManager.isHovered && m_sceneOutput.objIdx >= 0 && (matrices.xIdx - x) * (matrices.xIdx - x) + (matrices.yIdx - y) * (matrices.yIdx - y) <= 10) {
+		m_imguiManager.m_selectObjIdx = m_sceneOutput.objIdx;
+		m_imguiManager.m_selObjName = m_imguiManager.m_objectsName[m_imguiManager.m_selectObjIdx];
+	}
 	ReleaseCapture();
 }
 
@@ -1667,9 +1689,8 @@ void SceneEditor::StartImgui()
 
 
 	ImGui::Begin("Parameters");
-	if (ImGui::Combo("ObjectsName", &m_imguiManager.m_selectObjIdx, m_imguiManager.m_objectsName, m_objects.size())) {
-		m_imguiManager.m_selObjName = m_imguiManager.m_objectsName[m_imguiManager.m_selectObjIdx];
-	}
+	ImGui::Combo("ObjectsName", &m_imguiManager.m_selectObjIdx, m_imguiManager.m_objectsName, m_objects.size());
+	m_imguiManager.m_selObjName = m_imguiManager.m_objectsName[m_imguiManager.m_selectObjIdx];
 
 	ImGui::Text("Color:");
 	if (ImGui::ColorEdit4("Kd", reinterpret_cast<float*>(&m_objects[m_idxOfObj[m_imguiManager.m_selObjName]].materialAttributes.Kd)))
@@ -2110,11 +2131,6 @@ void SceneEditor::UpdateInstances()
 
 void SceneEditor::UpdateLight()
 {
-	/*if (m_lights.empty()) return;
-	uint8_t* pData2;
-	ThrowIfFailed(m_lights[0].lightBuffer->Map(0, nullptr, (void**)&pData2));
-	memcpy(pData2, &(m_lights[0].lightDesc), sizeof(Light));
-	m_lights[0].lightBuffer->Unmap(0, nullptr);*/
 
 	const UINT LightBufferSize = static_cast<UINT>(lightsInScene.size()) * sizeof(Light);
 	{
@@ -2123,6 +2139,20 @@ void SceneEditor::UpdateLight()
 		CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
 		ThrowIfFailed(m_lightsBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
 		memcpy(pVertexDataBegin, lightsInScene.data(), LightBufferSize);
+		m_lightsBuffer->Unmap(0, nullptr);
+	}
+}
+
+void SceneEditor::UpdatesceneOutputBuffer()
+{
+
+	const UINT SceneOutputBufferSize = sizeof(SceneOutput);
+	{
+		// Copy the triangle data to the vertex buffer.
+		UINT8* pVertexDataBegin;
+		CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_sceneOutputBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
+		memcpy(&m_sceneOutput, pVertexDataBegin, SceneOutputBufferSize);
 		m_lightsBuffer->Unmap(0, nullptr);
 	}
 }

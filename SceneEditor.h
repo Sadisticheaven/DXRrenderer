@@ -221,10 +221,14 @@ private:
 	AreaLightResource m_areaRes;
 	std::vector<Light> lightsInScene;
 	ComPtr<ID3D12Resource> m_lightsBuffer;
+	SceneOutput m_sceneOutput;
+	ComPtr<ID3D12Resource> m_sceneOutputBuffer;
+	ComPtr<ID3D12Resource> mReadBackBuffer;
 	std::vector<char*> lightIdxChar;
 
 	char* m_LightType[LightType::Count + 1] = { FOREACH_LIGHT(GENERATE_STRING) };
 	//std::vector<LightSource> m_lights;
+	void UpdatesceneOutputBuffer();
 	void UpdateLight();
 	void CreateAreaLightVerticesBuffer();
 	void UpdateAreaLightVerticesBuffer(UINT index);

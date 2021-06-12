@@ -13,6 +13,8 @@ ConstantBuffer<SceneConstants> sceneParameter : register(b0);
 
 StructuredBuffer<Light> global_light: register(t1);
 
+RWStructuredBuffer<SceneOutput> sceneOut:register(u1);
+
 [shader("raygeneration")]
 void RayGen() {
 	if (sceneParameter.curSampleIdx >= sceneParameter.maxSample)
@@ -28,6 +30,11 @@ void RayGen() {
 	float aspectRatio = dims.x / dims.y;
 
 	RayDesc ray = GenerateCameraRay(launchIndex, sceneParameter);
+	SceneOutput curSceneOutput;
+	curSceneOutput.objIdx = -1;
+	if (launchIndex.x == sceneParameter.xIdx && launchIndex.y == sceneParameter.yIdx) {
+		sceneOut[0] = curSceneOutput;
+	}
 #if 1
 	for (uint i = 0; i < sceneParameter.light_nums; ++i)
 	{
@@ -117,7 +124,10 @@ void RayGen() {
 		ray,
 		payload
 	);
-
+	if (launchIndex.x == sceneParameter.xIdx && launchIndex.y == sceneParameter.yIdx) {
+		curSceneOutput.objIdx = payload.objIdx;
+		sceneOut[0] = curSceneOutput;
+	}
 	//gOutput[launchIndex] = float4(payload.radiance, 1.f);
 	payload.radiance = clamp(payload.radiance, 0.0, 100.f);
 	gOutput[launchIndex] = lerp(gOutput[launchIndex], float4(payload.radiance, 1.0f), 1.0 / (float(sceneParameter.curSampleIdx) + 1.0f));

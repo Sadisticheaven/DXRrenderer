@@ -411,7 +411,7 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 		float roughness = MaterialAttributes.roughness;
 
 		float3 wo = toWorld(localRay, N);
-		if (seed.z < (1- metallic)/(1+ clearcoat/2)) {
+		if (seed.z < (1 - metallic) / (1 + clearcoat / 2)) {
 			eval = Disney_BRDF_diffuse(wo, -wi, N, Kd, MaterialAttributes) * (1 + clearcoat / 2);
 		}
 		else if (seed.w < metallic / (metallic + clearcoat / 2)) {
@@ -491,6 +491,7 @@ float3 getLightIndirEval(float3 worldRayDirection, float3 normal, float3 hitWorl
 [shader("closesthit")]
 void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes attrib)
 {
+	payload.objIdx = InstanceIndex();
 	float3 barycentrics =
 		float3(1.f - attrib.barycentrics.x - attrib.barycentrics.y, attrib.barycentrics.x, attrib.barycentrics.y);
 	uint vertId = 3 * PrimitiveIndex();
