@@ -17,9 +17,11 @@ RWStructuredBuffer<SceneOutput> sceneOut:register(u1);
 
 [shader("raygeneration")]
 void RayGen() {
-	if (sceneParameter.curSampleIdx >= sceneParameter.maxSample)
-		return;
+
 	uint2 launchIndex = DispatchRaysIndex().xy;
+	if (sceneParameter.curSampleIdx >= sceneParameter.maxSample && !(launchIndex.x == sceneParameter.xIdx && launchIndex.y == sceneParameter.yIdx))
+		return;
+
 	PayLoad payload;
 	payload.radiance = float4(0, 0, 0, 0);
 	payload.recursionDepth = 0;
@@ -128,7 +130,8 @@ void RayGen() {
 		curSceneOutput.objIdx = payload.objIdx;
 		sceneOut[0] = curSceneOutput;
 	}
-	//gOutput[launchIndex] = float4(payload.radiance, 1.f);
+	if (sceneParameter.curSampleIdx >= sceneParameter.maxSample)
+		return;
 	payload.radiance = clamp(payload.radiance, 0.0, 100.f);
 	gOutput[launchIndex] = lerp(gOutput[launchIndex], float4(payload.radiance, 1.0f), 1.0 / (float(sceneParameter.curSampleIdx) + 1.0f));
 }
