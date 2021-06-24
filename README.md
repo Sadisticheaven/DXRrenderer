@@ -1,6 +1,6 @@
 # DXRrenderer
 ## Summary
-This is a simple DXR renderer. It currently supports the following functions:
+This is a simple DXR path tracer. It currently supports the following functions:
   1. Basic DXR pipeline.
   2. A camera with fixed a fixed position and fov.
   3. A GUI with no actual functionality related to this renderer.
