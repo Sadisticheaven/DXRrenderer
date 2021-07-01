@@ -336,7 +336,7 @@ void SceneEditor::CreateMaterialBufferAndSetAttributes(int objIndex, MaterialTyp
 	m_objects[objIndex].MaterialBuffer->Unmap(0, nullptr);
 }
 
-void SceneEditor::AllocateUploadLightBuffer()
+void SceneEditor::AllocateUploadLightAndSceneOutputBuffer()
 {
 	const UINT LightBufferSize = static_cast<UINT>(lightsInScene.size()) * sizeof(Light);
 	{
@@ -472,7 +472,7 @@ void SceneEditor::LoadAssets()
 		matrices.light_nums = 0;
 		matrices.maxSample = sqrtNum * sqrtNum;
 		//lightsInScene.push_back(lightDesc);
-		AllocateUploadLightBuffer();
+		//AllocateUploadLightBuffer();
 	}
 
 	// set origin transform
@@ -752,7 +752,7 @@ void SceneEditor::LoadAssets()
 		enviromentLightDesc.emitIntensity = m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity;
 		lightsInScene.push_back(enviromentLightDesc);
 		matrices.light_nums++;
-		AllocateUploadLightBuffer();
+		AllocateUploadLightAndSceneOutputBuffer();
 		WaitForPreviousFrame();
 	}
 }
@@ -2153,6 +2153,6 @@ void SceneEditor::UpdatesceneOutputBuffer()
 		CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
 		ThrowIfFailed(m_sceneOutputBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
 		memcpy(&m_sceneOutput, pVertexDataBegin, SceneOutputBufferSize);
-		m_lightsBuffer->Unmap(0, nullptr);
+		m_sceneOutputBuffer->Unmap(0, nullptr);
 	}
 }

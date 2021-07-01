@@ -232,6 +232,6 @@ private:
 	void UpdateLight();
 	void CreateAreaLightVerticesBuffer();
 	void UpdateAreaLightVerticesBuffer(UINT index);
-	void AllocateUploadLightBuffer();
+	void AllocateUploadLightAndSceneOutputBuffer();
 
 };
