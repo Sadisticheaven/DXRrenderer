@@ -35,6 +35,39 @@ bool canRefract(float3 v, float3 n, float ni_over_nt, inout float3 refracted) {
 	return false;
 }
 
+bool equal(float3 a, float3 b) {
+	return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+bool rayTriangleIntersect(float3 v0, float3 v1, float3 v2,
+	float3 orig, float3 dir, inout float tnear,
+	float u, float v) {
+	float3 edge1 = v1 - v0;
+	float3 edge2 = v2 - v0;
+	float3 pvec = cross(dir, edge2);
+	float det = dot(edge1, pvec);
+	if (det == 0 || det < 0)
+		return false;
+
+	float3 tvec = orig - v0;
+	u = dot(tvec, pvec);
+	if (u < 0 || u > det)
+		return false;
+
+	float3 qvec = cross(tvec, edge1);
+	v = dot(dir, qvec);
+	if (v < 0 || u + v > det)
+		return false;
+
+	float invDet = 1 / det;
+
+	tnear = dot(edge2, qvec) * invDet;
+	u *= invDet;
+	v *= invDet;
+
+	return true;
+}
+
 float m_schlick(float cosine, float ref_idx) {
 	float r0 = (1 - ref_idx) / (1 + ref_idx);
 	r0 *= r0;

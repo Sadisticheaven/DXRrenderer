@@ -171,6 +171,11 @@ float3 getLightDirEval(float3 worldRayDirection, float3 hitWorldPosition, float3
 			global_light.position1,
 			global_light.position2, };
 		float3 position = HitAttribute(vertexPosition, attrib);
+		if (equal(vertexPosition[0] - vertexPosition[1], float3(0, 0, 0)) ||
+			equal(vertexPosition[0] - vertexPosition[2], float3(0, 0, 0)) ||
+			equal(vertexPosition[1] - vertexPosition[2], float3(0, 0, 0))) {
+			return float3(0, 0, 0);
+		}
 		float3 crossProduct = cross(global_light.position0 - global_light.position1,
 			global_light.position0 - global_light.position2);
 		float3 lightNormal = normalize(crossProduct);
@@ -411,7 +416,7 @@ float3 createSampleRay(float3 wi, float3 N, inout float3 eval, float2 uv, inout 
 		float roughness = MaterialAttributes.roughness;
 
 		float3 wo = toWorld(localRay, N);
-		if (seed.z < (1- metallic)/(1+ clearcoat/2)) {
+		if (seed.z < (1 - metallic) / (1 + clearcoat / 2)) {
 			eval = Disney_BRDF_diffuse(wo, -wi, N, Kd, MaterialAttributes) * (1 + clearcoat / 2);
 		}
 		else if (seed.w < metallic / (metallic + clearcoat / 2)) {
@@ -474,8 +479,6 @@ float3 getLightIndirEval(float3 worldRayDirection, float3 normal, float3 hitWorl
 	float3 eval;
 	float3 sp_direction = createSampleRay(worldRayDirection, normal, eval, uv, seed);
 
-	//ray.origin = hitWorldPosition;
-	//ray.direction = sp_direction;
 	rayDesc.Origin = hitWorldPosition;
 	rayDesc.Direction = sp_direction;
 	rayDesc.TMin = MINIMUMDISTANCE;
@@ -491,6 +494,7 @@ float3 getLightIndirEval(float3 worldRayDirection, float3 normal, float3 hitWorl
 [shader("closesthit")]
 void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes attrib)
 {
+	payload.objIdx = InstanceIndex();
 	float3 barycentrics =
 		float3(1.f - attrib.barycentrics.x - attrib.barycentrics.y, attrib.barycentrics.x, attrib.barycentrics.y);
 	uint vertId = 3 * PrimitiveIndex();
@@ -535,26 +539,15 @@ void ClosestHit(inout PayLoad payload, BuiltInTriangleIntersectionAttributes att
 	seed = createRandomFloat4(seed);
 	float3 indirectionLightEval = getLightIndirEval(worldRayDirection, normal, hitWorldPosition, uv, rayDescForIndirLight, payload.recursionDepth, seed);
 
-	/*float3 areaLightEval = float3(0.0, 0.0, 0.0);
-	if (0 && areaLight.useAreaLight) {
-		seed = createRandomFloat4(seed);
-		areaLightEval = getLightAreaEval(worldRayDirection, normal, hitWorldPosition, uv, rayDescForAreaLight, payload.recursionDepth, seed);
-	}*/
 	float lenIndirEval = sqrt(dot(indirectionLightEval, indirectionLightEval));
 	float lenDirEval = sqrt(dot(directionLightEval, directionLightEval));
-	//float lenAreaEval = sqrt(dot(areaLightEval, areaLightEval));
-	//float sumLen = lenIndirEval + lenDirEval + lenAreaEval;
 	float sumLen = lenIndirEval + lenDirEval;
 
 	seed = createRandomFloat4(seed);
 	if (seed.z <= lenIndirEval / sumLen) {
 		sampleRadiance = CastIndirectionRay(rayDescForIndirLight, payload.recursionDepth, createRandomFloat4(seed)) * indirectionLightEval * sumLen / lenIndirEval;
 	}
-	/*else if (seed.z <= (lenIndirEval + lenDirEval) / sumLen) {
-		sampleRadiance = castDirectionRay(rayDescForDirLight) * directionLightEval * sumLen / lenDirEval;
-	}*/
 	else {
-		//sampleRadiance = castDirectionRay(rayDescForAreaLight) * areaLightEval * sumLen / lenAreaEval;
 		sampleRadiance = castDirectionRay(rayDescForDirLight) * directionLightEval * sumLen / lenDirEval;
 	}
 

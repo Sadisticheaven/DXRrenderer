@@ -61,6 +61,7 @@ struct PayLoad{
 	XMFLOAT3 radiance;
 	XMFLOAT4 seed;
 	UINT recursionDepth;
+	int objIdx;
 };
 
 struct Ray {
@@ -128,6 +129,12 @@ struct SceneConstants{
 	float curSampleIdx;
 	float maxSample;
 	UINT light_nums;
+	UINT xIdx;
+	UINT yIdx;
+};
+
+struct SceneOutput {
+	int objIdx;
 };
 
 namespace MaterialType {
