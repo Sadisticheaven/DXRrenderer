@@ -24,6 +24,7 @@ public:
 		m_left = XMVector3Normalize(XMVector3Cross(m_direction, m_up));
 	}
 
+	float m_movSpeed = 0.005f;
 	void SetEye(float x, float y, float z, float w) { m_eye = XMVectorSet(x, y, z, w); }
 	void SetEye(XMVECTOR eye) { m_eye = eye; }
 	void SetAt(float x, float y, float z, float w) { m_at = XMVectorSet(x, y, z, w); }
@@ -45,12 +46,13 @@ public:
 	XMVECTOR GetDirection() { return m_direction; }
 	float GetFov() { return m_fovAngleY; }
 
-	void MoveEyeForward();
-	void MoveEyeBackward();
-	void MoveEyeUp();
-	void MoveEyeDown();
-	void MoveEyeLeft();
-	void MoveEyeRight();
+	void MoveEyeForward(uint64_t span = 1);
+	void MoveEyeBackward(uint64_t span = 1);
+	void MoveEyeUp(uint64_t span = 1);
+	void MoveEyeDown(uint64_t span = 1);
+	void MoveEyeLeft(uint64_t span = 1);
+	void MoveEyeRight(uint64_t span = 1);
+	void SetMoveSpeed(float movSpeed);
 	void RotateAroundUp(float dx);
 	void RotateAroundLeft(float dy);
 	void ScaleFov(float d);
@@ -62,6 +64,5 @@ private:
 	XMVECTOR m_left;
 	XMVECTOR m_direction;
 	float m_fovAngleY = 45.0f * XM_PI / 180.0f;
-	float m_movSpeed = 0.1f;
 };
 

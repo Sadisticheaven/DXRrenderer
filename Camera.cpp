@@ -1,40 +1,44 @@
 #include "stdafx.h"
 #include "Camera.h"
 
-void Camera::MoveEyeForward()
+void Camera::MoveEyeForward(uint64_t span)
 {
-	m_eye += m_direction * m_movSpeed;
+	m_eye += m_direction * m_movSpeed * span;
 	m_at = m_eye + m_direction;
 }
 
-void Camera::MoveEyeBackward()
+void Camera::MoveEyeBackward(uint64_t span)
 {
-	m_eye -= m_direction * m_movSpeed;
+	m_eye -= m_direction * m_movSpeed * span;
 	m_at = m_eye + m_direction;
 }
 
-void Camera::MoveEyeUp()
+void Camera::MoveEyeUp(uint64_t span)
 {
-	m_eye += m_up * m_movSpeed;
+	m_eye += m_up * m_movSpeed * span;
 	m_at = m_eye + m_direction;
 }
 
-void Camera::MoveEyeDown()
+void Camera::MoveEyeDown(uint64_t span)
 {
-	m_eye -= m_up * m_movSpeed;
+	m_eye -= m_up * m_movSpeed * span;
 	m_at = m_eye + m_direction;
 }
 
-void Camera::MoveEyeLeft()
+void Camera::MoveEyeLeft(uint64_t span)
 {
-	m_eye += m_left * m_movSpeed;
+	m_eye += m_left * m_movSpeed * span;
 	m_at = m_eye + m_direction;
 }
 
-void Camera::MoveEyeRight()
+void Camera::MoveEyeRight(uint64_t span)
 {
-	m_eye -= m_left * m_movSpeed;
+	m_eye -= m_left * m_movSpeed * span;
 	m_at = m_eye + m_direction;
+}
+
+void Camera::SetMoveSpeed(float movSpeed) {
+	m_movSpeed = movSpeed;
 }
 
 void Camera::RotateAroundUp(float dx) {

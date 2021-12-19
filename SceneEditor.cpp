@@ -402,7 +402,7 @@ void SceneEditor::LoadAssets()
 
 		// use sphere to simulate point light 
 		model.meshes.clear();
-		model.meshes.push_back(CreateGeosphere(30.f, 2));
+		model.meshes.push_back(CreateGeosphere(30.f, 1));
 		// inverse the normal, so light can through the shpere like a bulb
 		for (int i = 0; i < model.meshes.size(); ++i) {
 			for (int j = 0; j < model.meshes[i].vertices.size(); ++j) {
@@ -922,6 +922,11 @@ void SceneEditor::LoadAssets()
 		matrices.light_nums++;
 		AllocateUploadLightAndSceneOutputBuffer();
 		WaitForPreviousFrame();
+	}
+
+	{
+		m_camera_state = CameraState::CAMERA_STATIC;
+		m_camera.SetMoveSpeed(pow(m_camera_mov_speed, 4));
 	}
 }
 
@@ -1723,11 +1728,50 @@ void SceneEditor::UpadteMaterialParameter(int bufferIndex) {
 //--------------------------------------------------------------------------------
 // Create and copies the viewmodel and perspective matrices of the camera
 //
+
 void SceneEditor::UpdateSceneParametersBuffer() {
 	// Initialize the view matrix, ideally this should be based on user
 	// interactions The lookat and perspective matrices used for rasterization are
 	// defined to transform world-space vertices into a [0,1]x[0,1]x[0,1] camera
 	// space
+
+	struct timeb rawtime;
+	ftime(&rawtime);
+	uint64_t cur_time_stamp = rawtime.time * 1000 + rawtime.millitm;
+	uint64_t time_stamp_dif = 0;
+	if (last_frame_time != 0)
+		time_stamp_dif = cur_time_stamp - last_frame_time;
+	last_frame_time = cur_time_stamp;
+
+	switch (m_camera_state)
+	{
+	case SceneEditor::CAMERA_STATIC:
+		goto finish;
+		break;
+	case SceneEditor::CAMERA_MOVE_FORWARD:
+		m_camera.MoveEyeForward(time_stamp_dif);
+		break;
+	case SceneEditor::CAMERA_MOVE_BACKWARD:
+		m_camera.MoveEyeBackward(time_stamp_dif);
+		break;
+	case SceneEditor::CAMERA_MOVE_UP:
+		m_camera.MoveEyeUp(time_stamp_dif);
+		break;
+	case SceneEditor::CAMERA_MOVE_DOWN:
+		m_camera.MoveEyeDown(time_stamp_dif);
+		break;
+	case SceneEditor::CAMERA_MOVE_LEFT:
+		m_camera.MoveEyeLeft(time_stamp_dif);
+		break;
+	case SceneEditor::CAMERA_MOVE_RIGHT:
+		m_camera.MoveEyeRight(time_stamp_dif);
+		break;
+	default:
+		break;
+	}
+	OnResetSpp();
+
+finish:
 	matrices.view = XMMatrixLookAtLH(m_camera.GetEye(), m_camera.GetAt(), m_camera.GetUp());
 
 	matrices.projection =
@@ -1813,33 +1857,31 @@ void SceneEditor::OnMouseMove(WPARAM btnState, int x, int y)
 	m_lastMousePos.y = y;
 }
 
+void SceneEditor::OnKeyUp(UINT8 key) {
+	m_camera_state = CameraState::CAMERA_STATIC;
+}
+
 void SceneEditor::OnKeyDown(UINT8 key)
 {
 	switch (key)
 	{
 	case 'W':
-		m_camera.MoveEyeForward();
-		OnResetSpp();
+		m_camera_state = CameraState::CAMERA_MOVE_FORWARD;
 		break;
 	case 'S':
-		m_camera.MoveEyeBackward();
-		OnResetSpp();
+		m_camera_state = CameraState::CAMERA_MOVE_BACKWARD;
 		break;
 	case 'A':
-		m_camera.MoveEyeLeft();
-		OnResetSpp();
+		m_camera_state = CameraState::CAMERA_MOVE_LEFT;
 		break;
 	case 'D':
-		m_camera.MoveEyeRight();
-		OnResetSpp();
+		m_camera_state = CameraState::CAMERA_MOVE_RIGHT;
 		break;
 	case 'Q':
-		m_camera.MoveEyeUp();
-		OnResetSpp();
+		m_camera_state = CameraState::CAMERA_MOVE_UP;
 		break;
 	case 'E':
-		m_camera.MoveEyeDown();
-		OnResetSpp();
+		m_camera_state = CameraState::CAMERA_MOVE_DOWN;
 		break;
 	case 'R':
 		OnResetSpp();
@@ -2018,9 +2060,19 @@ void SceneEditor::StartImgui()
 			}
 		}
 	}
-	if (ImGui::SliderInt("SqrtNum", &sqrtNum, 1, 100)) {
-		matrices.maxSample = sqrtNum * sqrtNum;
-		OnResetSpp();
+	ImGui::Text("Render quality:");
+	{
+		if (ImGui::SliderInt("Sqrt number", &sqrtNum, 1, 100)) {
+			matrices.maxSample = sqrtNum * sqrtNum;
+			OnResetSpp();
+		}
+	}
+
+	ImGui::Text("Camera control:");
+	{
+		if (ImGui::SliderFloat("Move speed", &m_camera_mov_speed, 0.f, 0.5f)) {
+			m_camera.SetMoveSpeed(pow(m_camera_mov_speed, 4));
+		}
 	}
 
 	ImGui::Text("Global Light:");

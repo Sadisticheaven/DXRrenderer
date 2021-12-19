@@ -49,6 +49,7 @@ public:
 	virtual void OnMouseDown(WPARAM btnState, int x, int y);
 	virtual void OnMouseUp(WPARAM btnState, int x, int y);
 	virtual void OnMouseMove(WPARAM btnState, int x, int y);
+	virtual void OnKeyUp(UINT8 key);
 	virtual void OnKeyDown(UINT8 key);
 	virtual void OnResetSpp() { needRefreshScreen = true; }
 	virtual void StartImgui();
@@ -199,6 +200,19 @@ private:
 	ComPtr<ID3D12Resource> m_sceneParameterBuffer;
 	ComPtr<ID3D12DescriptorHeap> m_constHeap;
 	uint32_t m_sceneParameterBufferSize = 0;
+	uint64_t last_frame_time = 0;
+	enum CameraState
+	{
+		CAMERA_STATIC = 0,
+		CAMERA_MOVE_FORWARD,
+		CAMERA_MOVE_BACKWARD,
+		CAMERA_MOVE_UP,
+		CAMERA_MOVE_DOWN,
+		CAMERA_MOVE_LEFT,
+		CAMERA_MOVE_RIGHT
+	};
+	float m_camera_mov_speed = 0.2f;
+	CameraState m_camera_state;
 	Camera m_camera;
 	POINT m_lastMousePos;
 
