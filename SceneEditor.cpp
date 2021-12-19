@@ -402,7 +402,7 @@ void SceneEditor::LoadAssets()
 
 		// use sphere to simulate point light 
 		model.meshes.clear();
-		model.meshes.push_back(CreateGeosphere(15.f, 1));
+		model.meshes.push_back(CreateGeosphere(30.f, 2));
 		// inverse the normal, so light can through the shpere like a bulb
 		for (int i = 0; i < model.meshes.size(); ++i) {
 			for (int j = 0; j < model.meshes[i].vertices.size(); ++j) {
@@ -651,7 +651,7 @@ void SceneEditor::LoadAssets()
 					m_objects[m_idxOfObj[filename]].texOfObj = m_idxOfTex[Id_to_Material[ref].second];
 			}
 		}
-		
+
 		/* 以下为旧版本素材读取
 		PrimitiveMaterialBuffer Dirt;
 		PrimitiveMaterialBuffer Floor;
@@ -913,7 +913,7 @@ void SceneEditor::LoadAssets()
 		enviromentLightDesc.transfer = m_objects[m_idxOfObj["Enviroment light"]].originTransform;
 		enviromentLightDesc.meshNum = m_objects[m_idxOfObj["Enviroment light"]].indexCount / 3;
 		enviromentLightDesc.area = m_objects[m_idxOfObj["Enviroment light"]].surfaceArea;
-		m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity = 5.f;
+		m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity = 1.f;
 		m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.useDiffuseTexture = true;
 		m_objects[m_idxOfObj["Enviroment light"]].texOfObj = m_idxOfTex["sky"];
 		UpadteMaterialParameter(m_idxOfObj["Enviroment light"]);

@@ -191,4 +191,15 @@
       <Filter>Header Files</Filter>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Hit.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Miss.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="RayGen.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
 </Project>
