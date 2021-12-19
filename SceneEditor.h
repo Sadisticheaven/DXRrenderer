@@ -25,6 +25,7 @@
 #include <memory>
 #include <string.h>
 #include <unordered_map>
+#include <map>
 using namespace DirectX;
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,

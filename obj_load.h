@@ -486,9 +486,9 @@ Mesh processMesh(aiMesh* mesh, const aiScene* scene)
 			// 检索面的所有索引并将它们存储在索引向量中
 			std::vector<Index> tmpIndex;
 			for (unsigned int j = 0; j < face.mNumIndices; ++j) {
-				indices.push_back(face.mIndices[j]);	
+				indices.push_back(face.mIndices[j]);
 				tmpIndex.push_back(face.mIndices[j]);
-			}		
+			}
 			XMFLOAT3 normal = GenTriNormal(vertices[tmpIndex[0]].position, vertices[tmpIndex[1]].position, vertices[tmpIndex[2]].position);
 			XMFLOAT3 cross;
 			XMStoreFloat3(&cross, XMVector3Length(XMLoadFloat3(&normal)));
@@ -498,9 +498,9 @@ Mesh processMesh(aiMesh* mesh, const aiScene* scene)
 				XMFLOAT3 newNormal = normal + preNormal;
 				DirectX::XMStoreFloat3(&vertices[tmpIndex[j]].normal, XMVector3Normalize(XMLoadFloat3(&newNormal)));
 			}
-		}	
+		}
 	}
-	
+
 	//// 加工材料
 	//aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 	//// 我们假设着色器中的采样器名称约定。 每个漫反射纹理应命名为'texture_diffuseN'，其中N是从1到MAX_SAMPLER_NUMBER的序列号。
@@ -534,7 +534,7 @@ Mesh processMesh(aiMesh* mesh, const aiScene* scene)
 	return tmpMesh;
 }
 // 以递归方式处理节点。 处理位于节点处的每个单独网格，并在其子节点（如果有）上重复此过程。
-void processNode(aiNode* node, const aiScene* scene, std::vector<Mesh> &meshes)
+void processNode(aiNode* node, const aiScene* scene, std::vector<Mesh>& meshes)
 {
 	// 处理位于当前节点的每个网格
 	for (unsigned int i = 0; i < node->mNumMeshes; i++)
@@ -551,7 +551,7 @@ void processNode(aiNode* node, const aiScene* scene, std::vector<Mesh> &meshes)
 	}
 }
 
-bool LoadModelFile(std::string Path, Model &model) {
+bool LoadModelFile(std::string Path, Model& model) {
 	// 通过ASSIMP读文件
 	Assimp::Importer importer;
 	Model tmpModel;
@@ -631,4 +631,26 @@ void getFiles(std::string path, std::string exd, std::vector<std::string>& files
 		} while (_findnext(hFile, &fileinfo) == 0);
 		_findclose(hFile);
 	}
+}
+
+std::vector<std::string> Split(const std::string& str, const std::string& pattern)
+{
+	//const char* convert to char*
+	char* strc = new char[strlen(str.c_str()) + 1];
+	strcpy(strc, str.c_str());
+	std::vector<std::string> resultVec;
+	char* tmpStr = strtok(strc, pattern.c_str());
+	while (tmpStr != NULL)
+	{
+		resultVec.push_back(std::string(tmpStr));
+		tmpStr = strtok(NULL, pattern.c_str());
+	}
+
+	delete[] strc;
+
+	return resultVec;
+}
+
+std::string GetFileName(std::string path) {
+	return *Split(*Split(path, ".").begin(), "\\/").rbegin();
 }

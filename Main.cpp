@@ -8,7 +8,7 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
-
+#define _CRT_SECURE_NO_WARNINGS
 #include "stdafx.h"
 //#include "D3D12HelloTriangle.h"
 #include "SceneEditor.h"

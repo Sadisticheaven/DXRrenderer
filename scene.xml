@@ -16,7 +16,7 @@
 		<film type="ldrfilm" >
 			<integer name="width" value="1280" />
 			<integer name="height" value="720" />
-			<string name="fileFormat" value="png" />
+			<string name="fileFormat" value="dds" />
 			<string name="pixelFormat" value="rgb" />
 			<float name="gamma" value="2.2" />
 			<boolean name="banner" value="false" />
@@ -36,7 +36,7 @@
 			<float name="extIOR" value="1" />
 			<boolean name="nonlinear" value="true" />
 			<texture name="diffuseReflectance" type="bitmap" >
-				<string name="filename" value="textures/wood.jpg" />
+				<string name="filename" value="textures/wood.dds" />
 				<string name="filterType" value="trilinear" />
 			</texture>
 		</bsdf>
@@ -49,7 +49,7 @@
 			<float name="extIOR" value="1" />
 			<boolean name="nonlinear" value="true" />
 			<texture name="diffuseReflectance" type="bitmap" >
-				<string name="filename" value="textures/wood5.jpg" />
+				<string name="filename" value="textures/wood5.dds" />
 				<string name="filterType" value="trilinear" />
 			</texture>
 		</bsdf>
@@ -102,7 +102,7 @@
 	<bsdf type="twosided" id="Painting" >
 		<bsdf type="diffuse" >
 			<texture name="reflectance" type="bitmap" >
-				<string name="filename" value="textures/picture8.jpg" />
+				<string name="filename" value="textures/picture8.dds" />
 				<string name="filterType" value="trilinear" />
 			</texture>
 		</bsdf>
@@ -134,13 +134,13 @@
 	</bsdf>
 	<bsdf type="mask" id="Leaves" >
 		<texture name="opacity" type="bitmap" >
-			<string name="filename" value="textures/leaf.png" />
+			<string name="filename" value="textures/leaf.dds" />
 			<string name="filterType" value="trilinear" />
 		</texture>
 		<bsdf type="twosided" >
 			<bsdf type="diffuse" >
 				<texture name="reflectance" type="bitmap" >
-					<string name="filename" value="textures/leaf.png" />
+					<string name="filename" value="textures/leaf.dds" />
 					<string name="filterType" value="trilinear" />
 				</texture>
 			</bsdf>
@@ -631,6 +631,6 @@
 		<transform name="toWorld" >
 			<matrix value="-4.37114e-008 0 1 0 0 1 0 0 -1 0 -4.37114e-008 0 0 0 0 1"/>
 		</transform>
-		<string name="filename" value="textures/Sky 19.exr" />
+		<string name="filename" value="textures/sky.dds" />
 	</emitter>
 </scene>

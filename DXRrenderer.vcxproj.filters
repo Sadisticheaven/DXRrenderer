@@ -104,6 +104,7 @@
     </ClInclude>
     <ClInclude Include="pch.h" />
     <ClInclude Include="DDSTextureLoader.h" />
+    <ClInclude Include="tinyxml2.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -165,6 +166,7 @@
     </ClCompile>
     <ClCompile Include="DDSTextureLoader.cpp" />
     <ClCompile Include="Model.cpp" />
+    <ClCompile Include="tinyxml2.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cornellbox\floor.obj">

@@ -147,6 +147,7 @@
     <ClInclude Include="obj_load.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="SceneEditor.h" />
+    <ClInclude Include="tinyxml2.h" />
     <ClInclude Include="Win32Application.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DXSample.h" />
@@ -202,6 +203,7 @@
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <ClCompile Include="SceneEditor.cpp" />
+    <ClCompile Include="tinyxml2.cpp" />
     <ClCompile Include="Win32Application.cpp" />
     <ClCompile Include="DXSample.cpp" />
     <ClCompile Include="Main.cpp" />

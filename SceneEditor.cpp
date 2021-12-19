@@ -16,6 +16,7 @@
 #include "nv_helpers_dx12/BottomLevelASGenerator.h"
 #include "nv_helpers_dx12/RaytracingPipelineGenerator.h"  
 #include "nv_helpers_dx12/RootSignatureGenerator.h"
+#include "tinyxml2.h"
 
 #include <DDSTextureLoader.h>
 
@@ -401,7 +402,7 @@ void SceneEditor::LoadAssets()
 
 		// use sphere to simulate point light 
 		model.meshes.clear();
-		model.meshes.push_back(CreateGeosphere(15.f, 3));
+		model.meshes.push_back(CreateGeosphere(15.f, 1));
 		// inverse the normal, so light can through the shpere like a bulb
 		for (int i = 0; i < model.meshes.size(); ++i) {
 			for (int j = 0; j < model.meshes[i].vertices.size(); ++j) {
@@ -484,10 +485,174 @@ void SceneEditor::LoadAssets()
 
 	//  Modify  material of obj specified
 	{
-		auto Float4Multi = [&](const float& f, const XMFLOAT4 vec3) {
-			return XMFLOAT4(f * vec3.x, f * vec3.y, f * vec3.z, 0.0f);
-		};
 
+		std::map<std::string, std::pair<PrimitiveMaterialBuffer, std::string>> Id_to_Material;
+		tinyxml2::XMLDocument doc;
+		if (doc.LoadFile("scene.xml") != 0)
+		{
+			exit(-1);
+		}
+		tinyxml2::XMLElement* root = doc.RootElement();
+		tinyxml2::XMLElement* sensor = root->FirstChildElement("sensor");
+		tinyxml2::XMLElement* bsdf_l1 = root->FirstChildElement("bsdf");
+		tinyxml2::XMLElement* shape = root->FirstChildElement("shape");
+		tinyxml2::XMLElement* emitter = root->FirstChildElement("emitter");
+
+		for (; bsdf_l1 != nullptr; bsdf_l1 = bsdf_l1->NextSiblingElement("bsdf")) {
+			std::string bsdf_l1_type = bsdf_l1->Attribute("type");
+			std::string id = bsdf_l1->Attribute("id");
+			Id_to_Material[id] = std::pair<PrimitiveMaterialBuffer, std::string>();
+			Id_to_Material[id].second = "None Texture";
+			if (bsdf_l1_type == "twosided") {
+				tinyxml2::XMLElement* bsdf = bsdf_l1->FirstChildElement("bsdf");
+				std::string type = bsdf->Attribute("type");
+#define FOR_BSDF_ELEMENT(ELE, ELENAME) for(tinyxml2::XMLElement* ELE = bsdf->FirstChildElement(ELENAME); ELE; ELE = ELE->NextSiblingElement(ELENAME))
+				if (type == "conductor") {// Mirror
+					Id_to_Material[id].first.type = MaterialType::Mirror;
+					Id_to_Material[id].first.Kd = XMFLOAT4(1.0, 1.0, 1.0, 0.0);
+					Id_to_Material[id].first.smoothness = 2.0f;
+				}
+				else if (type == "diffuse") {
+					Id_to_Material[id].first.type = MaterialType::Lambert;
+					FOR_BSDF_ELEMENT(rgb, "rgb") {
+						if (strcmp(rgb->Attribute("name"), "reflectance") == 0) {
+							auto vecs = Split(rgb->Attribute("value"), ",");
+							std::vector<float> vecf(4, 0);
+							for (int i = 0; i < 4 && i < vecs.size(); ++i)
+								vecf[i] = std::stof(vecs[i]);
+							Id_to_Material[id].first.Kd = XMFLOAT4(vecf[0], vecf[1], vecf[2], vecf[3]);
+						}
+					}
+				}
+				else if (type == "roughconductor") {
+					Id_to_Material[id].first.type = MaterialType::Disney_BRDF;
+					Id_to_Material[id].first.metallic = 0.8;
+					Id_to_Material[id].first.clearcoat = 0.8;
+					FOR_BSDF_ELEMENT(rgb, "rgb") {
+						if (strcmp(rgb->Attribute("name"), "eta") == 0) {
+							auto vecs = Split(rgb->Attribute("value"), ",");
+							std::vector<float> vecf(4, 0);
+							for (int i = 0; i < 4 && i < vecs.size(); ++i)
+								vecf[i] = std::stof(vecs[i]);
+						}
+						else if (strcmp(rgb->Attribute("name"), "k") == 0) {
+							auto vecs = Split(rgb->Attribute("value"), ",");
+							std::vector<float> vecf(4, 0);
+							for (int i = 0; i < 4 && i < vecs.size(); ++i)
+								vecf[i] = std::stof(vecs[i]);
+							Id_to_Material[id].first.Kd = XMFLOAT4(vecf[0] / 10, vecf[1] / 10, vecf[2] / 10, vecf[3] / 10);
+						}
+						else if (strcmp(rgb->Attribute("name"), "specularReflectance") == 0) {
+							auto vecs = Split(rgb->Attribute("value"), ",");
+							std::vector<float> vecf(4, 0);
+							for (int i = 0; i < 4 && i < vecs.size(); ++i)
+								vecf[i] = std::stof(vecs[i]);
+						}
+					}
+					FOR_BSDF_ELEMENT(num, "float") {
+						if (strcmp(num->Attribute("name"), "alpha") == 0) {
+							float alpha = std::stof(num->Attribute("value"));
+							Id_to_Material[id].first.roughness = alpha;
+						}
+					}
+				}
+				else if (type == "roughdiffuse") {
+					Id_to_Material[id].first.type = MaterialType::Disney_BRDF;
+					FOR_BSDF_ELEMENT(rgb, "rgb") {
+						if (strcmp(rgb->Attribute("name"), "reflectance") == 0) {
+							auto vecs = Split(rgb->Attribute("value"), ",");
+							std::vector<float> vecf(4, 0);
+							for (int i = 0; i < 4 && i < vecs.size(); ++i)
+								vecf[i] = std::stof(vecs[i]);
+							Id_to_Material[id].first.Kd = XMFLOAT4(vecf[0] / 10, vecf[1] / 10, vecf[2] / 10, vecf[3] / 10);
+						}
+					}
+					FOR_BSDF_ELEMENT(num, "float") {
+						if (strcmp(num->Attribute("name"), "alpha") == 0) {
+							float alpha = std::stof(num->Attribute("value"));
+						}
+					}
+				}
+				else if (type == "roughplastic") {
+					Id_to_Material[id].first.type = MaterialType::Disney_BRDF;
+					FOR_BSDF_ELEMENT(rgb, "rgb") {
+						if (strcmp(rgb->Attribute("name"), "diffuseReflectance") == 0) {
+							auto vecs = Split(rgb->Attribute("value"), ", ");
+							std::vector<float> vecf(4, 0);
+							for (int i = 0; i < 4 && i < vecs.size(); ++i) {
+								vecf[i] = std::stof(vecs[i]);
+							}
+							Id_to_Material[id].first.Kd = XMFLOAT4(vecf[0], vecf[1], vecf[2], vecf[3]);
+						}
+					}
+					FOR_BSDF_ELEMENT(num, "float") {
+						if (strcmp(num->Attribute("name"), "alpha") == 0) {
+							float alpha = std::stof(num->Attribute("value"));
+							Id_to_Material[id].first.roughness = alpha;
+						}
+					}
+				}
+				tinyxml2::XMLElement* texture = bsdf->FirstChildElement("texture");
+				if (texture) {
+					for (tinyxml2::XMLElement* val = texture->FirstChildElement("string"); val; val = val->NextSiblingElement("string")) {
+						if (strcmp(val->Attribute("name"), "filename") == 0) {
+							std::string filename = GetFileName(val->Attribute("value"));
+							Id_to_Material[id].first.useDiffuseTexture = true;
+							Id_to_Material[id].second = filename;
+						}
+					}
+				}
+			}
+			else if (bsdf_l1_type == "dielectric") {
+				Id_to_Material[id].first.type = MaterialType::Glass;
+				Id_to_Material[id].first.index_of_refraction = 1.0f;
+				Id_to_Material[id].first.smoothness = 2.0f;
+				Id_to_Material[id].first.Kd = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+				for (tinyxml2::XMLElement* val = bsdf_l1->FirstChildElement("float"); val; val = val->NextSiblingElement("float")) {
+					if (strcmp(val->Attribute("name"), "intIOR") == 0) {
+						Id_to_Material[id].first.index_of_refraction *= std::stof(val->Attribute("value"));
+					}
+					else if (strcmp(val->Attribute("name"), "extIOR") == 0) {
+						Id_to_Material[id].first.index_of_refraction /= std::stof(val->Attribute("value"));
+					}
+				}
+			}
+			else if (bsdf_l1_type == "mask") {
+				tinyxml2::XMLElement* texture = bsdf_l1->FirstChildElement("texture");
+				if (texture) {
+					for (tinyxml2::XMLElement* val = texture->FirstChildElement("string"); val; val = val->NextSiblingElement("string")) {
+						if (strcmp(val->Attribute("name"), "filename") == 0) {
+							std::string filename = GetFileName(val->Attribute("value"));
+							Id_to_Material[id].first.useDiffuseTexture = true;
+							Id_to_Material[id].second = filename;
+						}
+					}
+				}
+			}
+		}
+		for (; shape != nullptr; shape = shape->NextSiblingElement("shape")) {
+			if (strcmp(shape->Attribute("type"), "obj") == 0) {
+				std::string filename = GetFileName(shape->FirstChildElement("string")->Attribute("value"));
+				std::string ref = shape->FirstChildElement("ref")->Attribute("id");
+
+				tinyxml2::XMLElement* transform = shape->FirstChildElement("transform")->FirstChildElement("matrix");
+				std::vector<std::string> to_world_matrix_s = Split(transform->Attribute("value"), ", ");
+
+				std::vector<float> to_world_matrix(to_world_matrix_s.size());
+				for (int i = 0; i < to_world_matrix_s.size(); ++i)
+					to_world_matrix[i] = std::stof(to_world_matrix_s[i]);
+#define C_MATRIX0 to_world_matrix[0], to_world_matrix[1], to_world_matrix[2], to_world_matrix[3] 
+#define C_MATRIX1 C_MATRIX0,to_world_matrix[4], to_world_matrix[5], to_world_matrix[6], to_world_matrix[7] 
+#define C_MATRIX2 C_MATRIX1,to_world_matrix[8], to_world_matrix[9], to_world_matrix[10], to_world_matrix[11] 
+#define C_MATRIX3 C_MATRIX2,to_world_matrix[12], to_world_matrix[13], to_world_matrix[14], to_world_matrix[15] 
+				m_objects[m_idxOfObj[filename]].materialAttributes = Id_to_Material[ref].first;
+				m_objects[m_idxOfObj[filename]].originTransform = XMMatrixSet(C_MATRIX3);
+				if (m_idxOfTex.count(Id_to_Material[ref].second))
+					m_objects[m_idxOfObj[filename]].texOfObj = m_idxOfTex[Id_to_Material[ref].second];
+			}
+		}
+		
+		/* 以下为旧版本素材读取
 		PrimitiveMaterialBuffer Dirt;
 		PrimitiveMaterialBuffer Floor;
 		PrimitiveMaterialBuffer TableWood;
@@ -716,7 +881,8 @@ void SceneEditor::LoadAssets()
 		m_objects[m_idxOfObj["Mesh037"]].materialAttributes = TableWood;
 		m_objects[m_idxOfObj["Mesh037"]].texOfObj = m_idxOfTex["wood5"];
 		m_objects[m_idxOfObj["Mesh031"]].materialAttributes = TableWood;
-		m_objects[m_idxOfObj["Mesh031"]].texOfObj = m_idxOfTex["wood5"];
+		m_objects[m_idxOfObj["Mesh031"]].texOfObj = m_idxOfTex["wood5"];*/
+
 
 		for (int i = 0; i < m_objects.size(); ++i) {
 			UpadteMaterialParameter(i);
@@ -747,7 +913,9 @@ void SceneEditor::LoadAssets()
 		enviromentLightDesc.transfer = m_objects[m_idxOfObj["Enviroment light"]].originTransform;
 		enviromentLightDesc.meshNum = m_objects[m_idxOfObj["Enviroment light"]].indexCount / 3;
 		enviromentLightDesc.area = m_objects[m_idxOfObj["Enviroment light"]].surfaceArea;
-		m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity = 1.f;
+		m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity = 5.f;
+		m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.useDiffuseTexture = true;
+		m_objects[m_idxOfObj["Enviroment light"]].texOfObj = m_idxOfTex["sky"];
 		UpadteMaterialParameter(m_idxOfObj["Enviroment light"]);
 		enviromentLightDesc.emitIntensity = m_objects[m_idxOfObj["Enviroment light"]].materialAttributes.emitIntensity;
 		lightsInScene.push_back(enviromentLightDesc);
